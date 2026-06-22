@@ -1,7 +1,9 @@
 {
   "common": {
-    "appName": "MessFlow Pro",
-    "tagline": "স্মার্ট মেস ও হোস্টেল ম্যানেজমেন্ট",
+    "appName": "BornoMess Manager",
+    "tagline": "বর্ণোসফটের স্মার্ট মেস ও হোস্টেল ম্যানেজমেন্ট সমাধান",
+    "productOf": "বর্ণোসফটের একটি পণ্য",
+    "companyName": "BornoSoft",
     "getStarted": "বিনামূল্যে শুরু করুন",
     "login": "লগইন",
     "register": "নিবন্ধন",
@@ -15,7 +17,9 @@
     "search": "খুঁজুন",
     "loading": "লোড হচ্ছে...",
     "viewPricing": "মূল্য দেখুন",
-    "learnMore": "আরও জানুন"
+    "learnMore": "আরও জানুন",
+    "privacy": "গোপনীয়তা",
+    "terms": "শর্তাবলী"
   },
   "nav": {
     "features": "বৈশিষ্ট্য",
@@ -319,8 +323,8 @@
     "toggleSidebar": "সাইডবার টগল"
   },
   "portal": {
-    "brand": "MessFlow Pro",
-    "subtitle": "পোর্টাল",
+    "brand": "BornoMess Manager",
+    "subtitle": "বর্ণোসফট",
     "portalDashboard": "পোর্টাল ড্যাশবোর্ড",
     "createMess": "মেস তৈরি",
     "joinMess": "মেসে যোগ দিন",
@@ -415,6 +419,32 @@
     "reject": "প্রত্যাখ্যান",
     "approveSuccess": "সদস্য অনুমোদিত",
     "rejectSuccess": "যোগদানের অনুরোধ প্রত্যাখ্যান হয়েছে"
+  },
+  "superAdmin": {
+    "brand": "BornoMess Manager",
+    "subtitle": "সুপার অ্যাডমিন",
+    "dashboard": "ড্যাশবোর্ড",
+    "users": "ব্যবহারকারী",
+    "messes": "মেস",
+    "subscriptions": "সাবস্ক্রিপশন",
+    "payments": "পেমেন্ট",
+    "paymentMethods": "পেমেন্ট মেথড",
+    "plans": "প্ল্যান",
+    "coupons": "কুপন",
+    "referrals": "রেফারেল",
+    "support": "সাপোর্ট টিকেট",
+    "announcements": "ঘোষণা",
+    "analytics": "বিশ্লেষণ",
+    "auditLogs": "অডিট লগ",
+    "settings": "সিস্টেম সেটিংস",
+    "database": "ডাটাবেস মনিটর",
+    "featureFlags": "ফিচার ফ্ল্যাগ",
+    "backups": "ব্যাকআপ ম্যানেজার",
+    "api": "API ব্যবস্থাপনা",
+    "emailTemplates": "ইমেইল টেমপ্লেট",
+    "notificationTemplates": "নোটিফিকেশন টেমপ্লেট",
+    "security": "নিরাপত্তা কেন্দ্র",
+    "profile": "প্রোফাইল"
   },
   "mobileNav": {
     "mainNavigation": "প্রধান নেভিগেশন",

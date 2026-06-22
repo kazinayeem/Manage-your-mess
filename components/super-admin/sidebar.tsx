@@ -1,6 +1,7 @@
 "use client";
 
 import { Link, usePathname } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -12,7 +13,6 @@ import {
   Layers,
   Ticket,
   Gift,
-  UserPlus,
   LifeBuoy,
   Megaphone,
   BarChart3,
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useMobileSidebar } from "@/hooks/use-mobile-sidebar";
 import {
   MOBILE_MENU_BTN,
@@ -41,33 +42,36 @@ import {
 } from "@/lib/layout-classes";
 
 const navItems = [
-  { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/super-admin/users", label: "Users", icon: Users },
-  { href: "/super-admin/messes", label: "Messes", icon: Building2 },
-  { href: "/super-admin/subscriptions", label: "Subscriptions", icon: CreditCard },
-  { href: "/super-admin/payments", label: "Payments", icon: Wallet },
-  { href: "/super-admin/payment-methods", label: "Payment Methods", icon: Smartphone },
-  { href: "/super-admin/plans", label: "Plans", icon: Layers },
-  { href: "/super-admin/coupons", label: "Coupons", icon: Ticket },
-  { href: "/super-admin/referrals", label: "Referrals", icon: Gift },
-  { href: "/super-admin/support", label: "Support Tickets", icon: LifeBuoy },
-  { href: "/super-admin/announcements", label: "Announcements", icon: Megaphone },
-  { href: "/super-admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/super-admin/audit-logs", label: "Audit Logs", icon: ScrollText },
-  { href: "/super-admin/settings", label: "System Settings", icon: Settings },
-  { href: "/super-admin/database", label: "Database Monitor", icon: Database },
-  { href: "/super-admin/feature-flags", label: "Feature Flags", icon: Flag },
-  { href: "/super-admin/backups", label: "Backup Manager", icon: HardDrive },
-  { href: "/super-admin/api", label: "API Management", icon: Plug },
-  { href: "/super-admin/email-templates", label: "Email Templates", icon: Mail },
-  { href: "/super-admin/notification-templates", label: "Notification Templates", icon: Bell },
-  { href: "/super-admin/security", label: "Security Center", icon: Shield },
-  { href: "/super-admin/profile", label: "Profile", icon: User },
-];
+  { href: "/super-admin", labelKey: "dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/super-admin/users", labelKey: "users", icon: Users },
+  { href: "/super-admin/messes", labelKey: "messes", icon: Building2 },
+  { href: "/super-admin/subscriptions", labelKey: "subscriptions", icon: CreditCard },
+  { href: "/super-admin/payments", labelKey: "payments", icon: Wallet },
+  { href: "/super-admin/payment-methods", labelKey: "paymentMethods", icon: Smartphone },
+  { href: "/super-admin/plans", labelKey: "plans", icon: Layers },
+  { href: "/super-admin/coupons", labelKey: "coupons", icon: Ticket },
+  { href: "/super-admin/referrals", labelKey: "referrals", icon: Gift },
+  { href: "/super-admin/support", labelKey: "support", icon: LifeBuoy },
+  { href: "/super-admin/announcements", labelKey: "announcements", icon: Megaphone },
+  { href: "/super-admin/analytics", labelKey: "analytics", icon: BarChart3 },
+  { href: "/super-admin/audit-logs", labelKey: "auditLogs", icon: ScrollText },
+  { href: "/super-admin/settings", labelKey: "settings", icon: Settings },
+  { href: "/super-admin/database", labelKey: "database", icon: Database },
+  { href: "/super-admin/feature-flags", labelKey: "featureFlags", icon: Flag },
+  { href: "/super-admin/backups", labelKey: "backups", icon: HardDrive },
+  { href: "/super-admin/api", labelKey: "api", icon: Plug },
+  { href: "/super-admin/email-templates", labelKey: "emailTemplates", icon: Mail },
+  { href: "/super-admin/notification-templates", labelKey: "notificationTemplates", icon: Bell },
+  { href: "/super-admin/security", labelKey: "security", icon: Shield },
+  { href: "/super-admin/profile", labelKey: "profile", icon: User },
+] as const;
 
 export function SuperAdminSidebar() {
   const pathname = usePathname();
   const { open, toggle, close } = useMobileSidebar();
+  const t = useTranslations("superAdmin");
+  const tCommon = useTranslations("common");
+  const tSidebar = useTranslations("sidebar");
 
   return (
     <>
@@ -75,7 +79,7 @@ export function SuperAdminSidebar() {
         type="button"
         className={MOBILE_MENU_BTN}
         onClick={toggle}
-        aria-label="Toggle sidebar"
+        aria-label={tSidebar("toggleSidebar")}
         aria-expanded={open}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -84,20 +88,25 @@ export function SuperAdminSidebar() {
       <aside className={sidebarAsideClass(open)}>
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-zinc-200 px-6 dark:border-zinc-800">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
-            SA
+            BM
           </div>
           <div>
-            <span className="block font-bold leading-tight">MessFlow Pro</span>
-            <span className="text-xs text-violet-600">Super Admin</span>
+            <span className="block font-bold leading-tight">{t("brand")}</span>
+            <span className="text-xs text-violet-600">{t("subtitle")}</span>
           </div>
+        </div>
+
+        <div className="border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
+          <LocaleSwitcher className="w-full justify-start" />
         </div>
 
         <nav className={SIDEBAR_NAV}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active =
+              "exact" in item && item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
@@ -111,7 +120,7 @@ export function SuperAdminSidebar() {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
+                <span className="truncate">{t(item.labelKey)}</span>
               </Link>
             );
           })}
@@ -124,7 +133,7 @@ export function SuperAdminSidebar() {
             onClick={() => signOut({ callbackUrl: "/" })}
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            {tCommon("logout")}
           </Button>
         </div>
       </aside>

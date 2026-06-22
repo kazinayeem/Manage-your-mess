@@ -12,20 +12,19 @@ export function MarketingHeader() {
   const [open, setOpen] = useState(false);
 
   const nav = [
-    { href: "/features", label: t("nav.features") },
-    { href: "/pricing", label: t("nav.pricing") },
+    { href: "/#features", label: t("nav.features") },
+    { href: "/#pricing", label: t("nav.pricing") },
+    { href: "/#faq", label: t("nav.faq") },
     { href: "/about", label: t("nav.about") },
     { href: "/contact", label: t("nav.contact") },
-    { href: "/faq", label: t("nav.faq") },
-    { href: "/blog", label: t("nav.blog") },
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+    <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-lg dark:border-zinc-800 dark:bg-zinc-950/90">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-            MF
+            BM
           </div>
           <span className="text-lg font-bold text-zinc-900 dark:text-white">
             {t("common.appName")}

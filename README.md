@@ -80,6 +80,43 @@ docs/             Architecture and deployment notes
 docker-compose up -d
 ```
 
+## Deploy on Vercel
+
+### 1. One-time database setup (Neon)
+
+Push the schema once from your machine (not on every Vercel deploy):
+
+```bash
+npx prisma db push
+npm run db:seed
+```
+
+### 2. Vercel project settings
+
+| Setting | Value |
+|---------|--------|
+| **Framework** | Next.js (auto) |
+| **Install Command** | `npm install` |
+| **Build Command** | `npm run vercel-build` |
+| **Output Directory** | *(leave default — `.next`)* |
+
+`postinstall` already runs `prisma generate` after install. `vercel-build` runs it again, then `next build`.
+
+### 3. Environment variables (Vercel → Settings → Environment Variables)
+
+| Variable | Required | Notes |
+|----------|----------|--------|
+| `DATABASE_URL` | Yes | Neon **pooler** URL (`…-pooler…neon.tech`) |
+| `DIRECT_URL` | Yes | Neon **direct** URL (for Prisma; no `-pooler` in host) |
+| `AUTH_SECRET` | Yes | `openssl rand -base64 32` |
+| `AUTH_URL` | Yes | `https://your-app.vercel.app` |
+| `NEXT_PUBLIC_APP_URL` | Yes | Same as `AUTH_URL` |
+| `REDIS_URL` | Optional | If using Redis caching |
+
+### 4. Deploy
+
+Connect the GitHub repo in Vercel and deploy. After the first deploy, log in with the seeded admin account (run `db:seed` locally against Neon first).
+
 ## Documentation
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for database design, auth flow, RBAC, and deployment guidance.

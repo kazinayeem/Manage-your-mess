@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "MessFlow Pro",
-    short_name: "MessFlow",
-    description: "Smart Mess & Hostel Management",
+    name: "BornoMess Manager",
+    short_name: "BornoMess",
+    description: "Smart mess & hostel management by BornoSoft",
     start_url: "/portal",
     display: "standalone",
     background_color: "#ffffff",

@@ -61,7 +61,7 @@ export function PortalSidebar() {
       <aside className={sidebarAsideClass(open)}>
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-zinc-200 px-6 dark:border-zinc-800">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-            MF
+            BM
           </div>
           <div>
             <span className="block font-bold leading-tight">{t("brand")}</span>

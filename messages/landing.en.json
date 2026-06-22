@@ -1,0 +1,241 @@
+{
+  "landing": {
+    "seo": {
+      "title": "BornoMess Manager — Smart Mess & Hostel Management",
+      "description": "BornoMess Manager by BornoSoft — manage meals, bazaar, rent, bills, deposits, members and accounts in one place.",
+      "faq": {
+        "1": { "q": "Can I use it on mobile?", "a": "Yes. MessFlow Pro is fully responsive and works like a native app in mobile browsers." },
+        "2": { "q": "Can I get PDF reports?", "a": "Yes. Monthly reports can be downloaded in PDF, Excel and CSV formats." },
+        "3": { "q": "Is my data safe?", "a": "Your data is stored over encrypted connections with full mess-level isolation." },
+        "4": { "q": "How does subscription work?", "a": "Choose a plan, submit payment request. Subscription activates after approval." },
+        "5": { "q": "Can I pay with bKash?", "a": "Yes. bKash, Nagad, Rocket, Upay and bank transfer are supported." },
+        "6": { "q": "How many members can I add?", "a": "Member limits depend on your plan. Higher plans allow more members." },
+        "7": { "q": "Can I manage multiple messes?", "a": "Yes. Create and manage multiple messes from one account." },
+        "8": { "q": "What's included in Free?", "a": "Basic meal, expense, deposit tracking and monthly reports on the free plan." },
+        "9": { "q": "Can members see their own accounts?", "a": "Yes. Each member can view their meals, deposits and dues in the portal." },
+        "10": { "q": "Can I change the manager?", "a": "Yes. Mess owners can assign a new manager anytime." },
+        "11": { "q": "Does it work offline?", "a": "Install as PWA. Some data is viewable offline and syncs when online." },
+        "12": { "q": "Is Bangla supported?", "a": "Yes. Full Bangla interface and reports are supported." },
+        "13": { "q": "Is there a trial period?", "a": "Selected plans include trial benefits. See pricing for details." },
+        "14": { "q": "Is support available?", "a": "Email and in-app help center. Priority support on Pro plans." },
+        "15": { "q": "Can I export data?", "a": "Yes. Export reports and lists as CSV, Excel and PDF." },
+        "16": { "q": "Are custom plans available?", "a": "Yes. Enterprise custom plans for large hostels and institutions." }
+      }
+    },
+    "hero": {
+      "badge": "Bangladesh's #1 Mess Management Platform",
+      "title": "Bangladesh's Smartest Mess & Hostel Management Platform",
+      "subtitle": "Manage meals, bazaar, rent, utility bills, deposits, members and complete accounts from one place.",
+      "ctaPrimary": "Start Free",
+      "ctaDemo": "View Live Demo",
+      "ctaContact": "Contact Us",
+      "cardMembers": "Active Members",
+      "cardDeposits": "Monthly Deposits",
+      "cardMeals": "Total Meals",
+      "cardDue": "Due Amount",
+      "floatLabel": "Collection Rate"
+    },
+    "trust": {
+      "stats": {
+        "members": { "value": "10,000+", "label": "Active Members" },
+        "messes": { "value": "500+", "label": "Messes Managed" },
+        "meals": { "value": "100,000+", "label": "Meals Tracked" },
+        "amount": { "value": "5Cr+", "label": "BDT Accounted" }
+      }
+    },
+    "dashboard": {
+      "eyebrow": "Dashboard Preview",
+      "title": "Everything at a Glance",
+      "subtitle": "See your entire mess status with a real-time dashboard",
+      "tabs": {
+        "dashboard": "Dashboard",
+        "meals": "Meals",
+        "expenses": "Expenses",
+        "deposits": "Deposits",
+        "reports": "Reports",
+        "analytics": "Analytics"
+      },
+      "chartLabels": {
+        "dashboard": "Member Growth",
+        "meals": "Meal Trend",
+        "expenses": "Expense Trend",
+        "deposits": "Deposit Trend",
+        "reports": "Due Trend",
+        "analytics": "Financial Analytics"
+      },
+      "kpis": {
+        "kpi1": { "label": "Meal Rate", "value": "৳45" },
+        "kpi2": { "label": "Monthly Expense", "value": "৳49,000" },
+        "kpi3": { "label": "Monthly Deposit", "value": "৳112,000" },
+        "kpi4": { "label": "Collection Rate", "value": "88%" }
+      }
+    },
+    "why": {
+      "eyebrow": "Why MessFlow",
+      "title": "Old Way vs Smart Solution",
+      "subtitle": "End the hassle of manual accounting",
+      "oldTitle": "Old System",
+      "newTitle": "MessFlow Solution",
+      "problems": {
+        "excel": "Excel sheets — errors and data loss risk",
+        "manual": "Manual calculation — time-consuming",
+        "lost": "Lost records — missing history",
+        "due": "Due tracking problems",
+        "conflict": "Member conflicts and distrust"
+      },
+      "solutions": {
+        "auto": "Automatic calculation",
+        "reports": "Smart reports",
+        "dueTrack": "Transparent due tracking",
+        "mobile": "Mobile access anytime",
+        "transparent": "Complete transparency"
+      }
+    },
+    "howItWorks": {
+      "eyebrow": "How It Works",
+      "title": "Digitize Your Mess in 6 Steps",
+      "subtitle": "Get started in minutes, no technical knowledge needed",
+      "steps": {
+        "s1": { "title": "Create Your Mess", "desc": "Set up your mess workspace with name and address." },
+        "s2": { "title": "Add Members", "desc": "Share invite code to add members." },
+        "s3": { "title": "Log Meals & Bazaar", "desc": "Record daily meals and bazaar expenses." },
+        "s4": { "title": "Add Deposits", "desc": "Record bKash, cash or bank deposits." },
+        "s5": { "title": "Auto Calculation", "desc": "Meal rate, dues and balances calculated automatically." },
+        "s6": { "title": "Download PDF Report", "desc": "Get professional reports with one click." }
+      }
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything You Need in One Platform",
+      "subtitle": "Complete tools for owners, managers and members",
+      "items": {
+        "meals": { "title": "Meal Management", "desc": "Breakfast, lunch, dinner with auto meal rate." },
+        "expenses": { "title": "Expense Tracking", "desc": "Bazaar, utility and categorized expenses." },
+        "deposits": { "title": "Deposit Tracking", "desc": "bKash, Nagad, Rocket, Upay and cash." },
+        "rooms": { "title": "Room Management", "desc": "Room allocation and occupancy tracking." },
+        "beds": { "title": "Bed Management", "desc": "Bed assignment and availability." },
+        "visitors": { "title": "Visitor Management", "desc": "Guest and visitor logging." },
+        "reports": { "title": "Reports", "desc": "Monthly reports with PDF, Excel, CSV export." },
+        "ai": { "title": "AI Analytics", "desc": "Expense forecasts and budget suggestions." },
+        "utilities": { "title": "Utility Bills", "desc": "Electricity, gas, water and internet bills." },
+        "rent": { "title": "Rent Tracking", "desc": "Monthly rent and bill management." },
+        "members": { "title": "Member Management", "desc": "Roles, approvals and invite codes." },
+        "audit": { "title": "Audit Logs", "desc": "Complete history of all changes." },
+        "notifications": { "title": "Notifications", "desc": "Billing, reports and system alerts." },
+        "subscriptions": { "title": "Subscriptions", "desc": "Plans, trials and billing management." },
+        "payments": { "title": "Payments", "desc": "Local payment methods including bKash." },
+        "multiMess": { "title": "Multi-Mess", "desc": "Run multiple messes from one account." },
+        "branches": { "title": "Branches", "desc": "Manage multiple branches." }
+      }
+    },
+    "analytics": {
+      "eyebrow": "Analytics",
+      "title": "Make Data-Driven Decisions",
+      "subtitle": "Manage your mess with real-time charts and insights",
+      "charts": {
+        "expenses": "Monthly Expenses",
+        "deposits": "Monthly Deposits",
+        "meals": "Meal Consumption",
+        "members": "Member Growth",
+        "utility": "Utility Cost",
+        "collection": "Due Collection Rate",
+        "health": "Financial Health Score"
+      },
+      "utility": { "electricity": "Electricity", "gas": "Gas", "water": "Water", "internet": "Internet" },
+      "health": { "collection": "Collection", "expenses": "Expenses", "meals": "Meals", "deposits": "Deposits" }
+    },
+    "mobile": {
+      "eyebrow": "Mobile Experience",
+      "title": "Full Mess Control on Your Phone",
+      "subtitle": "Fast, beautiful mobile interface that feels like a native app",
+      "mockTitle": "Green View Mess",
+      "mock": {
+        "mock1": { "label": "Today's Meals", "value": "42" },
+        "mock2": { "label": "Monthly Deposit", "value": "৳85,000" },
+        "mock3": { "label": "Due", "value": "৳2,800" }
+      },
+      "highlights": {
+        "responsive": { "title": "Responsive Design", "desc": "Perfect layout on every screen size." },
+        "mobile": { "title": "Mobile Friendly", "desc": "Touch-optimized controls and navigation." },
+        "pwa": { "title": "Installable PWA", "desc": "Add to home screen and use like an app." },
+        "push": { "title": "Push Notifications", "desc": "Instant billing and alert notifications." },
+        "fast": { "title": "Fast Performance", "desc": "Optimized loading and smooth animations." },
+        "offline": { "title": "Offline Support", "desc": "View some data without internet." }
+      }
+    },
+    "testimonials": {
+      "eyebrow": "Testimonials",
+      "title": "Trusted by Thousands of Managers",
+      "subtitle": "The preferred platform for mess and hostel operators across Bangladesh",
+      "items": {
+        "r1": { "quote": "I used to spend hours on Excel. Now everything is automatic — members are happy too.", "name": "Rafiqul Islam", "role": "Mess Manager, Dhaka", "initials": "RI" },
+        "r2": { "quote": "Managing a 120-student hostel alone — MessFlow saved my life.", "name": "Nasira Begum", "role": "Hostel Manager, Chattogram", "initials": "NB" },
+        "r3": { "quote": "I can see my meals and dues on mobile — completely transparent.", "name": "Sakib Hasan", "role": "Student, Rajshahi", "initials": "SH" },
+        "r4": { "quote": "I run 5 messes together. Multi-mess feature is incredible.", "name": "Kamal Uddin", "role": "Property Owner, Sylhet", "initials": "KU" }
+      }
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Choose the Right Plan",
+      "subtitle": "Transparent pricing, no hidden charges",
+      "feature": "Feature",
+      "popular": "Most Popular",
+      "custom": "Custom",
+      "unlimited": "Unlimited",
+      "basic": "Basic",
+      "advanced": "Advanced",
+      "standard": "Standard",
+      "priority": "Priority",
+      "choose": "Choose",
+      "contact": "Contact",
+      "rows": {
+        "members": "Members Limit",
+        "pdf": "PDF Export",
+        "excel": "Excel Export",
+        "ai": "AI Analytics",
+        "branches": "Branches",
+        "reports": "Reports",
+        "support": "Support",
+        "storage": "Storage"
+      }
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Frequently Asked Questions",
+      "subtitle": "Everything you need to know about MessFlow Pro",
+      "items": {
+        "q1": { "q": "Can I use it on mobile?", "a": "Yes. Fully responsive with a native app-like mobile experience." },
+        "q2": { "q": "Can I get PDF reports?", "a": "Yes. Download monthly reports in PDF, Excel and CSV." },
+        "q3": { "q": "Is my data safe?", "a": "Encrypted connections and multi-tenant isolation keep your data secure." },
+        "q4": { "q": "How does subscription work?", "a": "Choose a plan, submit payment. Subscription activates after approval." },
+        "q5": { "q": "Can I pay with bKash?", "a": "Yes. bKash, Nagad, Rocket, Upay and bank transfer supported." },
+        "q6": { "q": "How many members can I add?", "a": "Member limits depend on your plan tier." },
+        "q7": { "q": "Can I manage multiple messes?", "a": "Yes. Manage multiple messes from one account." },
+        "q8": { "q": "What's in the free plan?", "a": "Basic meal, expense, deposit and monthly report features." },
+        "q9": { "q": "Can members see their accounts?", "a": "Yes. Members view their data in the portal." },
+        "q10": { "q": "Can I change the manager?", "a": "Yes. Owners can reassign managers anytime." },
+        "q11": { "q": "Does it work offline?", "a": "PWA install allows viewing some data offline." },
+        "q12": { "q": "Is Bangla supported?", "a": "Yes. Full Bangla interface and reports." },
+        "q13": { "q": "Is there a trial?", "a": "Trial benefits available on selected plans." },
+        "q14": { "q": "Is support available?", "a": "Email and in-app help center available." },
+        "q15": { "q": "Can I export data?", "a": "Yes. CSV, Excel and PDF export supported." },
+        "q16": { "q": "Are custom plans available?", "a": "Yes. Contact us for enterprise custom plans." }
+      }
+    },
+    "cta": {
+      "title": "Digitize Your Mess Today",
+      "subtitle": "Join thousands of mess managers using smart management",
+      "primary": "Start Free",
+      "demo": "View Demo",
+      "contact": "Contact Us"
+    },
+    "footer": {
+      "company": "Company",
+      "product": "Product",
+      "support": "Support",
+      "legal": "Legal",
+      "docs": "Documentation",
+      "copyright": "All rights reserved."
+    }
+  }
+}

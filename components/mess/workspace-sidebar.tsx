@@ -27,6 +27,7 @@ import type { MessCapabilities } from "@/lib/mess-permissions";
 import type { LucideIcon } from "lucide-react";
 import { useMobileSidebar } from "@/hooks/use-mobile-sidebar";
 import { StartNewMonthDialog } from "@/components/mess/start-new-month-dialog";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import {
   MOBILE_MENU_BTN,
   SIDEBAR_NAV,
@@ -176,12 +177,16 @@ export function MessWorkspaceSidebar({
       <aside className={sidebarAsideClass(open)}>
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-zinc-200 px-6 dark:border-zinc-800">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-            MF
+            BM
           </div>
           <div className="min-w-0">
             <span className="block truncate font-bold">{messName}</span>
             {readOnly && <span className="text-xs text-sky-600">{tWorkspace("readOnly")}</span>}
           </div>
+        </div>
+
+        <div className="border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
+          <LocaleSwitcher className="w-full justify-start" />
         </div>
 
         <nav className={SIDEBAR_NAV}>

@@ -9,16 +9,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "MessFlow Pro",
-    template: "%s | MessFlow Pro",
-  },
-  description: "Smart Mess & Hostel Management Platform for Bangladesh and beyond.",
-  applicationName: "MessFlow Pro",
+    title: {
+      default: "BornoMess Manager",
+      template: "%s | BornoMess Manager",
+    },
+    description: "Smart mess & hostel management by BornoSoft — Bangladesh's trusted platform.",
+    applicationName: "BornoMess Manager",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "MessFlow",
+    title: "BornoMess",
   },
   formatDetection: {
     telephone: false,

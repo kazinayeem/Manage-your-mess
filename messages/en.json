@@ -1,7 +1,9 @@
 {
   "common": {
-    "appName": "MessFlow Pro",
-    "tagline": "Smart Mess & Hostel Management",
+    "appName": "BornoMess Manager",
+    "tagline": "Smart mess & hostel management by BornoSoft",
+    "productOf": "A product of BornoSoft",
+    "companyName": "BornoSoft",
     "getStarted": "Start Free",
     "login": "Login",
     "register": "Register",
@@ -15,7 +17,9 @@
     "search": "Search",
     "loading": "Loading...",
     "viewPricing": "View Pricing",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "privacy": "Privacy",
+    "terms": "Terms"
   },
   "nav": {
     "features": "Features",
@@ -319,8 +323,8 @@
     "toggleSidebar": "Toggle sidebar"
   },
   "portal": {
-    "brand": "MessFlow Pro",
-    "subtitle": "Portal",
+    "brand": "BornoMess Manager",
+    "subtitle": "BornoSoft",
     "portalDashboard": "Portal Dashboard",
     "createMess": "Create Mess",
     "joinMess": "Join Mess",
@@ -415,6 +419,32 @@
     "reject": "Reject",
     "approveSuccess": "Member approved",
     "rejectSuccess": "Join request rejected"
+  },
+  "superAdmin": {
+    "brand": "BornoMess Manager",
+    "subtitle": "Super Admin",
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "messes": "Messes",
+    "subscriptions": "Subscriptions",
+    "payments": "Payments",
+    "paymentMethods": "Payment Methods",
+    "plans": "Plans",
+    "coupons": "Coupons",
+    "referrals": "Referrals",
+    "support": "Support Tickets",
+    "announcements": "Announcements",
+    "analytics": "Analytics",
+    "auditLogs": "Audit Logs",
+    "settings": "System Settings",
+    "database": "Database Monitor",
+    "featureFlags": "Feature Flags",
+    "backups": "Backup Manager",
+    "api": "API Management",
+    "emailTemplates": "Email Templates",
+    "notificationTemplates": "Notification Templates",
+    "security": "Security Center",
+    "profile": "Profile"
   },
   "mobileNav": {
     "mainNavigation": "Main navigation",
