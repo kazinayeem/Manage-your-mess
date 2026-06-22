@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { signIn, getSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { useRouter } from "@/i18n/navigation";
 import { Shield } from "lucide-react";
 
 function loginErrorMessage(error?: string | null): string {
@@ -26,72 +26,83 @@ function loginErrorMessage(error?: string | null): string {
 const SUPER_ADMIN_EMAIL = "admin@messflow.pro";
 const SUPER_ADMIN_PASSWORD = "Admin@123456";
 
+function safeCallbackUrl(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/portal";
+  return raw;
+}
+
+/** Full-page navigation — reliable on Vercel after credentials sign-in (avoids router/cookie race). */
+function redirectAfterLogin(callbackUrl: string) {
+  const path = safeCallbackUrl(callbackUrl);
+  window.location.assign(path);
+}
+
 export function LoginForm() {
   const t = useTranslations("auth");
-  const router = useRouter();
+  const tCommon = useTranslations("common");
+  const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
   const [loading, setLoading] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
   const isDev = process.env.NODE_ENV === "development";
 
-  async function completeLogin() {
-    const session = await getSession();
-    const role = session?.user?.role;
-
-    if (role === "SUPER_ADMIN" || role === "ADMIN") {
-      router.push("/super-admin");
-    } else {
-      router.push("/portal");
-    }
-    router.refresh();
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
 
-    const result = await signIn("credentials", {
-      email,
-      password: formData.get("password"),
-      redirect: false,
-    });
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await signIn("credentials", {
+        email: formData.get("email"),
+        password: formData.get("password"),
+        redirect: false,
+      });
 
-    if (result?.error) {
-      toast.error(loginErrorMessage(result.error));
+      if (result?.error) {
+        toast.error(loginErrorMessage(result.error));
+        setLoading(false);
+        return;
+      }
+
+      redirectAfterLogin(callbackUrl);
+    } catch {
+      toast.error("Login failed. Please try again.");
       setLoading(false);
-      return;
     }
-
-    await completeLogin();
   }
 
   async function handleSuperAdminLogin() {
     setAdminLoading(true);
-    const result = await signIn("credentials", {
-      email: SUPER_ADMIN_EMAIL,
-      password: SUPER_ADMIN_PASSWORD,
-      redirect: false,
-    });
 
-    if (result?.error) {
-      toast.error("Super admin login failed. Run: npm run db:seed");
+    try {
+      const result = await signIn("credentials", {
+        email: SUPER_ADMIN_EMAIL,
+        password: SUPER_ADMIN_PASSWORD,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        toast.error("Super admin login failed. Run: npm run db:seed");
+        setAdminLoading(false);
+        return;
+      }
+
+      toast.success("Logged in as Super Admin");
+      redirectAfterLogin("/super-admin");
+    } catch {
+      toast.error("Login failed. Please try again.");
       setAdminLoading(false);
-      return;
     }
-
-    toast.success("Logged in as Super Admin");
-    await completeLogin();
   }
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-lg font-bold text-white">
-          MF
+          BM
         </div>
         <CardTitle className="text-2xl">{t("welcomeBack")}</CardTitle>
-        <CardDescription>Sign in to your MessFlow Pro account</CardDescription>
+        <CardDescription>{tCommon("appName")}</CardDescription>
       </CardHeader>
       <CardContent>
         {isDev && (
@@ -138,7 +149,7 @@ export function LoginForm() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => signIn("google", { callbackUrl: "/portal" })}
+          onClick={() => signIn("google", { callbackUrl })}
         >
           {t("google")}
         </Button>

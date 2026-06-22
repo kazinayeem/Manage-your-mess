@@ -15,6 +15,7 @@ import {
   pathnameIsWelcome,
 } from "./lib/route-guard";
 import { isAdminRole } from "./lib/rbac";
+import { getSessionCookieName } from "./lib/auth-cookie";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -51,6 +52,8 @@ export default async function middleware(request: NextRequest) {
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET,
+      cookieName: getSessionCookieName(),
+      secureCookie: process.env.NODE_ENV === "production",
     });
 
     if (isProtected && !token) {

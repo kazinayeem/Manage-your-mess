@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/redis";
 import type { UserRole } from "@prisma/client";
+import { getSessionCookieName } from "@/lib/auth-cookie";
 
 declare module "next-auth" {
   interface Session {
@@ -35,10 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   cookies: {
     sessionToken: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Secure-authjs.session-token"
-          : "authjs.session-token",
+      name: getSessionCookieName(),
       options: {
         httpOnly: true,
         sameSite: "lax",
