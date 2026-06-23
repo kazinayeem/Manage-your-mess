@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Shield } from "lucide-react";
 import { normalizeEmail } from "@/lib/utils";
 
 function loginErrorMessage(error?: string | null): string {
@@ -24,9 +23,6 @@ function loginErrorMessage(error?: string | null): string {
   if (lower.includes("google sign-in")) return error;
   return error;
 }
-
-const SUPER_ADMIN_EMAIL = "admin@messflow.pro";
-const SUPER_ADMIN_PASSWORD = "Admin@123456";
 
 function safeCallbackUrl(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/portal";
@@ -73,30 +69,6 @@ export function LoginForm() {
     }
   }
 
-  async function handleSuperAdminLogin() {
-    setAdminLoading(true);
-
-    try {
-      const result = await signIn("credentials", {
-        email: SUPER_ADMIN_EMAIL,
-        password: SUPER_ADMIN_PASSWORD,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        toast.error("Super admin login failed. Run: npm run db:seed");
-        setAdminLoading(false);
-        return;
-      }
-
-      toast.success("Logged in as Super Admin");
-      redirectAfterLogin("/super-admin");
-    } catch {
-      toast.error("Login failed. Please try again.");
-      setAdminLoading(false);
-    }
-  }
-
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
@@ -107,19 +79,6 @@ export function LoginForm() {
         <CardDescription>{tCommon("appName")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {isDev && (
-          <Button
-            type="button"
-            variant="secondary"
-            className="mb-4 w-full gap-2"
-            onClick={handleSuperAdminLogin}
-            disabled={adminLoading || loading}
-          >
-            <Shield className="h-4 w-4" />
-            {adminLoading ? "Signing in..." : "Quick Login — Super Admin"}
-          </Button>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="email">{t("email")}</Label>
@@ -134,7 +93,7 @@ export function LoginForm() {
             </div>
             <Input id="password" name="password" type="password" required className="mt-1" />
           </div>
-          <Button type="submit" className="w-full" disabled={loading || adminLoading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : t("welcomeBack")}
           </Button>
         </form>

@@ -16,6 +16,14 @@ export function validateReportPayload(payload: ReportPayload): ReportValidation 
     warnings.push("Executive summary is empty.");
   }
 
+  if (payload.sections?.some((section) => section.columns.length === 0)) {
+    warnings.push("One or more report sections are missing column definitions.");
+  }
+
+  if (payload.sections?.some((section) => section.rows.some((row) => Object.keys(row).length === 0))) {
+    warnings.push("One or more report sections contain empty rows.");
+  }
+
   const currencyCols = payload.columns.filter((c) => c.format === "currency");
   if (currencyCols.length > 0 && payload.rows.length > 0) {
     for (const col of currencyCols) {
@@ -25,6 +33,21 @@ export function validateReportPayload(payload: ReportPayload): ReportValidation 
       if (values.some((v) => Number.isNaN(v) || v < 0)) {
         warnings.push(`Invalid amounts detected in column "${col.label}".`);
         break;
+      }
+    }
+  }
+
+  if (payload.sections?.length) {
+    for (const section of payload.sections) {
+      const sectionCurrencyCols = section.columns.filter((c) => c.format === "currency");
+      for (const col of sectionCurrencyCols) {
+        const values = section.rows
+          .map((r) => r[col.key])
+          .filter((v): v is number => typeof v === "number");
+        if (values.some((v) => Number.isNaN(v))) {
+          warnings.push(`Invalid amounts detected in section "${section.title}".`);
+          break;
+        }
       }
     }
   }

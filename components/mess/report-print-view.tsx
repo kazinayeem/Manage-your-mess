@@ -73,7 +73,39 @@ export function ReportPrintView({
         </section>
       )}
 
-      {payload.rows.length > 0 && (
+      {payload.sections?.map((section) => (
+        <section key={section.key} className="mb-4">
+          <h3 className="mb-2 text-sm font-semibold">{section.title}</h3>
+          {section.rows.length > 0 ? (
+            <table>
+              <thead>
+                <tr>
+                  {section.columns.map((col) => (
+                    <th key={col.key} className={col.align === "right" ? "num" : ""}>
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {section.rows.map((row, i) => (
+                  <tr key={i}>
+                    {section.columns.map((col) => (
+                      <td key={col.key} className={col.align === "right" ? "num" : ""}>
+                        {formatCell(row[col.key] ?? "", col, currency, locale)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-zinc-500">{section.emptyMessage ?? reportLabel("noData", locale)}</p>
+          )}
+        </section>
+      ))}
+
+      {!payload.sections?.length && payload.rows.length > 0 && (
         <section>
           <h3 className="mb-2 text-sm font-semibold">{reportLabel("dataTable", locale)}</h3>
           <table>
@@ -98,6 +130,13 @@ export function ReportPrintView({
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {!payload.sections?.length && payload.rows.length === 0 && payload.emptyState && (
+        <section className="rounded-lg border border-zinc-300 p-4">
+          <h3 className="text-sm font-semibold">{payload.emptyState.title}</h3>
+          <p className="mt-1 text-sm text-zinc-600">{payload.emptyState.description}</p>
         </section>
       )}
 

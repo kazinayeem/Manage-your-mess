@@ -11,6 +11,7 @@ export default async function MyBazaarPage({
 }) {
   const { messId } = await params;
   const ctx = await requireMessPage(messId);
+  if (!ctx.capabilities.canViewMyBazaar) notFound();
   if (!ctx.member) notFound();
 
   const t = await getTranslations("bazaar");

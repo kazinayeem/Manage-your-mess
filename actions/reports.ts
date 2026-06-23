@@ -4,7 +4,13 @@ import { db } from "@/lib/db";
 import { requireMessAccess } from "@/lib/mess-access";
 import { getMonthSummary } from "@/actions/monthly";
 import { countMeals, formatMealPortion } from "@/lib/calculations";
-import type { ReportPayload, ReportType, MonthOption, ReportFetchOptions } from "@/lib/reports/types";
+import type {
+  ReportPayload,
+  ReportType,
+  MonthOption,
+  ReportFetchOptions,
+  ReportSection,
+} from "@/lib/reports/types";
 import { getBillCategoryLabel } from "@/lib/bills/categories";
 
 type ActionResult<T = void> =
@@ -29,6 +35,28 @@ function monthDateRange(year: number, month: number) {
   return { start, end };
 }
 
+function emptyStateFor(locale: "en" | "bn", reportTitle: string) {
+  return locale === "bn"
+    ? {
+        title: `${reportTitle} এর জন্য কোনো ডেটা নেই`,
+        description: "নির্বাচিত সময়সীমায় প্রদর্শনের মতো কোনো রেকর্ড পাওয়া যায়নি।",
+      }
+    : {
+        title: `No data available for ${reportTitle}`,
+        description: "No records were found for the selected reporting period.",
+      };
+}
+
+function makeSection(
+  key: string,
+  title: string,
+  columns: ReportSection["columns"],
+  rows: ReportSection["rows"],
+  emptyMessage?: string
+): ReportSection {
+  return { key, title, columns, rows, emptyMessage };
+}
+
 export async function getMessMonthsForReports(messId: string): Promise<MonthOption[]> {
   await requireMessAccess(messId, "REPORT_VIEW");
   const months = await db.messMonth.findMany({
@@ -47,6 +75,7 @@ export async function fetchReportData(
 ): Promise<ActionResult<ReportPayload>> {
   try {
     const { mess, user } = await requireMessAccess(messId, "REPORT_VIEW");
+    const locale = options?.locale === "bn" ? "bn" : "en";
 
     const month = await db.messMonth.findFirst({
       where: { id: monthId, messId, deletedAt: null },
@@ -78,13 +107,42 @@ export async function fetchReportData(
         reportType === "balance_sheet" ? "Balance Report" : "Monthly Settlement Report";
       const membersWithDue = summary.members.filter((m) => m.due > 0).length;
 
+      const [monthExpenses, bazaarTasks] = await Promise.all([
+        db.expense.findMany({
+          where: { messId, monthId, deletedAt: null, status: "APPROVED" },
+          include: { category: { select: { name: true } } },
+          orderBy: { date: "asc" },
+        }),
+        db.bazaarTask.findMany({
+          where: {
+            messId,
+            deletedAt: null,
+            shoppingDate: { gte: monthStart, lte: monthEnd },
+          },
+          include: {
+            assignment: { include: { member: { select: { fullName: true } } } },
+            items: { select: { name: true } },
+            submission: true,
+          },
+          orderBy: { shoppingDate: "asc" },
+        }),
+      ]);
+
       const expenseBreakdown = Object.entries(summary.billsByCategory).map(([cat, amt]) => ({
         label: getBillCategoryLabel(cat as Parameters<typeof getBillCategoryLabel>[0]),
         amount: amt,
       }));
 
       const cat = summary.billsByCategory;
-      const utilitySummary: { label: string; value: string }[] = [
+      const otherSharedBills =
+        summary.billKpis.totalSharedBills -
+        summary.billKpis.totalRent -
+        (cat.ELECTRICITY ?? 0) -
+        (cat.WATER ?? 0) -
+        (cat.GAS ?? 0) -
+        (cat.INTERNET ?? 0);
+
+      const summaryRows: { label: string; value: string }[] = [
         { label: "Total Members", value: String(summary.memberCount) },
         { label: "Total Meals", value: String(summary.totalMeals) },
         { label: "Meal Rate", value: formatBdt(summary.mealRate) },
@@ -97,6 +155,7 @@ export async function fetchReportData(
         { label: "Internet", value: formatBdt(cat.INTERNET ?? 0) },
         { label: "Total Utility Bills", value: formatBdt(summary.billKpis.totalUtilities) },
         { label: "Total Shared Cost", value: formatBdt(summary.billKpis.totalSharedBills) },
+        { label: "Other Expenses", value: formatBdt(otherSharedBills) },
         { label: "Total Due", value: formatBdt(summary.totalDue) },
         { label: "Closing Balance", value: formatBdt(summary.billKpis.messBalance) },
       ];
@@ -122,38 +181,119 @@ export async function fetchReportData(
             reportTitle: title,
             periodLabel: month.label,
           },
-          summary: utilitySummary,
+          summary: summaryRows,
           columns: [
             { key: "name", label: "Member", align: "left" },
-            { key: "role", label: "Role", align: "left" },
-            { key: "meals", label: "Meals", format: "number", align: "right" },
-            { key: "mealCost", label: "Meal Cost", format: "currency", align: "right" },
+            { key: "mealCount", label: "Meals", format: "number", align: "right" },
             { key: "deposit", label: "Deposit", format: "currency", align: "right" },
-            { key: "rent", label: "Rent Share", format: "currency", align: "right" },
-            { key: "utilities", label: "Utility Share", format: "currency", align: "right" },
-            { key: "otherBills", label: "Other Cost", format: "currency", align: "right" },
+            { key: "mealCost", label: "Meal Cost", format: "currency", align: "right" },
+            { key: "billShare", label: "Bill Share", format: "currency", align: "right" },
+            { key: "otherCost", label: "Other Cost", format: "currency", align: "right" },
             { key: "totalCost", label: "Total Cost", format: "currency", align: "right" },
             { key: "balance", label: "Balance", format: "currency", align: "right" },
-            { key: "due", label: "Due", format: "currency", align: "right" },
-            { key: "advance", label: "Advance", format: "currency", align: "right" },
             { key: "status", label: "Status", align: "left" },
           ],
           rows: summary.members.map((m) => ({
             name: m.fullName ?? "Unnamed",
-            role: m.role ?? "MEMBER",
-            meals: m.mealCount,
-            mealCost: m.mealCost,
+            mealCount: m.mealCount,
             deposit: m.totalDeposit,
-            rent: m.billShares.rent,
-            utilities:
-              m.billShares.electricity + m.billShares.water + m.billShares.gas + m.billShares.internet,
-            otherBills: m.billShares.maintenance + m.billShares.other,
+            mealCost: m.mealCost,
+            billShare: m.totalBillShare,
+            otherCost: m.billShares.maintenance + m.billShares.other,
             totalCost: m.totalCost,
-            balance: m.balance,
-            due: m.due,
-            advance: m.advance,
+            balance: m.advance > 0 ? m.advance : -m.due,
             status: m.due > 0 ? "Due" : m.advance > 0 ? "Advance" : "Clear",
           })),
+          sections: [
+            makeSection(
+              "memberDetails",
+              locale === "bn" ? "সদস্য বিস্তারিত" : "Member Details",
+              [
+                { key: "name", label: "Member", align: "left" },
+                { key: "mealCount", label: "Meals", format: "number", align: "right" },
+                { key: "deposit", label: "Deposit", format: "currency", align: "right" },
+                { key: "mealCost", label: "Meal Cost", format: "currency", align: "right" },
+                { key: "billShare", label: "Bill Share", format: "currency", align: "right" },
+                { key: "otherCost", label: "Other Cost", format: "currency", align: "right" },
+                { key: "totalCost", label: "Total Cost", format: "currency", align: "right" },
+                { key: "balance", label: "Balance", format: "currency", align: "right" },
+                { key: "status", label: "Status", align: "left" },
+              ],
+              summary.members.map((m) => ({
+                name: m.fullName ?? "Unnamed",
+                mealCount: m.mealCount,
+                deposit: m.totalDeposit,
+                mealCost: m.mealCost,
+                billShare: m.totalBillShare,
+                otherCost: m.billShares.maintenance + m.billShares.other,
+                totalCost: m.totalCost,
+                balance: m.advance > 0 ? m.advance : -m.due,
+                status: m.due > 0 ? "Due" : m.advance > 0 ? "Advance" : "Clear",
+              }))
+            ),
+            makeSection(
+              "utilityBills",
+              locale === "bn" ? "ইউটিলিটি বিল" : "Utility Bills",
+              [
+                { key: "category", label: "Category", align: "left" },
+                { key: "amount", label: "Amount", format: "currency", align: "right" },
+              ],
+              [
+                { category: locale === "bn" ? "ভাড়া" : "Rent", amount: summary.billKpis.totalRent },
+                { category: locale === "bn" ? "বিদ্যুৎ" : "Electricity", amount: cat.ELECTRICITY ?? 0 },
+                { category: locale === "bn" ? "পানি" : "Water", amount: cat.WATER ?? 0 },
+                { category: locale === "bn" ? "গ্যাস" : "Gas", amount: cat.GAS ?? 0 },
+                { category: locale === "bn" ? "ইন্টারনেট" : "Internet", amount: cat.INTERNET ?? 0 },
+                { category: locale === "bn" ? "রক্ষণাবেক্ষণ" : "Maintenance", amount: cat.MAINTENANCE ?? 0 },
+                { category: locale === "bn" ? "নিরাপত্তা" : "Security", amount: cat.SECURITY_GUARD ?? 0 },
+                { category: locale === "bn" ? "অন্যান্য" : "Other", amount: otherSharedBills },
+                {
+                  category: locale === "bn" ? "মোট" : "Total",
+                  amount:
+                    summary.billKpis.totalUtilities +
+                    summary.billKpis.totalRent +
+                    Math.max(otherSharedBills, 0),
+                },
+              ]
+            ),
+            makeSection(
+              "bazaar",
+              locale === "bn" ? "বাজার" : "Bazaar",
+              [
+                { key: "date", label: "Date", align: "left" },
+                { key: "member", label: "Member", align: "left" },
+                { key: "items", label: "Description", align: "left" },
+                { key: "amount", label: "Amount", format: "currency", align: "right" },
+                { key: "status", label: "Status", align: "left" },
+              ],
+              bazaarTasks.map((task) => ({
+                date: formatDateStr(task.shoppingDate),
+                member: task.assignment?.member.fullName ?? "—",
+                items: task.items.map((item) => item.name).join(", ") || "—",
+                amount: task.submission?.actualCost ?? task.expectedBudget,
+                status: task.status,
+              })),
+              locale === "bn" ? "এই মাসে কোনো বাজার রেকর্ড নেই।" : "No bazaar records were found for this month."
+            ),
+            makeSection(
+              "expenses",
+              locale === "bn" ? "খরচ" : "Expenses",
+              [
+                { key: "date", label: "Date", align: "left" },
+                { key: "category", label: "Category", align: "left" },
+                { key: "description", label: "Description", align: "left" },
+                { key: "amount", label: "Amount", format: "currency", align: "right" },
+              ],
+              monthExpenses.map((expense) => ({
+                date: formatDateStr(expense.date),
+                category: expense.category.name,
+                description: expense.description ?? "—",
+                amount: expense.amount,
+              })),
+              locale === "bn" ? "এই মাসে কোনো খরচের রেকর্ড নেই।" : "No expense records were found for this month."
+            ),
+          ],
+          emptyState: emptyStateFor(locale, title),
           analytics: {
             expenseBreakdown,
             mealBreakdown,
@@ -582,16 +722,20 @@ export async function fetchReportData(
     }
 
     if (reportType === "bazaar") {
-      const bazaars = await db.bazaarEntry.findMany({
+      const bazaars = await db.bazaarTask.findMany({
         where: {
           messId,
           deletedAt: null,
-          date: { gte: monthStart, lte: monthEnd },
+          shoppingDate: { gte: monthStart, lte: monthEnd },
         },
-        include: { vendor: { select: { name: true } } },
-        orderBy: { date: "desc" },
+        include: {
+          assignment: { include: { member: { select: { fullName: true } } } },
+          items: { select: { name: true } },
+          submission: true,
+        },
+        orderBy: { shoppingDate: "desc" },
       });
-      const total = bazaars.reduce((s, b) => s + b.totalAmount, 0);
+      const total = bazaars.reduce((s, b) => s + (b.submission?.actualCost ?? b.expectedBudget), 0);
       return {
         success: true,
         data: {
@@ -602,16 +746,19 @@ export async function fetchReportData(
           ],
           columns: [
             { key: "date", label: "Date", align: "left" },
-            { key: "vendor", label: "Vendor", align: "left" },
+            { key: "member", label: "Member", align: "left" },
+            { key: "items", label: "Description", align: "left" },
             { key: "amount", label: "Amount", format: "currency", align: "right" },
-            { key: "notes", label: "Notes", align: "left" },
+            { key: "status", label: "Status", align: "left" },
           ],
           rows: bazaars.map((b) => ({
-            date: formatDateStr(b.date),
-            vendor: b.vendor?.name ?? "—",
-            amount: b.totalAmount,
-            notes: b.notes ?? "—",
+            date: formatDateStr(b.shoppingDate),
+            member: b.assignment?.member.fullName ?? "—",
+            items: b.items.map((item) => item.name).join(", ") || "—",
+            amount: b.submission?.actualCost ?? b.expectedBudget,
+            status: b.status,
           })),
+          emptyState: emptyStateFor(locale, "Bazaar Report"),
         },
       };
     }

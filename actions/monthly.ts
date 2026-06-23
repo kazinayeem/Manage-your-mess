@@ -32,6 +32,7 @@ function isMealExpense(category: { name: string; isMealCost: boolean }): boolean
 }
 
 export async function getMonthSummary(messId: string, monthId: string) {
+  await requireMessAccess(messId, "MESS_READ");
   const month = await db.messMonth.findFirst({
     where: { id: monthId, messId, deletedAt: null },
   });
@@ -140,6 +141,7 @@ export async function getMonthSummary(messId: string, monthId: string) {
 }
 
 export async function recalculateMonth(messId: string, monthId: string) {
+  await requireMessAccess(messId, "MESS_READ");
   const summary = await getMonthSummary(messId, monthId);
   if (!summary) return;
 
@@ -298,6 +300,7 @@ export async function startNewMonth(
 }
 
 export async function getAllMonths(messId: string) {
+  await requireMessAccess(messId, "MESS_READ");
   return db.messMonth.findMany({
     where: { messId, deletedAt: null },
     orderBy: [{ year: "desc" }, { month: "desc" }],
@@ -350,6 +353,7 @@ export async function settleMonth(messId: string, monthId: string): Promise<Acti
 }
 
 export async function createInitialMonth(messId: string) {
+  await requireMessAccess(messId, "MESS_UPDATE");
   const { year, month } = getCurrentYearMonth();
   const existing = await db.messMonth.findUnique({
     where: { messId_year_month: { messId, year, month } },

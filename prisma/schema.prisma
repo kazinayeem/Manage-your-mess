@@ -139,6 +139,7 @@ enum PaymentRequestStatus {
   REJECTED
   REFUNDED
   NEEDS_INFO
+  CANCELLED
 }
 
 enum PlanTier {
@@ -146,6 +147,12 @@ enum PlanTier {
   PRO
   BUSINESS
   ENTERPRISE
+}
+
+enum PlanVisibility {
+  PUBLIC
+  HIDDEN
+  PRIVATE
 }
 
 enum TicketStatus {
@@ -281,6 +288,7 @@ model User {
   supportTickets    SupportTicket[] @relation("TicketUser")
   assignedTickets   SupportTicket[] @relation("TicketAssignee")
   subscriptions     Subscription[]
+  assignedSubscriptions Subscription[] @relation("SubscriptionAssignedBy")
   subscriptionPaymentRequests SubscriptionPaymentRequest[]
   paymentReviews    SubscriptionPaymentRequest[] @relation("PaymentReviewer")
   referralsGiven    Referral[]      @relation("Referrer")
@@ -1176,6 +1184,8 @@ model Plan {
   tier             PlanTier?
   name             String
   description      String?
+  badge            String?
+  color            String?
   price            Float            @default(0)
   currency         String           @default("BDT")
   durationType     PlanDurationType @default(MONTHS)
@@ -1188,15 +1198,33 @@ model Plan {
   isActive         Boolean          @default(true)
   isDefault        Boolean          @default(false)
   isPopular        Boolean          @default(false)
+  isTrialPlan      Boolean          @default(false)
+  visibility       PlanVisibility   @default(PUBLIC)
+  isArchived       Boolean          @default(false)
   sortOrder        Int              @default(0)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   subscriptions               Subscription[]
   subscriptionPaymentRequests SubscriptionPaymentRequest[]
+  defaultInBillingSettings    BillingSetting[]
 
   @@index([isActive])
+  @@index([visibility])
   @@index([sortOrder])
+}
+
+model BillingSetting {
+  id                 String           @id @default(cuid())
+  trialDurationType  PlanDurationType @default(DAYS)
+  trialDurationValue Int              @default(3)
+  trialCustomEndDate DateTime?
+  allowTrialOnCreate Boolean          @default(true)
+  defaultTrialPlanId String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  defaultTrialPlan Plan? @relation(fields: [defaultTrialPlanId], references: [id])
 }
 
 model PaymentMethod {
@@ -1259,6 +1287,10 @@ model Subscription {
   status             SubscriptionStatus @default(ACTIVE)
   currentPeriodStart DateTime           @default(now())
   currentPeriodEnd   DateTime
+  trialStartedAt     DateTime?
+  trialEndsAt        DateTime?
+  bonusDays          Int                @default(0)
+  assignedById       String?
   cancelAtPeriodEnd  Boolean            @default(false)
   suspendedAt        DateTime?
   suspendReason      String?
@@ -1269,6 +1301,7 @@ model Subscription {
 
   user            User                         @relation(fields: [userId], references: [id])
   plan            Plan                         @relation(fields: [planId], references: [id])
+  assignedBy      User?                        @relation("SubscriptionAssignedBy", fields: [assignedById], references: [id])
   messes          Mess[]
   invoices        Invoice[]
   paymentRequests SubscriptionPaymentRequest[]
@@ -1277,6 +1310,7 @@ model Subscription {
   @@index([userId])
   @@index([status])
   @@index([currentPeriodEnd])
+  @@index([trialEndsAt])
 }
 
 model SubscriptionExtension {

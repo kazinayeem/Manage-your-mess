@@ -11,7 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { getMessDisplayRoleLabel } from "@/lib/mess-role-label";
 import { Link } from "@/i18n/navigation";
-import { MobileBottomNav } from "@/components/mobile/mobile-bottom-nav";
+import { MessMobileBottomNav } from "@/components/mobile/mobile-bottom-nav";
 import { MobileFab } from "@/components/mobile/mobile-fab";
 import {
   MAIN_WITH_SIDEBAR,
@@ -55,6 +55,7 @@ export default async function MessLayout({
         capabilities={ctx.capabilities}
         readOnly={readOnly}
         isManager={ctx.isManager}
+        isOwner={ctx.isOwner}
       />
 
       <div className={MAIN_WITH_SIDEBAR}>
@@ -91,8 +92,13 @@ export default async function MessLayout({
         </main>
       </div>
 
-      <MobileBottomNav messId={messId} />
-      <MobileFab messId={messId} canWrite={!readOnly} />
+      <MessMobileBottomNav
+        messId={messId}
+        capabilities={ctx.capabilities}
+        isManager={ctx.isManager}
+        isOwner={ctx.isOwner}
+      />
+      <MobileFab messId={messId} canWrite={!readOnly} capabilities={ctx.capabilities} />
     </div>
   );
 }

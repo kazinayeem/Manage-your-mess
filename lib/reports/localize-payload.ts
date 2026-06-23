@@ -36,6 +36,26 @@ export function localizeReportPayload(payload: ReportPayload, locale: string): R
     return next;
   });
 
+  const localizedSections = payload.sections?.map((section) => ({
+    ...section,
+    columns: section.columns.map((col) => ({
+      ...col,
+      label: columnLabel(col.key, loc),
+    })),
+    rows: section.rows.map((row) => {
+      const next = { ...row };
+      if (typeof next.status === "string") next.status = statusLabel(next.status, loc);
+      if (typeof next.role === "string") next.role = roleLabel(next.role, loc);
+      if (
+        typeof next.type === "string" &&
+        ["Meal", "Expense", "Deposit", "CREDIT", "DEBIT"].includes(next.type)
+      ) {
+        next.type = statusLabel(next.type, loc);
+      }
+      return next;
+    }),
+  }));
+
   return {
     ...payload,
     meta: {
@@ -46,5 +66,6 @@ export function localizeReportPayload(payload: ReportPayload, locale: string): R
     summary: localizedSummary,
     columns: localizedColumns,
     rows: localizedRows,
+    sections: localizedSections,
   };
 }

@@ -29,21 +29,30 @@ interface UIStore {
   closeDrawer: () => void;
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
+  sidebarCollapsed: boolean;
+  toggleSidebarCollapsed: () => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarOpen: false,
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  activeModal: null,
-  openModal: (id) => set({ activeModal: id }),
-  closeModal: () => set({ activeModal: null }),
-  drawerOpen: false,
-  drawerContent: null,
-  openDrawer: (content) => set({ drawerOpen: true, drawerContent: content }),
-  closeDrawer: () => set({ drawerOpen: false, drawerContent: null }),
-  commandPaletteOpen: false,
-  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
-}));
+export const useUIStore = create<UIStore>()(
+  persist(
+    (set, get) => ({
+      sidebarOpen: false,
+      setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      activeModal: null,
+      openModal: (id) => set({ activeModal: id }),
+      closeModal: () => set({ activeModal: null }),
+      drawerOpen: false,
+      drawerContent: null,
+      openDrawer: (content) => set({ drawerOpen: true, drawerContent: content }),
+      closeDrawer: () => set({ drawerOpen: false, drawerContent: null }),
+      commandPaletteOpen: false,
+      setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+      sidebarCollapsed: false,
+      toggleSidebarCollapsed: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
+    }),
+    { name: "bornomess-ui", partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed }) }
+  )
+);
 
 interface FilterStore {
   analyticsRange: AnalyticsRange;

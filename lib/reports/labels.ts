@@ -1,6 +1,6 @@
 export type ReportLocale = "en" | "bn";
 
-const APP_NAME = { en: "BornoMess Manager", bn: "বর্ণোমেস ম্যানেজার" };
+const APP_NAME = { en: "MessFlow Pro", bn: "মেসফ্লো প্রো" };
 
 const META: Record<string, { en: string; bn: string }> = {
   summary: { en: "Executive Summary", bn: "সারাংশ" },
@@ -161,6 +161,13 @@ const STATUS: Record<string, { en: string; bn: string }> = {
   PENDING: { en: "Pending", bn: "অপেক্ষমাণ" },
   PAID: { en: "Paid", bn: "পরিশোধিত" },
   OVERDUE: { en: "Overdue", bn: "মেয়াদোত্তীর্ণ" },
+  ASSIGNED: { en: "Assigned", bn: "নির্ধারিত" },
+  IN_PROGRESS: { en: "In Progress", bn: "চলমান" },
+  PENDING_REVIEW: { en: "Pending Review", bn: "পর্যালোচনাধীন" },
+  APPROVED: { en: "Approved", bn: "অনুমোদিত" },
+  REJECTED: { en: "Rejected", bn: "প্রত্যাখ্যাত" },
+  CORRECTION_REQUESTED: { en: "Correction Needed", bn: "সংশোধন প্রয়োজন" },
+  CANCELLED: { en: "Cancelled", bn: "বাতিল" },
   Meal: { en: "Meal", bn: "মিল" },
   Expense: { en: "Expense", bn: "খরচ" },
   Deposit: { en: "Deposit", bn: "জমা" },

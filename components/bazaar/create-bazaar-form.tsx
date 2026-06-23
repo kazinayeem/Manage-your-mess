@@ -19,6 +19,7 @@ import {
 import { createBazaarTask } from "@/actions/bazaar";
 import { toast } from "sonner";
 import { messPath } from "@/lib/mess-routes";
+import { bazaarTaskPath } from "@/lib/bazaar-routes";
 
 type Member = { id: string; fullName: string | null };
 type ItemRow = { name: string; quantity: string; unit: string; estimatedPrice: string };
@@ -87,7 +88,7 @@ export function CreateBazaarForm({
     }
 
     toast.success(t("taskCreated"));
-    router.push(messPath(messId, `/bazaar/${result.data?.taskId}`));
+    router.push(bazaarTaskPath(messId, result.data?.taskId ?? ""));
   }
 
   return (

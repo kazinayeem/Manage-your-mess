@@ -9,8 +9,6 @@ import { Providers } from "@/components/providers";
 import { LocaleHtmlAttrs } from "@/components/locale-html-attrs";
 import { cn } from "@/lib/utils";
 
-import { PageTransition } from "@/components/motion/page-transition";
-
 const notoBengali = Noto_Sans_Bengali({
   subsets: ["bengali"],
   weight: ["400", "500", "600", "700"],
@@ -53,7 +51,7 @@ export default async function LocaleLayout({
       >
         <NextIntlClientProvider messages={messages}>
           <Providers session={session}>
-            <PageTransition>{children}</PageTransition>
+            {children}
             <Toaster richColors position="top-right" />
           </Providers>
         </NextIntlClientProvider>

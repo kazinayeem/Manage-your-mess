@@ -35,6 +35,14 @@ export type ReportAnalytics = {
   dueStats?: { membersWithDue: number; totalDue: number; highest?: string };
 };
 
+export type ReportSection = {
+  key: string;
+  title: string;
+  columns: ReportColumn[];
+  rows: Record<string, string | number>[];
+  emptyMessage?: string;
+};
+
 export type ReportPayload = {
   meta: {
     messName: string;
@@ -53,6 +61,11 @@ export type ReportPayload = {
   summary: { label: string; value: string }[];
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
+  sections?: ReportSection[];
+  emptyState?: {
+    title: string;
+    description: string;
+  };
   analytics?: ReportAnalytics;
 };
 

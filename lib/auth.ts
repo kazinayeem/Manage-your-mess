@@ -28,6 +28,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     id: string;
     role: UserRole;
+    suspended?: boolean;
   }
 }
 
@@ -56,7 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Google({
             clientId: process.env.AUTH_GOOGLE_ID,
             clientSecret: process.env.AUTH_GOOGLE_SECRET,
-            allowDangerousEmailAccountLinking: true,
+            allowDangerousEmailAccountLinking: false,
           }),
         ]
       : []),
@@ -173,9 +174,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id!;
         token.role = user.role;
       }
+      if (token.id) {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, isActive: true, deletedAt: true, isLocked: true, lockedUntil: true },
+        });
+        if (!dbUser || dbUser.deletedAt || !dbUser.isActive) {
+          token.suspended = true;
+        } else if (dbUser.isLocked && dbUser.lockedUntil && dbUser.lockedUntil > new Date()) {
+          token.suspended = true;
+        } else {
+          token.suspended = false;
+          token.role = dbUser.role;
+        }
+      }
       return token;
     },
     async session({ session, token }) {
+      if (token.suspended) {
+        return { ...session, user: undefined, expires: new Date(0).toISOString() };
+      }
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;

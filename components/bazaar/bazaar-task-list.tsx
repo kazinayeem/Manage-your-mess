@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
+import { bazaarTaskPath } from "@/lib/bazaar-routes";
 import type { BazaarPriority, BazaarTaskStatus } from "@prisma/client";
 
 export type BazaarTaskRow = {
@@ -47,7 +48,7 @@ export function BazaarTaskList({ messId, tasks }: { messId: string; tasks: Bazaa
   return (
     <div className="space-y-3">
       {tasks.map((task) => (
-        <Link key={task.id} href={messPath(messId, `/bazaar/${task.id}`)}>
+        <Link key={task.id} href={bazaarTaskPath(messId, task.id)}>
           <Card className="transition-shadow hover:shadow-md">
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">

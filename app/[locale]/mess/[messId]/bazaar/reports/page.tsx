@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
+import { canViewBazaarAdmin } from "@/lib/bazaar-access";
 import { getBazaarAnalytics } from "@/actions/bazaar";
 import { BazaarAnalytics } from "@/components/bazaar/bazaar-analytics";
 
@@ -10,8 +11,8 @@ export default async function BazaarReportsPage({
   params: Promise<{ messId: string }>;
 }) {
   const { messId } = await params;
-  const ctx = await requireMessPage(messId, { capability: "canManageBazaar" });
-  if (!ctx.capabilities.canManageBazaar) notFound();
+  const ctx = await requireMessPage(messId);
+  if (!canViewBazaarAdmin(ctx.capabilities, ctx.isOwner)) notFound();
 
   const t = await getTranslations("bazaar");
   const analytics = await getBazaarAnalytics(messId);

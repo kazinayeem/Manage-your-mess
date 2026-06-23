@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { saveSecureUpload } from "@/lib/upload-storage";
 import {
   PaymentRequestStatus,
   PlanDurationType,
@@ -271,15 +272,7 @@ export async function deletePaymentMethod(id: string): Promise<ActionResult> {
 // ─── Subscription Requests ───────────────────────────────────────────────────
 
 async function saveScreenshot(file: File | null): Promise<string | null> {
-  if (!file || file.size === 0) return null;
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const dir = path.join(process.cwd(), "public", "uploads", "payments");
-  await mkdir(dir, { recursive: true });
-  const filename = `payment-${Date.now()}.${ext}`;
-  await writeFile(path.join(dir, filename), buffer);
-  return `/uploads/payments/${filename}`;
+  return saveSecureUpload(file, "payments");
 }
 
 export async function submitSubscriptionRequest(
@@ -328,8 +321,8 @@ export async function submitSubscriptionRequest(
     await createNotification(
       user.id,
       "SUBSCRIPTION_SUBMITTED",
-      "Subscription request submitted",
-      "Your payment is pending admin approval. You will be notified once reviewed.",
+      "Payment under review",
+      "Please wait. Your payment is under review. Admin will verify and activate your subscription soon.",
       { requestId: request.id, planId }
     );
 
@@ -554,10 +547,14 @@ export async function reviewPaymentRequest(
 
 // ─── Subscriptions ───────────────────────────────────────────────────────────
 
-export async function getUserSubscription(userId?: string) {
-  const user = userId ? { id: userId } : await requireAuth();
+export async function getUserSubscription(requestedUserId?: string) {
+  const sessionUser = await requireAuth();
+  const userId = requestedUserId ?? sessionUser.id;
+  if (userId !== sessionUser.id && sessionUser.role !== "SUPER_ADMIN" && sessionUser.role !== "ADMIN") {
+    throw new Error("Permission denied");
+  }
   const subscription = await db.subscription.findFirst({
-    where: { userId: user.id },
+    where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
       plan: true,

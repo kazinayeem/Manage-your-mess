@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Monitor } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const CYCLE = ["light", "dark", "system"] as const;
 
 export function ThemeToggle({
   className,
@@ -14,52 +16,45 @@ export function ThemeToggle({
   className?: string;
   showLabel?: boolean;
 }) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const t = useTranslations("theme");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
-  const isDark = (mounted ? resolvedTheme ?? theme : "light") === "dark";
+  const current = mounted && theme ? theme : "light";
+  const label =
+    current === "system" ? t("system") : current === "dark" ? t("dark") : t("light");
 
-  function toggle() {
-    setTheme(isDark ? "light" : "dark");
+  function cycleTheme() {
+    const idx = CYCLE.indexOf(current as (typeof CYCLE)[number]);
+    const next = CYCLE[(idx + 1) % CYCLE.length];
+    setTheme(next);
   }
 
-  if (!mounted) {
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={cn("gap-1.5", className)}
-        aria-label={t("light")}
-        disabled
-      >
-        <Sun className="h-4 w-4 opacity-50" />
-        {showLabel && <span className="text-xs font-medium">{t("light")}</span>}
-      </Button>
-    );
-  }
+  const Icon =
+    current === "system" ? Monitor : current === "dark" ? Moon : Sun;
 
   return (
     <Button
       type="button"
       variant="ghost"
       size="sm"
-      onClick={toggle}
+      onClick={cycleTheme}
       className={cn("gap-1.5", className)}
-      aria-label={isDark ? t("switchToLight") : t("switchToDark")}
-      title={isDark ? t("switchToLight") : t("switchToDark")}
+      aria-label={t("cycleTheme")}
+      title={t("cycleTheme")}
+      disabled={!mounted}
     >
-      {isDark ? (
-        <Sun className="h-4 w-4 text-amber-500" />
-      ) : (
-        <Moon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
-      )}
-      {showLabel && (
-        <span className="text-xs font-medium">{isDark ? t("light") : t("dark")}</span>
-      )}
+      <Icon
+        className={cn(
+          "h-4 w-4",
+          current === "dark" && "text-indigo-400",
+          current === "light" && "text-amber-500",
+          current === "system" && "text-zinc-500"
+        )}
+      />
+      {showLabel && <span className="text-xs font-medium">{label}</span>}
     </Button>
   );
 }

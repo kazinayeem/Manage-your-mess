@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
+import { bazaarTaskPath } from "@/lib/bazaar-routes";
 import type { BazaarTaskStatus } from "@prisma/client";
 
 type PendingTask = {
@@ -77,7 +78,7 @@ export async function PendingBazaarWidget({
           </div>
         </div>
         <Button asChild className="w-full sm:w-auto">
-          <Link href={messPath(messId, `/bazaar/${task.id}`)}>{t("viewDetails")}</Link>
+          <Link href={bazaarTaskPath(messId, task.id)}>{t("viewDetails")}</Link>
         </Button>
         {tasks.length > 1 && (
           <Link href={messPath(messId, "/bazaar/my")} className="block text-center text-sm text-emerald-600 hover:underline">

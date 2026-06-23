@@ -6,10 +6,9 @@ export const MOBILE_MENU_BTN =
 
 export function sidebarAsideClass(open: boolean) {
   return cn(
-    /* inset-y-0 is more reliable than h-dvh on Safari iOS */
-    "fixed inset-y-0 left-0 z-40 flex w-64 max-w-[85vw] flex-col border-r border-zinc-200 bg-white",
-    "transition-transform duration-300 ease-in-out",
-    "dark:border-zinc-800 dark:bg-zinc-950 lg:translate-x-0",
+    "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col border-r border-zinc-200/80 bg-white/95 backdrop-blur-xl",
+    "transition-[transform,width] duration-300 ease-in-out",
+    "dark:border-zinc-800 dark:bg-zinc-950/95 lg:translate-x-0",
     open ? "translate-x-0" : "-translate-x-full"
   );
 }
@@ -22,7 +21,8 @@ export const SIDEBAR_OVERLAY =
 
 export const SHELL_BG = "flex min-h-full flex-1 flex-col bg-zinc-50 dark:bg-zinc-950";
 
-export const MAIN_WITH_SIDEBAR = "flex min-h-0 min-w-0 flex-1 flex-col overflow-visible lg:pl-64";
+export const MAIN_WITH_SIDEBAR =
+  "flex min-h-0 min-w-0 flex-1 flex-col overflow-visible lg:pl-72 peer-data-[collapsed=true]:lg:pl-[4.5rem]";
 
 /** Top padding when there is no sticky header (room for hamburger). */
 export const MAIN_CONTENT_PAD =

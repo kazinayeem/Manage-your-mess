@@ -1,13 +1,21 @@
 /** All feature keys Super Admin can toggle per plan */
 export const PLAN_FEATURES = {
+  MEAL_MANAGEMENT: "meal_management",
+  DEPOSIT_MANAGEMENT: "deposit_management",
+  EXPENSE_MANAGEMENT: "expense_management",
+  BAZAAR_MANAGEMENT: "bazaar_management",
+  UTILITY_BILLS: "utility_bills",
   PDF_REPORTS: "pdf_reports",
   EXCEL_REPORTS: "excel_reports",
   CSV_EXPORT: "csv_export",
+  ANALYTICS: "analytics",
   AI_ANALYTICS: "ai_analytics",
   BRANCH_MANAGEMENT: "branch_management",
   ROOM_MANAGEMENT: "room_management",
   BED_MANAGEMENT: "bed_management",
   VISITOR_MANAGEMENT: "visitor_management",
+  TASK_MANAGEMENT: "task_management",
+  INVENTORY: "inventory",
   AUDIT_LOGS: "audit_logs",
   ADVANCED_REPORTS: "advanced_reports",
   CUSTOM_BRANDING: "custom_branding",
@@ -31,14 +39,22 @@ export const PLAN_FEATURES = {
 export type PlanFeatureKey = (typeof PLAN_FEATURES)[keyof typeof PLAN_FEATURES];
 
 export const PLAN_FEATURE_LABELS: Record<PlanFeatureKey, string> = {
+  meal_management: "Meal Management",
+  deposit_management: "Deposit Management",
+  expense_management: "Expense Management",
+  bazaar_management: "Bazaar Management",
+  utility_bills: "Utility Bills",
   pdf_reports: "PDF Reports",
   excel_reports: "Excel Reports",
   csv_export: "CSV Export",
+  analytics: "Analytics",
   ai_analytics: "AI Analytics",
   branch_management: "Branch Management",
   room_management: "Room Management",
   bed_management: "Bed Management",
   visitor_management: "Visitor Management",
+  task_management: "Task Management",
+  inventory: "Inventory",
   audit_logs: "Audit Logs",
   advanced_reports: "Advanced Reports",
   custom_branding: "Custom Branding",
@@ -65,8 +81,14 @@ export const PLAN_LIMIT_KEYS = [
   "reports",
   "pdf_exports",
   "excel_exports",
+  "csv_exports",
   "monthly_transactions",
   "api_requests",
+  "bazaar_entries",
+  "expenses",
+  "bills",
+  "notices",
+  "tasks",
 ] as const;
 
 export type PlanLimitKey = (typeof PLAN_LIMIT_KEYS)[number];
@@ -78,17 +100,36 @@ export const PLAN_LIMIT_LABELS: Record<PlanLimitKey, string> = {
   reports: "Reports Limit",
   pdf_exports: "PDF Export Limit",
   excel_exports: "Excel Export Limit",
+  csv_exports: "CSV Export Limit",
   monthly_transactions: "Monthly Transactions Limit",
   api_requests: "API Requests Limit",
+  bazaar_entries: "Bazaar Entry Limit",
+  expenses: "Expense Limit",
+  bills: "Bills Limit",
+  notices: "Notice Limit",
+  tasks: "Task Limit",
 };
 
 export const DURATION_PRESETS = [
+  { label: "1 Day", type: "DAYS" as const, value: 1 },
+  { label: "3 Days", type: "DAYS" as const, value: 3 },
   { label: "7 Days", type: "DAYS" as const, value: 7 },
   { label: "15 Days", type: "DAYS" as const, value: 15 },
   { label: "30 Days", type: "DAYS" as const, value: 30 },
+  { label: "1 Month", type: "MONTHS" as const, value: 1 },
+  { label: "2 Months", type: "MONTHS" as const, value: 2 },
   { label: "90 Days", type: "MONTHS" as const, value: 3 },
   { label: "180 Days", type: "MONTHS" as const, value: 6 },
+  { label: "12 Months", type: "YEARS" as const, value: 1 },
   { label: "365 Days", type: "YEARS" as const, value: 1 },
+] as const;
+
+export const TRIAL_DURATION_PRESETS = [
+  { label: "1 Day", type: "DAYS" as const, value: 1 },
+  { label: "3 Days", type: "DAYS" as const, value: 3 },
+  { label: "7 Days", type: "DAYS" as const, value: 7 },
+  { label: "15 Days", type: "DAYS" as const, value: 15 },
+  { label: "30 Days", type: "DAYS" as const, value: 30 },
 ] as const;
 
 export const EXTENSION_PRESETS = [
@@ -101,12 +142,22 @@ export const EXTENSION_PRESETS = [
 
 /** Legacy feature key mapping for old code paths */
 export const LEGACY_FEATURE_MAP: Record<string, PlanFeatureKey> = {
+  meal_management: "meal_management",
+  deposit_management: "deposit_management",
+  expense_management: "expense_management",
+  bazaar_management: "bazaar_management",
+  utility_bills: "utility_bills",
   pdf_export: "pdf_reports",
   excel_export: "excel_reports",
   csv_export: "csv_export",
+  analytics: "analytics",
   ai_analytics: "ai_analytics",
   branch_management: "branch_management",
   room_management: "room_management",
+  bed_management: "bed_management",
+  visitor_management: "visitor_management",
+  task_management: "task_management",
+  inventory: "inventory",
   advanced_reports: "advanced_reports",
   audit_logs: "audit_logs",
   custom_branding: "custom_branding",

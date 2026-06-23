@@ -2,12 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireMessAccess } from "@/lib/mess-access";
+import { requireMessAccess, ForbiddenError } from "@/lib/mess-access";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 import { assertMessWriteAccess } from "@/lib/billing/subscription-access";
 import { ensureCurrentMonth } from "@/lib/mess-context";
 import { recalculateMonth } from "@/actions/monthly";
 import { createUserNotification } from "@/lib/notifications";
 import { saveBazaarFiles } from "@/lib/bazaar-upload";
+import { isMissingBazaarTable, EMPTY_BAZAAR_ANALYTICS } from "@/lib/bazaar-db";
 import { bazaarTaskSchema, bazaarReviewSchema } from "@/lib/validations";
 import type { BazaarTaskStatus, BazaarItemStatus } from "@prisma/client";
 
@@ -22,6 +24,7 @@ function revalidateBazaar(messId: string) {
   revalidatePath(`/mess/${messId}/bazaar/history`);
   revalidatePath(`/mess/${messId}/bazaar/reports`);
   revalidatePath(`/mess/${messId}/bazaar/my`);
+  revalidatePath(`/mess/${messId}/bazaar/tasks`, "layout");
 }
 
 async function logBazaarHistory(
@@ -58,6 +61,13 @@ async function findBazaarCategory(messId: string) {
     });
   }
   return category;
+}
+
+function canViewBazaarAdmin(access: Awaited<ReturnType<typeof requireMessAccess>>) {
+  return (
+    hasPermission(access.role, PERMISSIONS.BAZAAR_MANAGE) ||
+    access.mess.ownerId === access.user.id
+  );
 }
 
 export async function createBazaarTask(
@@ -174,6 +184,9 @@ export async function getBazaarTasks(
   messId: string,
   filter?: "all" | "assigned" | "pending_review" | "history"
 ) {
+  const access = await requireMessAccess(messId);
+  if (!canViewBazaarAdmin(access)) throw new ForbiddenError();
+
   const statusFilter: BazaarTaskStatus[] | undefined =
     filter === "assigned"
       ? ["ASSIGNED", "IN_PROGRESS", "CORRECTION_REQUESTED"]
@@ -183,71 +196,93 @@ export async function getBazaarTasks(
           ? ["APPROVED", "REJECTED", "CANCELLED"]
           : undefined;
 
-  return db.bazaarTask.findMany({
-    where: {
-      messId,
-      deletedAt: null,
-      ...(statusFilter ? { status: { in: statusFilter } } : {}),
-    },
-    include: {
-      items: { orderBy: { sortOrder: "asc" } },
-      assignment: {
-        include: {
-          member: { select: { id: true, fullName: true } },
-          assignedBy: { select: { id: true, name: true } },
-        },
+  try {
+    return await db.bazaarTask.findMany({
+      where: {
+        messId,
+        deletedAt: null,
+        ...(statusFilter ? { status: { in: statusFilter } } : {}),
       },
-      submission: true,
-      createdBy: { select: { name: true } },
-      _count: { select: { items: true } },
-    },
-    orderBy: { shoppingDate: "desc" },
-  });
+      include: {
+        items: { orderBy: { sortOrder: "asc" } },
+        assignment: {
+          include: {
+            member: { select: { id: true, fullName: true } },
+            assignedBy: { select: { id: true, name: true } },
+          },
+        },
+        submission: true,
+        createdBy: { select: { name: true } },
+        _count: { select: { items: true } },
+      },
+      orderBy: { shoppingDate: "desc" },
+    });
+  } catch (error) {
+    if (isMissingBazaarTable(error)) return [];
+    throw error;
+  }
 }
 
 export async function getBazaarTask(messId: string, taskId: string) {
-  return db.bazaarTask.findFirst({
-    where: { id: taskId, messId, deletedAt: null },
-    include: {
-      items: { orderBy: { sortOrder: "asc" } },
-      assignment: {
-        include: {
-          member: { select: { id: true, fullName: true, userId: true } },
-          assignedBy: { select: { id: true, name: true } },
+  const access = await requireMessAccess(messId);
+  try {
+    const task = await db.bazaarTask.findFirst({
+      where: { id: taskId, messId, deletedAt: null },
+      include: {
+        items: { orderBy: { sortOrder: "asc" } },
+        assignment: {
+          include: {
+            member: { select: { id: true, fullName: true, userId: true } },
+            assignedBy: { select: { id: true, name: true } },
+          },
         },
+        submission: { include: { receipts: true } },
+        receipts: true,
+        approvals: {
+          include: { reviewedBy: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+        },
+        history: { orderBy: { createdAt: "desc" }, take: 20 },
+        createdBy: { select: { name: true } },
+        expense: { select: { id: true, amount: true } },
       },
-      submission: { include: { receipts: true } },
-      receipts: true,
-      approvals: {
-        include: { reviewedBy: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-      },
-      history: { orderBy: { createdAt: "desc" }, take: 20 },
-      createdBy: { select: { name: true } },
-      expense: { select: { id: true, amount: true } },
-    },
-  });
+    });
+    if (!task) return null;
+    const isAssignee = task.assignment?.memberId === access.member?.id;
+    if (!canViewBazaarAdmin(access) && !isAssignee) throw new ForbiddenError();
+    return task;
+  } catch (error) {
+    if (isMissingBazaarTable(error)) return null;
+    throw error;
+  }
 }
 
 export async function getMyPendingBazaars(messId: string, memberId: string) {
-  return db.bazaarTask.findMany({
-    where: {
-      messId,
-      deletedAt: null,
-      status: { in: ["ASSIGNED", "IN_PROGRESS", "CORRECTION_REQUESTED"] },
-      assignment: { memberId },
-    },
-    include: {
-      assignment: {
-        include: {
-          member: { select: { fullName: true } },
-          assignedBy: { select: { name: true } },
-        },
+  const access = await requireMessAccess(messId);
+  if (!access.member || access.member.id !== memberId) throw new ForbiddenError();
+  try {
+    return await db.bazaarTask.findMany({
+      where: {
+        messId,
+        deletedAt: null,
+        status: { in: ["ASSIGNED", "IN_PROGRESS", "CORRECTION_REQUESTED"] },
+        assignment: { memberId },
       },
-      _count: { select: { items: true } },
-    },
-    orderBy: { shoppingDate: "asc" },
-  });
+      include: {
+        assignment: {
+          include: {
+            member: { select: { fullName: true } },
+            assignedBy: { select: { name: true } },
+          },
+        },
+        _count: { select: { items: true } },
+      },
+      orderBy: { shoppingDate: "asc" },
+    });
+  } catch (error) {
+    if (isMissingBazaarTable(error)) return [];
+    throw error;
+  }
 }
 
 export async function submitBazaarTask(
@@ -571,15 +606,18 @@ export async function reviewBazaarTask(
 }
 
 export async function getBazaarAnalytics(messId: string) {
-  const tasks = await db.bazaarTask.findMany({
-    where: { messId, deletedAt: null, status: "APPROVED" },
-    include: {
-      assignment: { include: { member: { select: { id: true, fullName: true } } } },
-      submission: true,
-    },
-  });
+  const access = await requireMessAccess(messId);
+  if (!canViewBazaarAdmin(access)) throw new ForbiddenError();
+  try {
+    const tasks = await db.bazaarTask.findMany({
+      where: { messId, deletedAt: null, status: "APPROVED" },
+      include: {
+        assignment: { include: { member: { select: { id: true, fullName: true } } } },
+        submission: true,
+      },
+    });
 
-  const totalCost = tasks.reduce((s, t) => s + (t.submission?.actualCost ?? 0), 0);
+    const totalCost = tasks.reduce((s, t) => s + (t.submission?.actualCost ?? 0), 0);
   const totalBudget = tasks.reduce((s, t) => s + t.expectedBudget, 0);
 
   const now = new Date();
@@ -617,45 +655,56 @@ export async function getBazaarAnalytics(messId: string) {
     });
   }
 
-  return {
-    totalCost,
-    totalBudget,
-    monthlyCost,
-    avgCost,
-    taskCount: tasks.length,
-    memberWise,
-    mostActiveShopper: mostActive,
-    monthlyTrend,
-    budgetVariance: totalBudget - totalCost,
-  };
+    return {
+      totalCost,
+      totalBudget,
+      monthlyCost,
+      avgCost,
+      taskCount: tasks.length,
+      memberWise,
+      mostActiveShopper: mostActive,
+      monthlyTrend,
+      budgetVariance: totalBudget - totalCost,
+    };
+  } catch (error) {
+    if (isMissingBazaarTable(error)) return EMPTY_BAZAAR_ANALYTICS;
+    throw error;
+  }
 }
 
 export async function getBazaarHistory(messId: string) {
-  return db.bazaarHistory.findMany({
-    where: { messId },
-    include: {
-      task: {
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          expectedBudget: true,
-          assignment: {
-            include: { member: { select: { fullName: true } } },
-          },
-          submission: { select: { actualCost: true } },
-          approvals: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
-            include: { reviewedBy: { select: { name: true } } },
+  const access = await requireMessAccess(messId);
+  if (!canViewBazaarAdmin(access)) throw new ForbiddenError();
+  try {
+    return await db.bazaarHistory.findMany({
+      where: { messId },
+      include: {
+        task: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            expectedBudget: true,
+            assignment: {
+              include: { member: { select: { fullName: true } } },
+            },
+            submission: { select: { actualCost: true } },
+            approvals: {
+              take: 1,
+              orderBy: { createdAt: "desc" },
+              include: { reviewedBy: { select: { name: true } } },
+            },
           },
         },
+        performedBy: { select: { name: true } },
       },
-      performedBy: { select: { name: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  } catch (error) {
+    if (isMissingBazaarTable(error)) return [];
+    throw error;
+  }
 }
 
 export async function markBazaarInProgress(messId: string, taskId: string): Promise<ActionResult> {
