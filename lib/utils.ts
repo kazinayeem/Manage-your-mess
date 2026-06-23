@@ -25,6 +25,10 @@ export function formatDate(date: Date | string, locale = "en") {
   }).format(new Date(date));
 }
 
+export function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 export function slugify(text: string) {
   return text
     .toLowerCase()

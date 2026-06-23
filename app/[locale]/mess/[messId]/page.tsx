@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { getMessDisplayRoleLabel } from "@/lib/mess-role-label";
 import { db } from "@/lib/db";
 import { BillKpiCards } from "@/components/mess/bill-kpi-cards";
+import { PendingBazaarWidget } from "@/components/bazaar/pending-bazaar-widget";
+import { getMyPendingBazaars } from "@/actions/bazaar";
 import type { MemberCardData } from "@/components/mess/member-card";
 
 export default async function MessDashboardPage({
@@ -88,6 +90,10 @@ export default async function MessDashboardPage({
   const myCost = myStats?.totalCost ?? myMealCost + myBillShare;
   const myBalance = myStats ? (myStats.advance > 0 ? myStats.advance : -myStats.due) : myDeposit - myCost;
 
+  const pendingBazaars = ctx.member
+    ? await getMyPendingBazaars(ctx.messId, ctx.member.id)
+    : [];
+
   const tRoles = await getTranslations("roles");
   const tWorkspace = await getTranslations("workspace");
   const roleLabel = getMessDisplayRoleLabel(ctx.effectiveRole, tRoles, {
@@ -118,6 +124,8 @@ export default async function MessDashboardPage({
       {ctx.isManager && pendingMembers.length > 0 && (
         <PendingMembersPanel messId={messId} members={pendingMembers} />
       )}
+
+      <PendingBazaarWidget messId={messId} tasks={pendingBazaars} />
 
       <BillKpiCards kpis={summary.billKpis} />
 

@@ -70,4 +70,5 @@ export type ReportFetchOptions = {
   dateRangeEnd?: string;
   currency?: ReportCurrency;
   generatedBy?: string;
+  locale?: "en" | "bn";
 };

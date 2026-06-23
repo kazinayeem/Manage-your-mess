@@ -184,6 +184,42 @@ export const visitorSchema = z.object({
   notes: z.string().optional(),
 });
 
+const bazaarItemSchema = z.object({
+  name: z.string().min(1, "Item name is required"),
+  quantity: z.coerce.number().positive("Quantity must be positive"),
+  unit: z.string().min(1, "Unit is required"),
+  estimatedPrice: z.coerce.number().min(0).optional(),
+});
+
+export const bazaarTaskSchema = z.object({
+  title: z.string().min(2, "Title must be at least 2 characters"),
+  shoppingDate: z.string().min(1, "Shopping date is required"),
+  expectedBudget: z.coerce.number().min(0, "Budget must be positive"),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  memberId: z.string().min(1, "Assign a member"),
+  assignmentDate: z.string().min(1, "Assignment date is required"),
+  expectedCompletionDate: z.string().min(1, "Due date is required"),
+  items: z.array(bazaarItemSchema).min(1, "Add at least one item"),
+});
+
+export const bazaarSubmissionSchema = z.object({
+  actualCost: z.coerce.number().min(0, "Actual cost is required"),
+  notes: z.string().optional(),
+  missingItems: z.string().optional(),
+  itemUpdates: z.string().optional(),
+});
+
+export const bazaarReviewSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED", "CORRECTION_REQUESTED"]),
+  comment: z.string().optional(),
+  rewardPoints: z.coerce.number().int().min(0).optional(),
+});
+
+export type BazaarTaskInput = z.infer<typeof bazaarTaskSchema>;
+export type BazaarSubmissionInput = z.infer<typeof bazaarSubmissionSchema>;
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type MessInput = z.infer<typeof messSchema>;

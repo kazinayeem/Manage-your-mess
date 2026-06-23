@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function MarketingHeader() {
   const t = useTranslations();
@@ -44,6 +45,7 @@ export function MarketingHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <LocaleSwitcher />
           <Button variant="ghost" asChild>
             <Link href="/login">{t("common.login")}</Link>
@@ -72,6 +74,7 @@ export function MarketingHeader() {
               </Link>
             ))}
             <div className="flex gap-2 pt-2">
+              <ThemeToggle className="flex-1" />
               <LocaleSwitcher className="flex-1" />
               <Button variant="outline" className="flex-1" asChild>
                 <Link href="/login">{t("common.login")}</Link>

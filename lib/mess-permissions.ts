@@ -15,6 +15,8 @@ export type MessCapabilities = {
   canTransferOwnership: boolean;
   canGenerateReports: boolean;
   canViewMembers: boolean;
+  canManageBazaar: boolean;
+  canViewMyBazaar: boolean;
 };
 
 export function getMessCapabilities(role: UserRole): MessCapabilities {
@@ -33,6 +35,8 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canTransferOwnership: false,
     canGenerateReports: true,
     canViewMembers: true,
+    canManageBazaar: false,
+    canViewMyBazaar: true,
   };
 
   const manager: MessCapabilities = {
@@ -50,6 +54,8 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canTransferOwnership: false,
     canGenerateReports: true,
     canViewMembers: true,
+    canManageBazaar: true,
+    canViewMyBazaar: true,
   };
 
   const accountant: MessCapabilities = {
@@ -67,6 +73,8 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canTransferOwnership: false,
     canGenerateReports: true,
     canViewMembers: true,
+    canManageBazaar: false,
+    canViewMyBazaar: true,
   };
 
   const assistant: MessCapabilities = {
@@ -94,6 +102,8 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canTransferOwnership: false,
     canGenerateReports: true,
     canViewMembers: false,
+    canManageBazaar: false,
+    canViewMyBazaar: true,
   };
 
   switch (role) {

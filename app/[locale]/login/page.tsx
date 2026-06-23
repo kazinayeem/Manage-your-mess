@@ -1,6 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
+import { AuthPageShell } from "@/components/auth/auth-page-shell";
 
 export default async function LoginPage({
   params,
@@ -11,10 +12,10 @@ export default async function LoginPage({
   setRequestLocale(locale);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+    <AuthPageShell>
       <Suspense fallback={<div className="h-96 w-full max-w-md animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />}>
         <LoginForm />
       </Suspense>
-    </div>
+    </AuthPageShell>
   );
 }

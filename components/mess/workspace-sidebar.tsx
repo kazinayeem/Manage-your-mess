@@ -19,6 +19,8 @@ import {
   UserCog,
   LayoutGrid,
   Zap,
+  ShoppingCart,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ import type { LucideIcon } from "lucide-react";
 import { useMobileSidebar } from "@/hooks/use-mobile-sidebar";
 import { StartNewMonthDialog } from "@/components/mess/start-new-month-dialog";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   MOBILE_MENU_BTN,
   SIDEBAR_NAV,
@@ -55,6 +58,8 @@ function buildNav(messId: string, cap: MessCapabilities, isManager: boolean) {
         { segment: "/deposits", labelKey: "myDeposits", icon: Wallet },
         { segment: "/expenses", labelKey: "messCosts", icon: Receipt },
         { segment: "/bills", labelKey: "billsUtilities", icon: Zap },
+        { segment: "/bazaar/my", labelKey: "myBazaar", icon: ShoppingCart, show: (c) => c.canViewMyBazaar },
+        { segment: "/analytics", labelKey: "analytics", icon: BarChart3 },
         { segment: "/reports", labelKey: "reports", icon: FileText },
       ]
     : [
@@ -84,6 +89,11 @@ function buildNav(messId: string, cap: MessCapabilities, isManager: boolean) {
           icon: Zap,
           show: (c) => c.canManageBills,
         },
+        { segment: "/bazaar", labelKey: "bazaarList", icon: ShoppingCart, show: (c) => c.canManageBazaar },
+        { segment: "/bazaar/assigned", labelKey: "assignedBazaar", icon: ShoppingCart, show: (c) => c.canManageBazaar },
+        { segment: "/bazaar/history", labelKey: "bazaarHistory", icon: ShoppingCart, show: (c) => c.canManageBazaar },
+        { segment: "/bazaar/reports", labelKey: "bazaarReports", icon: ShoppingCart, show: (c) => c.canManageBazaar },
+        { segment: "/bazaar/my", labelKey: "myBazaar", icon: ShoppingCart, show: (c) => c.canViewMyBazaar },
         { segment: "/current-month", labelKey: "currentMonth", icon: Calendar },
         { segment: "/months", labelKey: "allMonths", icon: CalendarDays },
         {
@@ -115,6 +125,12 @@ function buildNav(messId: string, cap: MessCapabilities, isManager: boolean) {
           segment: "/reports",
           labelKey: "pdfReports",
           icon: FileText,
+          show: (c) => c.canGenerateReports,
+        },
+        {
+          segment: "/analytics",
+          labelKey: "analytics",
+          icon: BarChart3,
           show: (c) => c.canGenerateReports,
         },
         {
@@ -185,8 +201,9 @@ export function MessWorkspaceSidebar({
           </div>
         </div>
 
-        <div className="border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-          <LocaleSwitcher className="w-full justify-start" />
+        <div className="flex gap-1 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
+          <ThemeToggle className="flex-1 justify-start" />
+          <LocaleSwitcher className="flex-1 justify-start" />
         </div>
 
         <nav className={SIDEBAR_NAV}>

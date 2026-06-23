@@ -30,6 +30,8 @@ function applySubscriptionToCapabilities(
     canTransferOwnership: false,
     canGenerateReports: capabilities.canGenerateReports,
     canViewMembers: capabilities.canViewMembers,
+    canManageBazaar: false,
+    canViewMyBazaar: capabilities.canViewMyBazaar,
   };
 }
 

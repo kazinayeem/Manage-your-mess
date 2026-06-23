@@ -1,5 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import { RegisterForm } from "@/components/auth/register-form";
+import { AuthPageShell } from "@/components/auth/auth-page-shell";
 
 export default async function RegisterPage({
   params,
@@ -10,8 +11,8 @@ export default async function RegisterPage({
   setRequestLocale(locale);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+    <AuthPageShell>
       <RegisterForm />
-    </div>
+    </AuthPageShell>
   );
 }

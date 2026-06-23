@@ -7,6 +7,7 @@ import { MessWorkspaceSidebar } from "@/components/mess/workspace-sidebar";
 import { PortalMessSwitcher } from "@/components/portal/mess-switcher";
 import { SubscriptionBanner } from "@/components/billing/subscription-banner";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { getMessDisplayRoleLabel } from "@/lib/mess-role-label";
 import { Link } from "@/i18n/navigation";
@@ -70,6 +71,7 @@ export default async function MessLayout({
               activeMessId={messId}
             />
             <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
               <LocaleSwitcher />
               {readOnly && <Badge variant="secondary">{tWorkspace("readOnly")}</Badge>}
               <Badge variant="outline" className="hidden sm:inline-flex">

@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useMobileSidebar } from "@/hooks/use-mobile-sidebar";
 import {
   MOBILE_MENU_BTN,
@@ -69,8 +70,9 @@ export function PortalSidebar() {
           </div>
         </div>
 
-        <div className="border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-          <LocaleSwitcher className="w-full justify-start" />
+        <div className="flex gap-1 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
+          <ThemeToggle className="flex-1 justify-start" />
+          <LocaleSwitcher className="flex-1 justify-start" />
         </div>
 
         <nav className={SIDEBAR_NAV}>

@@ -2,6 +2,8 @@
 
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
+import { ThemeProvider } from "@/components/theme-provider";
+import { StoreProvider } from "@/components/store-provider";
 
 export function Providers({
   children,
@@ -11,13 +13,16 @@ export function Providers({
   session?: Session | null;
 }) {
   return (
-    <SessionProvider
-      session={session}
-      /* Safari aborts in-flight session fetches on navigation — avoid noisy refetches */
-      refetchOnWindowFocus={false}
-      refetchWhenOffline={false}
-    >
-      {children}
-    </SessionProvider>
+    <StoreProvider>
+      <ThemeProvider>
+        <SessionProvider
+          session={session}
+          refetchOnWindowFocus={false}
+          refetchWhenOffline={false}
+        >
+          {children}
+        </SessionProvider>
+      </ThemeProvider>
+    </StoreProvider>
   );
 }

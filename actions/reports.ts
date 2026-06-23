@@ -77,12 +77,29 @@ export async function fetchReportData(
       const title =
         reportType === "balance_sheet" ? "Balance Report" : "Monthly Settlement Report";
       const membersWithDue = summary.members.filter((m) => m.due > 0).length;
-      const totalAdvance = summary.members.reduce((s, m) => s + m.advance, 0);
 
       const expenseBreakdown = Object.entries(summary.billsByCategory).map(([cat, amt]) => ({
         label: getBillCategoryLabel(cat as Parameters<typeof getBillCategoryLabel>[0]),
         amount: amt,
       }));
+
+      const cat = summary.billsByCategory;
+      const utilitySummary: { label: string; value: string }[] = [
+        { label: "Total Members", value: String(summary.memberCount) },
+        { label: "Total Meals", value: String(summary.totalMeals) },
+        { label: "Meal Rate", value: formatBdt(summary.mealRate) },
+        { label: "Total Deposits", value: formatBdt(summary.totalDeposits) },
+        { label: "Total Expenses", value: formatBdt(summary.totalExpenses) },
+        { label: "Total Rent", value: formatBdt(summary.billKpis.totalRent) },
+        { label: "Electricity", value: formatBdt(cat.ELECTRICITY ?? 0) },
+        { label: "Water", value: formatBdt(cat.WATER ?? 0) },
+        { label: "Gas", value: formatBdt(cat.GAS ?? 0) },
+        { label: "Internet", value: formatBdt(cat.INTERNET ?? 0) },
+        { label: "Total Utility Bills", value: formatBdt(summary.billKpis.totalUtilities) },
+        { label: "Total Shared Cost", value: formatBdt(summary.billKpis.totalSharedBills) },
+        { label: "Total Due", value: formatBdt(summary.totalDue) },
+        { label: "Closing Balance", value: formatBdt(summary.billKpis.messBalance) },
+      ];
 
       const mealEntries = await db.mealEntry.findMany({
         where: { messId, meal: { monthId } },
@@ -105,20 +122,7 @@ export async function fetchReportData(
             reportTitle: title,
             periodLabel: month.label,
           },
-          summary: [
-            { label: "Total Members", value: String(summary.memberCount) },
-            { label: "Active Members", value: String(summary.memberCount) },
-            { label: "Total Deposits", value: formatBdt(summary.totalDeposits) },
-            { label: "Total Expenses", value: formatBdt(summary.totalExpenses) },
-            { label: "Total Meals", value: String(summary.totalMeals) },
-            { label: "Meal Rate", value: formatBdt(summary.mealRate) },
-            { label: "Total Utility Bills", value: formatBdt(summary.billKpis.totalUtilities) },
-            { label: "Total Rent", value: formatBdt(summary.billKpis.totalRent) },
-            { label: "Total Shared Cost", value: formatBdt(summary.billKpis.totalSharedBills) },
-            { label: "Total Due", value: formatBdt(summary.totalDue) },
-            { label: "Total Advance", value: formatBdt(totalAdvance) },
-            { label: "Closing Balance", value: formatBdt(summary.billKpis.messBalance) },
-          ],
+          summary: utilitySummary,
           columns: [
             { key: "name", label: "Member", align: "left" },
             { key: "role", label: "Role", align: "left" },

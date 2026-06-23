@@ -1,0 +1,23 @@
+import { notFound } from "next/navigation";
+import { requireMessPage } from "@/lib/require-mess-page";
+import { MessAnalyticsView } from "@/components/analytics/mess-analytics-view";
+
+export default async function MessAnalyticsPage({
+  params,
+}: {
+  params: Promise<{ locale: string; messId: string }>;
+}) {
+  const { locale, messId } = await params;
+  const ctx = await requireMessPage(messId, { capability: "canGenerateReports" });
+  if (!ctx.capabilities.canGenerateReports) notFound();
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">{locale === "bn" ? "অ্যানালিটিক্স সেন্টার" : "Analytics Center"}</h1>
+        <p className="text-zinc-500">{ctx.mess.name}</p>
+      </div>
+      <MessAnalyticsView messId={messId} locale={locale} />
+    </div>
+  );
+}

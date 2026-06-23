@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Shield } from "lucide-react";
+import { normalizeEmail } from "@/lib/utils";
 
 function loginErrorMessage(error?: string | null): string {
   if (!error) return "Invalid email or password.";
@@ -20,6 +21,7 @@ function loginErrorMessage(error?: string | null): string {
   }
   if (lower.includes("too many")) return "Too many login attempts. Please wait and try again.";
   if (error === "CredentialsSignin") return "Invalid email or password.";
+  if (lower.includes("google sign-in")) return error;
   return error;
 }
 
@@ -53,13 +55,13 @@ export function LoginForm() {
     try {
       const formData = new FormData(e.currentTarget);
       const result = await signIn("credentials", {
-        email: formData.get("email"),
-        password: formData.get("password"),
+        email: normalizeEmail(String(formData.get("email") ?? "")),
+        password: String(formData.get("password") ?? ""),
         redirect: false,
       });
 
-      if (result?.error) {
-        toast.error(loginErrorMessage(result.error));
+      if (result?.error || result?.ok === false) {
+        toast.error(loginErrorMessage(result?.error));
         setLoading(false);
         return;
       }

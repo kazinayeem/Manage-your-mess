@@ -1,27 +1,64 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ReportColumn, ReportPayload } from "@/lib/reports/types";
-import { reportLabel, formatReportCurrency } from "@/lib/reports/labels";
+import {
+  reportLabel,
+  formatReportCurrency,
+  appBrandName,
+  columnLabel,
+} from "@/lib/reports/labels";
+import { localizeReportPayload } from "@/lib/reports/localize-payload";
 
 const FONT_NAME = "NotoSansBengali";
 const FONT_FILE = "NotoSansBengali-Regular.ttf";
-let fontLoaded = false;
 
-async function ensureBengaliFont(doc: jsPDF): Promise<void> {
-  if (fontLoaded) {
-    doc.setFont(FONT_NAME, "normal");
-    return;
-  }
+const C = {
+  black: [0, 0, 0] as [number, number, number],
+  dark: [40, 40, 40] as [number, number, number],
+  mid: [100, 100, 100] as [number, number, number],
+  light: [245, 245, 245] as [number, number, number],
+  border: [180, 180, 180] as [number, number, number],
+  white: [255, 255, 255] as [number, number, number],
+};
+
+let cachedFontBase64: string | null = null;
+
+async function loadFontBase64(): Promise<string> {
+  if (cachedFontBase64) return cachedFontBase64;
   const response = await fetch("/fonts/NotoSansBengali-Regular.ttf");
-  if (!response.ok) throw new Error("Failed to load Bengali font");
+  if (!response.ok) throw new Error("Failed to load Bengali font (Noto Sans Bengali)");
   const buffer = await response.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  doc.addFileToVFS(FONT_FILE, btoa(binary));
-  doc.addFont(FONT_FILE, FONT_NAME, "normal");
-  fontLoaded = true;
-  doc.setFont(FONT_NAME, "normal");
+  cachedFontBase64 = btoa(binary);
+  return cachedFontBase64;
+}
+
+function containsBengali(text: string): boolean {
+  return /[\u0980-\u09FF]/.test(text);
+}
+
+function needsUnicodeFont(payload: ReportPayload, locale: string): boolean {
+  if (locale === "bn") return true;
+  const sample = [
+    payload.meta.messName,
+    payload.meta.messAddress ?? "",
+    ...payload.rows.flatMap((r) => Object.values(r).map(String)),
+  ].join(" ");
+  return containsBengali(sample);
+}
+
+async function applyFont(doc: jsPDF, useUnicode: boolean): Promise<string> {
+  if (useUnicode) {
+    const base64 = await loadFontBase64();
+    doc.addFileToVFS(FONT_FILE, base64);
+    doc.addFont(FONT_FILE, FONT_NAME, "normal");
+    doc.setFont(FONT_NAME, "normal");
+    return FONT_NAME;
+  }
+  doc.setFont("helvetica", "normal");
+  return "helvetica";
 }
 
 function formatCellValue(
@@ -31,176 +68,217 @@ function formatCellValue(
   locale: string
 ): string {
   if (col.format === "currency" && typeof value === "number") {
-    return formatReportCurrency(value, currency, locale);
+    return formatReportCurrency(value, currency, locale, { suffix: currency !== "BDT" });
   }
   if (col.format === "number" && typeof value === "number") {
     return value.toLocaleString(locale === "bn" ? "bn-BD" : "en-US");
   }
-  return String(value);
+  return String(value ?? "");
 }
 
-function slugifyFilename(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function safeFilename(payload: ReportPayload): string {
+  const date = new Date(payload.meta.generatedAt).toISOString().split("T")[0];
+  const type = payload.meta.reportType;
+  const mess = payload.meta.messName.replace(/[^\w\u0980-\u09FF]+/g, "-").slice(0, 40);
+  return `${mess}-${type}-${date}.pdf`;
 }
 
-function drawPieChart(
+function drawPageFooter(
   doc: jsPDF,
-  cx: number,
-  cy: number,
-  r: number,
-  slices: { label: string; amount: number }[],
-  locale: string
-) {
-  const total = slices.reduce((s, x) => s + x.amount, 0);
-  if (total <= 0) return;
-  const colors: [number, number, number][] = [
-    [5, 150, 105],
-    [14, 165, 233],
-    [245, 158, 11],
-    [239, 68, 68],
-    [139, 92, 246],
-    [100, 116, 139],
-  ];
-  let startAngle = 0;
-  slices.forEach((slice, i) => {
-    const angle = (slice.amount / total) * Math.PI * 2;
-    const endAngle = startAngle + angle;
-    const [rC, gC, bC] = colors[i % colors.length];
-    doc.setFillColor(rC, gC, bC);
-    doc.triangle(
-      cx,
-      cy,
-      cx + r * Math.cos(startAngle),
-      cy + r * Math.sin(startAngle),
-      cx + r * Math.cos(endAngle),
-      cy + r * Math.sin(endAngle),
-      "F"
-    );
-    startAngle = endAngle;
-  });
-  doc.setFontSize(7);
-  doc.setTextColor(60, 60, 60);
-  slices.forEach((slice, i) => {
-    const pct = Math.round((slice.amount / total) * 100);
-    doc.text(`${slice.label}: ${pct}%`, cx + r + 4, cy - r + 6 + i * 5);
-  });
-}
-
-export async function generateReportPdf(
+  page: number,
+  pageCount: number,
   payload: ReportPayload,
   locale: string,
+  dateStr: string,
+  margin: number
+) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.3);
+  doc.line(margin, pageH - 16, pageWidth - margin, pageH - 16);
+
+  doc.setFontSize(7);
+  doc.setTextColor(...C.mid);
+  const left = `${appBrandName(locale)} · ${reportLabel("confidential", locale)}`;
+  doc.text(left, margin, pageH - 10);
+
+  const center = payload.meta.reportId
+    ? `${reportLabel("reportId", locale)}: ${payload.meta.reportId} · ${dateStr}`
+    : dateStr;
+  doc.text(center, pageWidth / 2, pageH - 10, { align: "center" });
+
+  doc.text(
+    `${reportLabel("page", locale)} ${page} ${reportLabel("of", locale)} ${pageCount}`,
+    pageWidth - margin,
+    pageH - 10,
+    { align: "right" }
+  );
+}
+
+export async function buildReportPdf(
+  rawPayload: ReportPayload,
+  locale: string,
   orientation: "portrait" | "landscape" = "portrait"
-): Promise<void> {
-  const useBengali = locale === "bn";
+): Promise<{ doc: jsPDF; filename: string }> {
+  const payload = localizeReportPayload(rawPayload, locale);
   const currency = payload.meta.currency ?? "BDT";
   const doc = new jsPDF({ orientation, unit: "mm", format: "a4" });
-
-  if (useBengali) await ensureBengaliFont(doc);
-  else doc.setFont("helvetica", "normal");
+  const fontFamily = await applyFont(doc, needsUnicodeFont(payload, locale));
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
   const generated = new Date(payload.meta.generatedAt);
-  const dateStr = generated.toLocaleDateString(locale === "bn" ? "bn-BD" : "en-US", {
+  const dateLocale = locale === "bn" ? "bn-BD" : "en-US";
+  const dateStr = generated.toLocaleDateString(dateLocale, {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
-  const timeStr = generated.toLocaleTimeString(locale === "bn" ? "bn-BD" : "en-US", {
+  const timeStr = generated.toLocaleTimeString(dateLocale, {
     hour: "numeric",
     minute: "2-digit",
   });
 
-  // Header band
-  doc.setFillColor(5, 150, 105);
-  doc.rect(0, 0, pageWidth, 38, "F");
-  doc.setTextColor(255, 255, 255);
+  let y = margin;
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  doc.setTextColor(...C.black);
   doc.setFontSize(8);
-  doc.text("MessFlow Pro", margin, 10);
-  doc.setFontSize(15);
-  doc.text(payload.meta.messName, margin, 18);
-  doc.setFontSize(10);
-  doc.text(payload.meta.reportTitle, margin, 26);
-  doc.setFontSize(8);
+  doc.text(appBrandName(locale), margin, y);
+  y += 5;
+
+  doc.setFontSize(16);
+  doc.text(payload.meta.messName, margin, y);
+  y += 6;
+
   if (payload.meta.messAddress) {
-    doc.text(payload.meta.messAddress, margin, 32);
+    doc.setFontSize(9);
+    doc.setTextColor(...C.mid);
+    doc.text(payload.meta.messAddress, margin, y);
+    y += 5;
   }
 
-  doc.setTextColor(30, 30, 30);
-  let y = 46;
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y + 1, pageWidth - margin, y + 1);
+  y += 8;
 
-  // Meta block
+  doc.setFontSize(12);
+  doc.setTextColor(...C.black);
+  doc.text(payload.meta.reportTitle, margin, y);
+  y += 7;
+
   doc.setFontSize(8);
-  doc.setTextColor(80, 80, 80);
-  const metaLines = [
-    `${reportLabel("generatedOn", locale)}: ${dateStr}`,
-    `${reportLabel("generatedAt", locale)}: ${timeStr}`,
-    `${reportLabel("reportType", locale)}: ${payload.meta.reportTitle}`,
-    payload.meta.generatedBy
-      ? `${reportLabel("generatedBy", locale)}: ${payload.meta.generatedBy}`
-      : null,
-    payload.meta.dateRangeLabel ? `Period: ${payload.meta.dateRangeLabel}` : null,
-    payload.meta.reportId ? `${reportLabel("reportId", locale)}: ${payload.meta.reportId}` : null,
-  ].filter(Boolean) as string[];
+  doc.setTextColor(...C.dark);
+  const metaRows: [string, string][] = [
+    [reportLabel("generatedOn", locale), dateStr],
+    [reportLabel("generatedAt", locale), timeStr],
+    [reportLabel("reportType", locale), payload.meta.reportTitle],
+    [reportLabel("period", locale), payload.meta.periodLabel],
+    [reportLabel("month", locale), payload.meta.monthLabel],
+    [reportLabel("language", locale), payload.meta.language ?? locale],
+  ];
+  if (payload.meta.generatedBy) {
+    metaRows.push([reportLabel("generatedBy", locale), payload.meta.generatedBy]);
+  }
+  if (payload.meta.reportId) {
+    metaRows.push([reportLabel("reportId", locale), payload.meta.reportId]);
+  }
 
-  metaLines.forEach((line) => {
-    doc.text(line, margin, y);
-    y += 4.5;
+  const colW = contentWidth / 2;
+  metaRows.forEach(([label, value], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = margin + col * colW;
+    const my = y + row * 5;
+    doc.setTextColor(...C.mid);
+    doc.text(`${label}:`, x, my);
+    doc.setTextColor(...C.black);
+    doc.text(value, x + 32, my);
   });
-  y += 4;
+  y += Math.ceil(metaRows.length / 2) * 5 + 6;
 
-  // Summary cards
+  // ── Executive summary ───────────────────────────────────────────────────
   if (payload.summary.length > 0) {
     doc.setFontSize(10);
-    doc.setTextColor(5, 150, 105);
+    doc.setTextColor(...C.black);
     doc.text(reportLabel("summary", locale), margin, y);
-    y += 5;
+    y += 3;
 
-    const colCount = orientation === "landscape" ? 4 : 3;
-    const boxWidth = (pageWidth - margin * 2 - (colCount - 1) * 3) / colCount;
-    let col = 0;
-    let rowY = y;
-
-    payload.summary.forEach((item, i) => {
-      const x = margin + (i % colCount) * (boxWidth + 3);
-      if (i > 0 && i % colCount === 0) rowY += 14;
-
-      doc.setFillColor(236, 253, 245);
-      doc.roundedRect(x, rowY, boxWidth, 12, 1.5, 1.5, "F");
-      doc.setFontSize(6.5);
-      doc.setTextColor(100, 100, 100);
-      doc.text(item.label, x + 2.5, rowY + 4.5);
-      doc.setFontSize(8.5);
-      doc.setTextColor(30, 30, 30);
-      doc.text(item.value, x + 2.5, rowY + 9.5);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      theme: "plain",
+      head: [[reportLabel("summary", locale), ""]],
+      body: payload.summary.map((s) => [s.label, s.value]),
+      showHead: false,
+      styles: {
+        font: fontFamily,
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: C.black,
+        lineColor: C.border,
+        lineWidth: 0.2,
+      },
+      columnStyles: {
+        0: { cellWidth: contentWidth * 0.45, textColor: C.mid },
+        1: { cellWidth: contentWidth * 0.55, halign: "right", fontStyle: "bold" },
+      },
+      alternateRowStyles: { fillColor: C.light },
     });
 
-    const summaryRows = Math.ceil(payload.summary.length / colCount);
-    y = rowY + summaryRows * 14 + 4;
+    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
   }
 
-  // Expense pie chart (simple)
-  if (payload.analytics?.expenseBreakdown && payload.analytics.expenseBreakdown.length > 0) {
-    const topSlices = payload.analytics.expenseBreakdown
+  // ── Expense breakdown (monochrome table) ────────────────────────────────
+  if (payload.analytics?.expenseBreakdown?.length) {
+    const slices = payload.analytics.expenseBreakdown
       .filter((x) => x.amount > 0)
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 6);
-    if (topSlices.length > 0) {
-      doc.setFontSize(9);
-      doc.setTextColor(5, 150, 105);
-      doc.text(locale === "bn" ? "খরচ বিভাজন" : "Expense Breakdown", margin, y);
-      y += 4;
-      drawPieChart(doc, margin + 18, y + 14, 12, topSlices, locale);
-      y += 32;
+      .slice(0, 10);
+    const total = slices.reduce((s, x) => s + x.amount, 0);
+
+    if (slices.length > 0 && total > 0) {
+      doc.setFontSize(10);
+      doc.text(reportLabel("expenseBreakdown", locale), margin, y);
+      y += 3;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [[columnLabel("category", locale), columnLabel("amount", locale), "%"]],
+        body: slices.map((s) => [
+          s.label,
+          formatReportCurrency(s.amount, currency, locale),
+          `${Math.round((s.amount / total) * 100)}%`,
+        ]),
+        styles: { font: fontFamily, fontSize: 8, cellPadding: 2.5, textColor: C.black },
+        headStyles: {
+          fillColor: C.light,
+          textColor: C.black,
+          fontStyle: "bold",
+          lineColor: C.border,
+        },
+        columnStyles: {
+          1: { halign: "right" },
+          2: { halign: "right" },
+        },
+        alternateRowStyles: { fillColor: [252, 252, 252] },
+      });
+
+      y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
     }
   }
 
-  // Data table
+  // ── Data table ──────────────────────────────────────────────────────────
   if (payload.rows.length > 0) {
+    doc.setFontSize(10);
+    doc.text(reportLabel("dataTable", locale), margin, y);
+    y += 3;
+
     const head = [payload.columns.map((c) => c.label)];
     const body = payload.rows.map((row) =>
       payload.columns.map((col) => formatCellValue(row[col.key] ?? "", col, currency, locale))
@@ -210,56 +288,84 @@ export async function generateReportPdf(
       startY: y,
       head,
       body,
-      margin: { left: margin, right: margin },
+      margin: { left: margin, right: margin, top: margin, bottom: 22 },
       styles: {
-        font: useBengali ? FONT_NAME : "helvetica",
-        fontSize: orientation === "landscape" ? 7 : 8,
-        cellPadding: 2,
+        font: fontFamily,
+        fontSize: orientation === "landscape" ? 7 : 7.5,
+        cellPadding: 2.5,
         overflow: "linebreak",
+        textColor: C.black,
+        lineColor: C.border,
+        lineWidth: 0.2,
+        valign: "middle",
       },
       headStyles: {
-        fillColor: [5, 150, 105],
-        textColor: 255,
-        fontStyle: "normal",
+        fillColor: C.light,
+        textColor: C.black,
+        fontStyle: "bold",
+        lineColor: C.border,
       },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
       columnStyles: Object.fromEntries(
-        payload.columns.map((col, i) => [i, { halign: col.align ?? "left" }])
+        payload.columns.map((col, i) => [
+          i,
+          {
+            halign: col.align ?? (col.format === "currency" || col.format === "number" ? "right" : "left"),
+            cellWidth: "wrap",
+          },
+        ])
       ),
     });
   } else {
-    doc.setFontSize(10);
-    doc.setTextColor(120, 120, 120);
-    doc.text(reportLabel("noData", locale), margin, y + 6);
+    doc.setFontSize(9);
+    doc.setTextColor(...C.mid);
+    doc.text(reportLabel("noData", locale), margin, y + 4);
   }
 
-  // Footer all pages
+  // Footers on all pages
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    const pageH = doc.internal.pageSize.getHeight();
-    doc.setDrawColor(220, 220, 220);
-    doc.line(margin, pageH - 14, pageWidth - margin, pageH - 14);
-    doc.setFontSize(7);
-    doc.setTextColor(140, 140, 140);
-    doc.text(reportLabel("footer", locale), margin, pageH - 9);
-    doc.text(
-      `${reportLabel("page", locale)} ${i} ${reportLabel("of", locale)} ${pageCount}`,
-      pageWidth - margin,
-      pageH - 9,
-      { align: "right" }
-    );
-    if (payload.meta.reportId) {
-      doc.text(payload.meta.reportId, pageWidth / 2, pageH - 9, { align: "center" });
-    }
-    doc.setFontSize(6);
-    doc.text(`${dateStr} ${timeStr}`, pageWidth / 2, pageH - 5, { align: "center" });
+    drawPageFooter(doc, i, pageCount, payload, locale, dateStr, margin);
   }
 
-  const filename = `${slugifyFilename(payload.meta.messName)}-${slugifyFilename(payload.meta.reportTitle)}.pdf`;
+  return { doc, filename: safeFilename(payload) };
+}
+
+export async function generateReportPdf(
+  payload: ReportPayload,
+  locale: string,
+  orientation: "portrait" | "landscape" = "portrait"
+): Promise<void> {
+  const { doc, filename } = await buildReportPdf(payload, locale, orientation);
   doc.save(filename);
 }
 
-export async function printReportPdf(payload: ReportPayload, locale: string): Promise<void> {
-  await generateReportPdf(payload, locale);
+export async function printReportPdf(
+  payload: ReportPayload,
+  locale: string,
+  orientation: "portrait" | "landscape" = "portrait"
+): Promise<void> {
+  const { doc } = await buildReportPdf(payload, locale, orientation);
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "none";
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      iframe.remove();
+    }, 1000);
+  };
 }

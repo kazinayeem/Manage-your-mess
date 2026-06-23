@@ -20,7 +20,7 @@ import {
   bulkMealEntriesSchema,
   memberSchema,
 } from "@/lib/validations";
-import { slugify } from "@/lib/utils";
+import { normalizeEmail, slugify } from "@/lib/utils";
 
 type ActionResult<T = void> =
   | { success: true; data?: T }
@@ -36,14 +36,17 @@ export async function registerUser(formData: FormData): Promise<ActionResult<{ u
     });
     if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
 
-    const existing = await db.user.findUnique({ where: { email: parsed.data.email } });
+    const email = normalizeEmail(parsed.data.email);
+    const existing = await db.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
     if (existing) return { success: false, error: "Email already registered" };
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
     const user = await db.user.create({
       data: {
         name: parsed.data.name,
-        email: parsed.data.email,
+        email,
         passwordHash,
         role: UserRole.MEMBER,
       },

@@ -5,6 +5,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/redis";
+import { normalizeEmail } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 import { getSessionCookieName } from "@/lib/auth-cookie";
 
@@ -65,8 +66,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, request) {
-        const email = credentials?.email as string;
-        const password = credentials?.password as string;
+        const email = normalizeEmail(String(credentials?.email ?? ""));
+        const password = String(credentials?.password ?? "");
 
         if (!email || !password) return null;
 
@@ -75,8 +76,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { allowed } = await rateLimit(`login:${ip}`, 10, 900);
         if (!allowed) throw new Error("Too many login attempts. Try again later.");
 
-        const user = await db.user.findUnique({ where: { email } });
-        if (!user || !user.passwordHash) return null;
+        const user = await db.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
+        });
+        if (!user) return null;
+        if (!user.passwordHash) {
+          throw new Error("This account uses Google sign-in. Continue with Google or reset your password.");
+        }
 
         // Auto-clear expired account lock
         if (user.isLocked && user.lockedUntil && user.lockedUntil <= new Date()) {

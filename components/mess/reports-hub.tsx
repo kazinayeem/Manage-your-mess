@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { fetchReportData } from "@/actions/reports";
-import { generateReportPdf } from "@/lib/reports/export-pdf";
+import { generateReportPdf, printReportPdf } from "@/lib/reports/export-pdf";
 import { downloadReportCsv, downloadReportExcel } from "@/lib/reports/export-spreadsheet";
+import { localizeReportPayload } from "@/lib/reports/localize-payload";
+import { validateReportPayload } from "@/lib/reports/validate-report";
+import { ReportPrintView } from "@/components/mess/report-print-view";
+import { formatReportCurrency } from "@/lib/reports/labels";
 import type { ReportPayload, ReportType, MonthOption, ReportCurrency } from "@/lib/reports/types";
 import { DATE_RANGE_PRESETS, resolveDateRange, type DateRangePreset } from "@/lib/reports/date-ranges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +33,6 @@ import {
   Share2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
 import type { ReportColumn } from "@/lib/reports/types";
 
 const REPORT_ICONS: Partial<Record<ReportType, typeof FileText>> = {
@@ -77,9 +80,18 @@ const REPORT_DEFS: ReportDef[] = [
   { type: "weekly", labelKey: "weekly", descKey: "weeklyDesc", needsDate: true },
 ];
 
-function formatPreviewValue(value: string | number, col: ReportColumn): string {
-  if (col.format === "currency" && typeof value === "number") return formatCurrency(value);
-  if (col.format === "number" && typeof value === "number") return value.toLocaleString("en-US");
+function formatPreviewValue(
+  value: string | number,
+  col: ReportColumn,
+  currency: string,
+  locale: string
+): string {
+  if (col.format === "currency" && typeof value === "number") {
+    return formatReportCurrency(value, currency, locale);
+  }
+  if (col.format === "number" && typeof value === "number") {
+    return value.toLocaleString(locale === "bn" ? "bn-BD" : "en-US");
+  }
   return String(value);
 }
 
@@ -99,7 +111,10 @@ export function ReportsHub({
   generatedBy?: string;
 }) {
   const t = useTranslations("messReports");
-  const [reportLocale, setReportLocale] = useState<"en" | "bn">("en");
+  const appLocale = useLocale();
+  const [reportLocale, setReportLocale] = useState<"en" | "bn">(
+    appLocale === "bn" ? "bn" : "en"
+  );
   const [currency, setCurrency] = useState<ReportCurrency>("BDT");
   const [datePreset, setDatePreset] = useState<DateRangePreset>("this_month");
   const [customStart, setCustomStart] = useState(defaultDate);
@@ -135,6 +150,7 @@ export function ReportsHub({
         dateRangeEnd: dateRange.end.toISOString().split("T")[0],
         currency,
         generatedBy,
+        locale: reportLocale,
       });
       setLoading(false);
       if (!result.success) {
@@ -144,7 +160,12 @@ export function ReportsHub({
       }
       setPayload(result.data);
     },
-    [messId, monthId, reportDate, dateRange, currency, generatedBy]
+    [messId, monthId, reportDate, dateRange, currency, generatedBy, reportLocale]
+  );
+
+  const displayPayload = useMemo(
+    () => (payload ? localizeReportPayload(payload, reportLocale) : null),
+    [payload, reportLocale]
   );
 
   useEffect(() => {
@@ -157,12 +178,23 @@ export function ReportsHub({
       toast.error(t("loadFirst"));
       return;
     }
+
+    const validation = validateReportPayload(payload);
+    if (validation.warnings.length > 0) {
+      toast.warning(validation.warnings.join(" "));
+    }
+
     setExporting(format);
     try {
-      if (format === "pdf" || format === "print") {
+      if (format === "pdf") {
         await generateReportPdf(payload, reportLocale, orientation);
-      } else if (format === "csv") downloadReportCsv(payload);
-      else downloadReportExcel(payload);
+      } else if (format === "print") {
+        await printReportPdf(payload, reportLocale, orientation);
+      } else if (format === "csv") {
+        downloadReportCsv(payload, reportLocale);
+      } else {
+        downloadReportExcel(payload, reportLocale);
+      }
       toast.success(t("exportSuccess", { format: format.toUpperCase() }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("exportFailed"));
@@ -317,12 +349,12 @@ export function ReportsHub({
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-lg">
-              {payload ? payload.meta.reportTitle : t("previewTitle")}
+              {displayPayload ? displayPayload.meta.reportTitle : t("previewTitle")}
             </CardTitle>
-            {payload && (
+            {displayPayload && (
               <p className="mt-1 text-sm text-zinc-500">
-                {payload.meta.messName} — {payload.meta.periodLabel}
-                {payload.meta.generatedBy && ` · ${payload.meta.generatedBy}`}
+                {displayPayload.meta.messName} — {displayPayload.meta.periodLabel}
+                {displayPayload.meta.generatedBy && ` · ${displayPayload.meta.generatedBy}`}
               </p>
             )}
           </div>
@@ -352,29 +384,29 @@ export function ReportsHub({
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               {t("loading")}
             </div>
-          ) : !payload ? (
+          ) : !displayPayload ? (
             <div className="py-16 text-center text-sm text-zinc-500">{t("selectReport")}</div>
           ) : (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {payload.summary.map((item) => (
+                {displayPayload.summary.map((item) => (
                   <div
                     key={item.label}
-                    className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3"
+                    className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 print:border-zinc-300"
                   >
                     <p className="text-xs text-zinc-500">{item.label}</p>
-                    <p className="mt-1 text-lg font-semibold tabular-nums">{item.value}</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">{item.value}</p>
                   </div>
                 ))}
               </div>
 
-              {payload.analytics?.mealBreakdown && (
+              {displayPayload.analytics?.mealBreakdown && (
                 <div className="rounded-lg border border-zinc-200 p-4">
                   <p className="mb-2 text-sm font-medium">{t("mealAnalytics")}</p>
                   <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div>Breakfast: {payload.analytics.mealBreakdown.breakfast.toFixed(1)}</div>
-                    <div>Lunch: {payload.analytics.mealBreakdown.lunch.toFixed(1)}</div>
-                    <div>Dinner: {payload.analytics.mealBreakdown.dinner.toFixed(1)}</div>
+                    <div>Breakfast: {displayPayload.analytics.mealBreakdown.breakfast.toFixed(1)}</div>
+                    <div>Lunch: {displayPayload.analytics.mealBreakdown.lunch.toFixed(1)}</div>
+                    <div>Dinner: {displayPayload.analytics.mealBreakdown.dinner.toFixed(1)}</div>
                   </div>
                 </div>
               )}
@@ -382,8 +414,8 @@ export function ReportsHub({
               <div className="table-scroll-x overflow-x-auto rounded-lg border border-zinc-200">
                 <table className="min-w-[600px] w-full text-sm">
                   <thead>
-                    <tr className="border-b bg-emerald-600 text-left text-white">
-                      {payload.columns.map((col) => (
+                    <tr className="border-b bg-zinc-100 text-left text-zinc-900">
+                      {displayPayload.columns.map((col) => (
                         <th key={col.key} className={`px-3 py-2.5 font-medium ${col.align === "right" ? "text-right" : "text-left"}`}>
                           {col.label}
                         </th>
@@ -391,21 +423,21 @@ export function ReportsHub({
                     </tr>
                   </thead>
                   <tbody>
-                    {payload.rows.length === 0 ? (
+                    {displayPayload.rows.length === 0 ? (
                       <tr>
-                        <td colSpan={payload.columns.length} className="px-3 py-8 text-center text-zinc-500">
+                        <td colSpan={displayPayload.columns.length} className="px-3 py-8 text-center text-zinc-500">
                           {t("noData")}
                         </td>
                       </tr>
                     ) : (
-                      payload.rows.map((row, i) => (
+                      displayPayload.rows.map((row, i) => (
                         <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50">
-                          {payload.columns.map((col) => (
+                          {displayPayload.columns.map((col) => (
                             <td
                               key={col.key}
                               className={`px-3 py-2 tabular-nums ${col.align === "right" ? "text-right" : "text-left"}`}
                             >
-                              {formatPreviewValue(row[col.key] ?? "", col)}
+                              {formatPreviewValue(row[col.key] ?? "", col, currency, reportLocale)}
                             </td>
                           ))}
                         </tr>
@@ -415,10 +447,10 @@ export function ReportsHub({
                 </table>
               </div>
               <p className="text-xs text-zinc-400">
-                {t("rowsCount", { count: payload.rows.length })}
-                {reportLocale === "bn" && ` • ${t("bengaliPdfNote")}`}
-                {payload.meta.reportId && ` • ID: ${payload.meta.reportId}`}
+                {t("rowsCount", { count: displayPayload.rows.length })}
+                {displayPayload.meta.reportId && ` · ID: ${displayPayload.meta.reportId}`}
               </p>
+              {displayPayload && <ReportPrintView payload={displayPayload} locale={reportLocale} />}
             </div>
           )}
         </CardContent>

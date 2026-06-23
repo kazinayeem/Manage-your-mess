@@ -94,6 +94,12 @@ enum NotificationType {
   APPROVAL_REQUIRED
   MONTHLY_REPORT
   TASK_ASSIGNED
+  BAZAAR_ASSIGNED
+  BAZAAR_DUE_REMINDER
+  BAZAAR_SUBMITTED
+  BAZAAR_APPROVED
+  BAZAAR_REJECTED
+  BAZAAR_BUDGET_EXCEEDED
   SYSTEM
   SUBSCRIPTION_SUBMITTED
   SUBSCRIPTION_APPROVED
@@ -282,6 +288,12 @@ model User {
   reports           Report[]
   billsCreated      Bill[]          @relation("BillCreator")
   billPaymentsCreated BillPayment[] @relation("BillPaymentCreator")
+  bazaarTasksCreated  BazaarTask[]  @relation("BazaarTaskCreator")
+  bazaarAssigned      BazaarAssignment[] @relation("BazaarAssignedBy")
+  bazaarSubmissions   BazaarSubmission[] @relation("BazaarSubmitter")
+  bazaarApprovals     BazaarApproval[] @relation("BazaarApprover")
+  bazaarReceipts      BazaarReceipt[] @relation("BazaarReceiptUploader")
+  bazaarHistory       BazaarHistory[] @relation("BazaarHistoryActor")
 
   @@index([email])
   @@index([role])
@@ -431,6 +443,8 @@ model Mess {
   expenseCategories ExpenseCategory[]
   vendors       Vendor[]
   bazaarEntries BazaarEntry[]
+  bazaarTasks   BazaarTask[]
+  bazaarHistory BazaarHistory[]
   deposits      Deposit[]
   transactions  Transaction[]
   notices       Notice[]
@@ -528,6 +542,8 @@ model Member {
   billShares  MemberBill[]
   billsPaid   Bill[]         @relation("BillPaidBy")
   billPayments BillPayment[]
+  bazaarAssignments BazaarAssignment[]
+  bazaarRewardPoints BazaarMemberPoints[]
 
   @@unique([messId, userId])
   @@index([messId])
@@ -658,6 +674,7 @@ model Expense {
   category   ExpenseCategory @relation(fields: [categoryId], references: [id])
   createdBy  User            @relation("ExpenseCreator", fields: [createdById], references: [id])
   approvedBy User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  bazaarTask BazaarTask?
 
   @@index([messId])
   @@index([monthId])
@@ -799,6 +816,191 @@ model BazaarEntry {
 
   @@index([messId])
   @@index([date])
+}
+
+enum BazaarPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum BazaarTaskStatus {
+  DRAFT
+  ASSIGNED
+  IN_PROGRESS
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  CORRECTION_REQUESTED
+  CANCELLED
+}
+
+enum BazaarItemStatus {
+  PENDING
+  PURCHASED
+  PARTIALLY_PURCHASED
+  NOT_AVAILABLE
+  SUBSTITUTED
+}
+
+enum BazaarApprovalStatus {
+  APPROVED
+  REJECTED
+  CORRECTION_REQUESTED
+}
+
+model BazaarTask {
+  id             String           @id @default(cuid())
+  messId         String
+  title          String
+  shoppingDate   DateTime
+  expectedBudget Float
+  priority       BazaarPriority   @default(MEDIUM)
+  description    String?
+  notes          String?
+  status         BazaarTaskStatus @default(DRAFT)
+  createdById    String
+  expenseId      String?          @unique
+  rewardPoints   Int              @default(0)
+  deletedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  mess       Mess              @relation(fields: [messId], references: [id], onDelete: Cascade)
+  createdBy  User              @relation("BazaarTaskCreator", fields: [createdById], references: [id])
+  expense    Expense?          @relation(fields: [expenseId], references: [id])
+  items      BazaarItem[]
+  assignment BazaarAssignment?
+  submission BazaarSubmission?
+  receipts   BazaarReceipt[]
+  approvals  BazaarApproval[]
+  history    BazaarHistory[]
+
+  @@index([messId])
+  @@index([status])
+  @@index([shoppingDate])
+}
+
+model BazaarItem {
+  id             String           @id @default(cuid())
+  taskId         String
+  name           String
+  quantity       Float
+  unit           String
+  estimatedPrice Float?
+  actualPrice    Float?
+  status         BazaarItemStatus @default(PENDING)
+  notes          String?
+  sortOrder      Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  task BazaarTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model BazaarAssignment {
+  id                     String   @id @default(cuid())
+  taskId                 String   @unique
+  memberId               String
+  assignedById           String
+  assignmentDate         DateTime @default(now())
+  expectedCompletionDate DateTime
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  task       BazaarTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  member     Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  assignedBy User       @relation("BazaarAssignedBy", fields: [assignedById], references: [id])
+
+  @@index([memberId])
+}
+
+model BazaarSubmission {
+  id            String   @id @default(cuid())
+  taskId        String   @unique
+  submittedById String
+  actualCost    Float
+  notes         String?
+  missingItems  String?
+  itemUpdates   String?
+  submittedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  task        BazaarTask      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  submittedBy User            @relation("BazaarSubmitter", fields: [submittedById], references: [id])
+  receipts    BazaarReceipt[]
+
+  @@index([taskId])
+}
+
+model BazaarReceipt {
+  id           String   @id @default(cuid())
+  taskId       String
+  submissionId String?
+  fileUrl      String
+  fileName     String?
+  fileType     String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  task       BazaarTask        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  submission BazaarSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  uploadedBy User              @relation("BazaarReceiptUploader", fields: [uploadedById], references: [id])
+
+  @@index([taskId])
+  @@index([submissionId])
+}
+
+model BazaarApproval {
+  id           String               @id @default(cuid())
+  taskId       String
+  reviewedById String
+  status       BazaarApprovalStatus
+  comment      String?
+  createdAt    DateTime             @default(now())
+
+  task       BazaarTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  reviewedBy User       @relation("BazaarApprover", fields: [reviewedById], references: [id])
+
+  @@index([taskId])
+}
+
+model BazaarHistory {
+  id            String   @id @default(cuid())
+  taskId        String
+  messId        String
+  action        String
+  performedById String?
+  budget        Float?
+  actualCost    Float?
+  metadata      String?
+  createdAt     DateTime @default(now())
+
+  task        BazaarTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  mess        Mess       @relation(fields: [messId], references: [id], onDelete: Cascade)
+  performedBy User?      @relation("BazaarHistoryActor", fields: [performedById], references: [id])
+
+  @@index([messId])
+  @@index([taskId])
+  @@index([createdAt])
+}
+
+model BazaarMemberPoints {
+  id        String   @id @default(cuid())
+  messId    String
+  memberId  String
+  points    Int      @default(0)
+  reason    String?
+  taskId    String?
+  createdAt DateTime @default(now())
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([messId])
+  @@index([memberId])
 }
 
 // ─── Deposit & Financial ───────────────────────────────────────────────────────
