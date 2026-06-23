@@ -4,6 +4,29 @@ import { hasPermission, isAdminRole, PERMISSIONS, type Permission } from "@/lib/
 import { resolveMessMemberRole } from "@/lib/mess-role";
 import type { UserRole } from "@prisma/client";
 
+const LEGACY_PLAN_SELECT = {
+  id: true,
+  slug: true,
+  tier: true,
+  name: true,
+  description: true,
+  price: true,
+  currency: true,
+  durationType: true,
+  durationValue: true,
+  customExpiryDate: true,
+  maxMembers: true,
+  limits: true,
+  features: true,
+  featureToggles: true,
+  isActive: true,
+  isDefault: true,
+  isPopular: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export class AuthError extends Error {
   constructor(message = "Unauthorized") {
     super(message);
@@ -50,7 +73,16 @@ export async function requireMessAccess(
 
   const mess = await db.mess.findFirst({
     where: { id: messId, deletedAt: null },
-    include: { subscription: { include: { plan: true } } },
+    include: {
+      subscription: {
+        select: {
+          id: true,
+          status: true,
+          currentPeriodEnd: true,
+          plan: { select: LEGACY_PLAN_SELECT },
+        },
+      },
+    },
   });
   if (!mess) throw new ForbiddenError("Mess not found");
 

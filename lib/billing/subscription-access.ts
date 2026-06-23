@@ -1,7 +1,29 @@
 import { db } from "@/lib/db";
 import { planHasFeature, toParsedPlan, type ParsedPlan } from "@/lib/billing/plan-utils";
 import { PLAN_FEATURES } from "@/lib/billing/constants";
-import type { Subscription, Plan } from "@prisma/client";
+
+const LEGACY_PLAN_SELECT = {
+  id: true,
+  slug: true,
+  tier: true,
+  name: true,
+  description: true,
+  price: true,
+  currency: true,
+  durationType: true,
+  durationValue: true,
+  customExpiryDate: true,
+  maxMembers: true,
+  limits: true,
+  features: true,
+  featureToggles: true,
+  isActive: true,
+  isDefault: true,
+  isPopular: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 export type SubscriptionAccessState = {
   canView: boolean;
@@ -16,6 +38,24 @@ export type SubscriptionAccessState = {
   daysRemaining: number;
   lockedMessage: string | null;
   allowedRoutePrefixes: string[];
+};
+
+type LegacySubscriptionWithPlan = {
+  id: string;
+  userId: string;
+  planId: string;
+  status: string;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  cancelAtPeriodEnd: boolean;
+  suspendedAt: Date | null;
+  suspendReason: string | null;
+  stripeCustomerId: string | null;
+  stripeSubId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  trialEndsAt?: Date | null;
+  plan?: Record<string, unknown> | null;
 };
 
 function daysUntil(end: Date): number {
@@ -37,7 +77,7 @@ export async function syncExpiredSubscriptions(subscriptionId?: string) {
 
 export function resolveSubscriptionAccess(opts: {
   userActive: boolean;
-  subscription: (Subscription & { plan?: Plan | null }) | null;
+  subscription: LegacySubscriptionWithPlan | null;
 }): SubscriptionAccessState {
   const { userActive, subscription } = opts;
 
@@ -50,7 +90,7 @@ export function resolveSubscriptionAccess(opts: {
       isUserSuspended: true,
       isTrial: false,
       status: "SUSPENDED",
-      plan: subscription?.plan ? toParsedPlan(subscription.plan) : null,
+      plan: subscription?.plan ? toParsedPlan(subscription.plan as never) : null,
       reason: "Your account has been suspended by the platform administrator.",
       daysRemaining: 0,
       lockedMessage: "Your account has been suspended by the platform administrator.",
@@ -75,7 +115,7 @@ export function resolveSubscriptionAccess(opts: {
     };
   }
 
-  const plan = subscription.plan ? toParsedPlan(subscription.plan) : null;
+  const plan = subscription.plan ? toParsedPlan(subscription.plan as never) : null;
   const now = new Date();
   const pastEnd = subscription.currentPeriodEnd <= now;
   let status = subscription.status;
@@ -142,7 +182,24 @@ export async function getSubscriptionAccessForMess(messId: string, userId: strin
     db.mess.findFirst({
       where: { id: messId, deletedAt: null },
       include: {
-        subscription: { include: { plan: true } },
+        subscription: {
+          select: {
+            id: true,
+            userId: true,
+            planId: true,
+            status: true,
+            currentPeriodStart: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true,
+            suspendedAt: true,
+            suspendReason: true,
+            stripeCustomerId: true,
+            stripeSubId: true,
+            createdAt: true,
+            updatedAt: true,
+            plan: { select: LEGACY_PLAN_SELECT },
+          },
+        },
         owner: { select: { id: true, isActive: true } },
       },
     }),
@@ -158,7 +215,22 @@ export async function getSubscriptionAccessForMess(messId: string, userId: strin
     subscription = await db.subscription.findFirst({
       where: { userId: mess.ownerId },
       orderBy: { createdAt: "desc" },
-      include: { plan: true },
+      select: {
+        id: true,
+        userId: true,
+        planId: true,
+        status: true,
+        currentPeriodStart: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+        suspendedAt: true,
+        suspendReason: true,
+        stripeCustomerId: true,
+        stripeSubId: true,
+        createdAt: true,
+        updatedAt: true,
+        plan: { select: LEGACY_PLAN_SELECT },
+      },
     });
   }
 
@@ -167,7 +239,22 @@ export async function getSubscriptionAccessForMess(messId: string, userId: strin
     subscription =
       (await db.subscription.findUnique({
         where: { id: subscription.id },
-        include: { plan: true },
+        select: {
+          id: true,
+          userId: true,
+          planId: true,
+          status: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          cancelAtPeriodEnd: true,
+          suspendedAt: true,
+          suspendReason: true,
+          stripeCustomerId: true,
+          stripeSubId: true,
+          createdAt: true,
+          updatedAt: true,
+          plan: { select: LEGACY_PLAN_SELECT },
+        },
       })) ?? subscription;
   }
 
@@ -228,7 +315,22 @@ export async function getUserSubscriptionAccess(userId: string) {
   const subscription = await db.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    include: { plan: true },
+    select: {
+      id: true,
+      userId: true,
+      planId: true,
+      status: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
+      suspendedAt: true,
+      suspendReason: true,
+      stripeCustomerId: true,
+      stripeSubId: true,
+      createdAt: true,
+      updatedAt: true,
+      plan: { select: LEGACY_PLAN_SELECT },
+    },
   });
   return resolveSubscriptionAccess({
     userActive: user?.isActive ?? false,

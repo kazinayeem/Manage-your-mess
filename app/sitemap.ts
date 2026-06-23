@@ -4,7 +4,7 @@ const baseUrl = process.env.AUTH_URL ?? "https://messflow.pro";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
-    "", "/features", "/pricing", "/about", "/contact", "/faq", "/blog", "/privacy", "/terms",
+    "", "/features", "/pricing", "/about", "/contact", "/faq", "/blog", "/privacy", "/terms", "/refund", "/cookies",
     "/login", "/register",
   ];
 

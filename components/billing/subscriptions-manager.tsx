@@ -94,7 +94,8 @@ export function SubscriptionsManager({
 
       <div className="space-y-4">
         {subscriptions.map((sub) => {
-          const parsed = toParsedPlan(sub.plan);
+          if (!sub.plan) return null;
+          const parsed = toParsedPlan(sub.plan as never);
           const remaining = daysRemaining(sub.currentPeriodEnd);
           return (
             <Card key={sub.id}>

@@ -13,22 +13,16 @@ import {
 } from "@/lib/billing/plan-utils";
 import type { SubscriptionAccessState } from "@/lib/billing/subscription-access";
 import { formatCurrency } from "@/lib/utils";
-import type { Subscription, Plan, Invoice, SubscriptionPaymentRequest } from "@prisma/client";
-
-type SubWithRelations = Subscription & {
-  plan: Plan;
-  invoices: Invoice[];
-  paymentRequests: SubscriptionPaymentRequest[];
-};
+type SubWithRelations = Awaited<ReturnType<typeof import("@/actions/billing").getUserSubscription>>;
 
 export function SubscriptionDashboard({
   subscription,
   access,
 }: {
-  subscription: SubWithRelations | null;
+  subscription: SubWithRelations;
   access: SubscriptionAccessState;
 }) {
-  if (!subscription) {
+  if (!subscription || !subscription.plan) {
     return (
       <Card>
         <CardHeader><CardTitle>Subscription</CardTitle></CardHeader>
@@ -40,7 +34,7 @@ export function SubscriptionDashboard({
     );
   }
 
-  const plan = toParsedPlan(subscription.plan);
+  const plan = toParsedPlan(subscription.plan as never);
   const active = isSubscriptionActive(subscription.status, subscription.currentPeriodEnd);
   const remaining = daysRemaining(subscription.currentPeriodEnd);
 

@@ -104,7 +104,43 @@ async function getMonthlyTrend(messId: string, type: "expense" | "deposit") {
 export async function getUserMesses(userId: string) {
   return db.member.findMany({
     where: { userId, deletedAt: null, status: { in: ["ACTIVE", "PENDING"] } },
-    include: { mess: { include: { subscription: { include: { plan: true } } } } },
+    include: {
+      mess: {
+        include: {
+          subscription: {
+            select: {
+              id: true,
+              status: true,
+              currentPeriodEnd: true,
+              plan: {
+                select: {
+                  id: true,
+                  slug: true,
+                  tier: true,
+                  name: true,
+                  description: true,
+                  price: true,
+                  currency: true,
+                  durationType: true,
+                  durationValue: true,
+                  customExpiryDate: true,
+                  maxMembers: true,
+                  limits: true,
+                  features: true,
+                  featureToggles: true,
+                  isActive: true,
+                  isDefault: true,
+                  isPopular: true,
+                  sortOrder: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

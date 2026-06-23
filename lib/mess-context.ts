@@ -70,7 +70,37 @@ export async function getUserMemberships(userId: string) {
       mess: {
         include: {
           currentMonth: true,
-          subscription: { include: { plan: true } },
+          subscription: {
+            select: {
+              id: true,
+              status: true,
+              currentPeriodEnd: true,
+              plan: {
+                select: {
+                  id: true,
+                  slug: true,
+                  tier: true,
+                  name: true,
+                  description: true,
+                  price: true,
+                  currency: true,
+                  durationType: true,
+                  durationValue: true,
+                  customExpiryDate: true,
+                  maxMembers: true,
+                  limits: true,
+                  features: true,
+                  featureToggles: true,
+                  isActive: true,
+                  isDefault: true,
+                  isPopular: true,
+                  sortOrder: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
           owner: { select: { id: true, name: true, email: true } },
           manager: { select: { id: true, name: true, email: true } },
         },

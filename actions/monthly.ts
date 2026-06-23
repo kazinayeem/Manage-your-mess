@@ -310,7 +310,7 @@ export async function getAllMonths(messId: string) {
 export async function generateMonthPdf(messId: string, monthId: string): Promise<ActionResult<{ url: string }>> {
   try {
     const { mess } = await requireMessAccess(messId, "REPORT_EXPORT");
-    const plan = mess.subscription?.plan;
+    const plan = mess.subscription?.plan as never;
     if (!canUseFeature(plan, FEATURES.PDF_REPORTS)) {
       return { success: false, error: "PDF export requires Pro plan or higher" };
     }

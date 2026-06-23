@@ -100,6 +100,8 @@ export function MarketingFooter() {
             <ul className="mt-4 space-y-2.5 text-sm text-zinc-500">
               <li><Link href="/privacy" className="hover:text-emerald-600">{t("common.privacy")}</Link></li>
               <li><Link href="/terms" className="hover:text-emerald-600">{t("common.terms")}</Link></li>
+              <li><Link href="/refund" className="hover:text-emerald-600">{t("common.refund")}</Link></li>
+              <li><Link href="/cookies" className="hover:text-emerald-600">{t("common.cookies")}</Link></li>
               <li>
                 <a href="https://github.com/kazinayeem/Manage-your-mess" className="hover:text-emerald-600">
                   {tf("docs")}

@@ -106,13 +106,17 @@ function announcementActiveWindow(announcement: {
 
 export async function getAdminAnnouncements() {
   await requireSuperAdmin();
-  return db.announcement.findMany({
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    include: {
-      createdBy: { select: { id: true, name: true, email: true } },
-      _count: { select: { reads: true } },
-    },
-  });
+  try {
+    return await db.announcement.findMany({
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        _count: { select: { reads: true } },
+      },
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function saveAnnouncement(formData: FormData): Promise<ActionResult<{ id: string }>> {
@@ -195,11 +199,33 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
 
 export async function getUserAnnouncements() {
   const user = await requireAuth();
-  const rows = await db.announcementRead.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    include: { announcement: true },
-  });
+  let rows:
+    | Array<{
+        announcement: {
+          id: string;
+          title: string;
+          description: string;
+          type: AnnouncementType;
+          priority: AnnouncementPriority;
+          startsAt: Date | null;
+          endsAt: Date | null;
+          publishedAt: Date | null;
+          targetMessIds: string;
+        };
+        isRead: boolean;
+        readAt: Date | null;
+      }>
+    = [];
+
+  try {
+    rows = await db.announcementRead.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      include: { announcement: true },
+    });
+  } catch {
+    return [];
+  }
 
   return rows.map((row) => ({
       id: row.announcement.id,
@@ -230,10 +256,14 @@ export async function getActiveAnnouncementsForUser() {
 export async function markAnnouncementRead(announcementId: string): Promise<ActionResult> {
   try {
     const user = await requireAuth();
-    await db.announcementRead.updateMany({
-      where: { announcementId, userId: user.id },
-      data: { isRead: true, readAt: new Date() },
-    });
+    try {
+      await db.announcementRead.updateMany({
+        where: { announcementId, userId: user.id },
+        data: { isRead: true, readAt: new Date() },
+      });
+    } catch {
+      return { success: true };
+    }
 
     await logBillingAudit({
       action: "UPDATE",

@@ -82,6 +82,23 @@ const LEGACY_PLAN_SELECT = {
   updatedAt: true,
 } as const;
 
+const LEGACY_SUBSCRIPTION_BASE_SELECT = {
+  id: true,
+  userId: true,
+  planId: true,
+  assignedById: true,
+  status: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+  suspendedAt: true,
+  suspendReason: true,
+  stripeCustomerId: true,
+  stripeSubId: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 function withPlanFallback<T extends Record<string, unknown>>(plan: T) {
   return {
     ...plan,
@@ -642,6 +659,7 @@ async function activateSubscriptionForUser(
   let subscription = await db.subscription.findFirst({
     where: { userId, status: { in: ["ACTIVE", "PENDING", "EXPIRED", "PAST_DUE"] } },
     orderBy: { createdAt: "desc" },
+    select: LEGACY_SUBSCRIPTION_BASE_SELECT,
   });
 
   if (subscription) {
@@ -870,26 +888,31 @@ export async function getUserSubscription(requestedUserId?: string) {
   const subscription = await db.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    include: {
-      plan: true,
+    select: {
+      ...LEGACY_SUBSCRIPTION_BASE_SELECT,
+      plan: { select: LEGACY_PLAN_SELECT },
       invoices: { orderBy: { createdAt: "desc" }, take: 20 },
       paymentRequests: { orderBy: { createdAt: "desc" }, take: 10 },
       extensions: { orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
-  return subscription;
+  return subscription ? { ...subscription, plan: subscription.plan ? withPlanFallback(subscription.plan) : null } : null;
 }
 
 export async function getAllSubscriptions() {
   await requireSuperAdmin();
   return db.subscription.findMany({
     orderBy: { createdAt: "desc" },
-    include: {
+    select: {
+      ...LEGACY_SUBSCRIPTION_BASE_SELECT,
       user: { select: { id: true, name: true, email: true } },
-      plan: true,
+      plan: { select: LEGACY_PLAN_SELECT },
       messes: { select: { id: true, name: true } },
     },
-  });
+  }).then((rows) => rows.map((row) => ({
+    ...row,
+    plan: row.plan ? withPlanFallback(row.plan) : null,
+  })));
 }
 
 export async function assignSubscriptionPlan(input: {
@@ -913,6 +936,7 @@ export async function assignSubscriptionPlan(input: {
     const existing = await db.subscription.findFirst({
       where: { userId: input.userId },
       orderBy: { createdAt: "desc" },
+      select: LEGACY_SUBSCRIPTION_BASE_SELECT,
     });
 
     const subscription = existing
@@ -979,7 +1003,10 @@ export async function extendSubscription(
 ): Promise<ActionResult> {
   try {
     const admin = await requireSuperAdmin();
-    const sub = await db.subscription.findUnique({ where: { id: subscriptionId } });
+    const sub = await db.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: LEGACY_SUBSCRIPTION_BASE_SELECT,
+    });
     if (!sub) return { success: false, error: "Subscription not found" };
 
     const previousEnd = sub.currentPeriodEnd;
