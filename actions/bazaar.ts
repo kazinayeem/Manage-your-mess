@@ -292,6 +292,7 @@ export async function submitBazaarTask(
 ): Promise<ActionResult> {
   try {
     const { user, member } = await requireMessAccess(messId);
+    await assertMessWriteAccess(messId);
     if (!member) return { success: false, error: "Not a member of this mess" };
 
     const task = await db.bazaarTask.findFirst({
@@ -676,29 +677,32 @@ export async function getBazaarHistory(messId: string) {
   const access = await requireMessAccess(messId);
   if (!canViewBazaarAdmin(access)) throw new ForbiddenError();
   try {
-    return await db.bazaarHistory.findMany({
-      where: { messId },
-      include: {
-        task: {
+    return await db.bazaarTask.findMany({
+      where: {
+        messId,
+        deletedAt: null,
+        status: { in: ["APPROVED", "REJECTED", "CANCELLED"] },
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        expectedBudget: true,
+        updatedAt: true,
+        assignment: {
+          include: { member: { select: { fullName: true } } },
+        },
+        submission: { select: { actualCost: true, submittedAt: true } },
+        approvals: {
+          take: 1,
+          orderBy: { createdAt: "desc" },
           select: {
-            id: true,
-            title: true,
-            status: true,
-            expectedBudget: true,
-            assignment: {
-              include: { member: { select: { fullName: true } } },
-            },
-            submission: { select: { actualCost: true } },
-            approvals: {
-              take: 1,
-              orderBy: { createdAt: "desc" },
-              include: { reviewedBy: { select: { name: true } } },
-            },
+            createdAt: true,
+            reviewedBy: { select: { name: true } },
           },
         },
-        performedBy: { select: { name: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       take: 100,
     });
   } catch (error) {
@@ -710,6 +714,7 @@ export async function getBazaarHistory(messId: string) {
 export async function markBazaarInProgress(messId: string, taskId: string): Promise<ActionResult> {
   try {
     const { member } = await requireMessAccess(messId);
+    await assertMessWriteAccess(messId);
     if (!member) return { success: false, error: "Not a member" };
 
     const task = await db.bazaarTask.findFirst({

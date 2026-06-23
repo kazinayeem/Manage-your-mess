@@ -37,17 +37,17 @@ export function SubscriptionBanner({
           <div className="min-w-0">
             <p className="font-semibold text-zinc-900 dark:text-zinc-100">
               {isSuspended
-                ? "This account has been suspended by the platform administrator."
+                ? "Account suspended — read-only mode"
                 : isTrial
                   ? `Your trial expires in ${access.daysRemaining} day${access.daysRemaining === 1 ? "" : "s"}`
                 : "Your subscription has expired."}
             </p>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {access.lockedMessage ??
+              {isSuspended
+                ? "You can browse your mess data, but adding or editing is disabled. Contact support if you believe this is a mistake."
+                : access.lockedMessage ??
                 access.reason ??
-                (isSuspended
-                  ? "Please contact support."
-                  : isTrial
+                (isTrial
                     ? "Upgrade any time to keep full access after your trial ends."
                   : "Please renew your subscription to continue managing your mess.")}
             </p>

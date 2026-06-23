@@ -21,9 +21,12 @@ export default async function BazaarTaskDetailPage({
 
   const isAssignee = ctx.member?.id === task.assignment?.memberId;
   const canManage = ctx.capabilities.canManageBazaar;
+  const readOnly = ctx.capabilities.readOnly;
   const canSubmit =
-    isAssignee && ["ASSIGNED", "IN_PROGRESS", "CORRECTION_REQUESTED"].includes(task.status);
-  const canReview = canManage && task.status === "PENDING_REVIEW" && !!task.submission;
+    !readOnly &&
+    isAssignee &&
+    ["ASSIGNED", "IN_PROGRESS", "CORRECTION_REQUESTED"].includes(task.status);
+  const canReview = !readOnly && canManage && task.status === "PENDING_REVIEW" && !!task.submission;
 
   if (!canManage && !isAssignee) notFound();
 

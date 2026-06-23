@@ -55,18 +55,7 @@ export function buildMessNavGroups(
         dialog: item.dialog,
       }));
 
-  if (cap.subscriptionLocked) {
-    const groups: NavGroup[] = [
-      {
-        id: "main",
-        labelKey: "navGroupMain",
-        items: [{ segment: "", labelKey: "dashboard", icon: LayoutDashboard, exact: true }],
-      },
-    ];
-    return groups.map((g) => ({ ...g, items: filter(g.items) })).filter((g) => g.items.length > 0);
-  }
-
-  if (cap.readOnly) {
+  if (cap.readOnly || cap.subscriptionLocked) {
     const groups: NavGroup[] = [
       {
         id: "main",

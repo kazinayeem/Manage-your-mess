@@ -9,7 +9,7 @@ export default async function MessAddMemberPage({
 }) {
   const { messId } = await params;
   const t = await getTranslations("messMembers");
-  await requireMessPage(messId, { requireManager: true });
+  await requireMessPage(messId, { requireManager: true, requireWrite: true });
 
   return (
     <div className="space-y-6">

@@ -11,7 +11,7 @@ export default async function EditMemberPage({
 }) {
   const { messId, memberId } = await params;
   const t = await getTranslations("messMembers");
-  const ctx = await requireMessPage(messId, { requireManager: true });
+  const ctx = await requireMessPage(messId, { requireManager: true, requireWrite: true });
 
   const member = await db.member.findFirst({
     where: { id: memberId, messId: ctx.messId, deletedAt: null },

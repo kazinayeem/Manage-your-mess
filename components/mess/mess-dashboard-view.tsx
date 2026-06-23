@@ -116,17 +116,17 @@ export function MessDashboardView({
     {
       href: messPath(messId, "/meals/add"),
       label: t("actions.addMeal.title"),
-      show: capabilities.canAddMeals,
+      show: !capabilities.readOnly && capabilities.canAddMeals,
     },
     {
       href: messPath(messId, "/deposits/add"),
       label: t("actions.addDeposit.title"),
-      show: capabilities.canAddDeposits,
+      show: !capabilities.readOnly && capabilities.canAddDeposits,
     },
     {
       href: messPath(messId, "/expenses/add"),
       label: t("actions.addExpense.title"),
-      show: capabilities.canAddExpenses,
+      show: !capabilities.readOnly && capabilities.canAddExpenses,
     },
   ].filter((item) => item.show);
 
@@ -136,42 +136,42 @@ export function MessDashboardView({
       label: t("actions.addMeal.title"),
       description: t("actions.addMeal.desc"),
       icon: Utensils,
-      show: capabilities.canAddMeals,
+      show: !capabilities.readOnly && capabilities.canAddMeals,
     },
     {
       href: messPath(messId, "/deposits/add"),
       label: t("actions.addDeposit.title"),
       description: t("actions.addDeposit.desc"),
       icon: Wallet,
-      show: capabilities.canAddDeposits,
+      show: !capabilities.readOnly && capabilities.canAddDeposits,
     },
     {
       href: messPath(messId, "/expenses/add"),
       label: t("actions.addExpense.title"),
       description: t("actions.addExpense.desc"),
       icon: Receipt,
-      show: capabilities.canAddExpenses,
+      show: !capabilities.readOnly && capabilities.canAddExpenses,
     },
     {
       href: messPath(messId, "/bazaar/new"),
       label: t("actions.createBazaar.title"),
       description: t("actions.createBazaar.desc"),
       icon: ShoppingCart,
-      show: capabilities.canManageBazaar,
+      show: !capabilities.readOnly && capabilities.canManageBazaar,
     },
     {
       href: messPath(messId, "/bills"),
       label: t("addBill"),
       description: t("addBillDescription"),
       icon: CreditCard,
-      show: capabilities.canManageBills,
+      show: !capabilities.readOnly && capabilities.canManageBills,
     },
     {
       href: messPath(messId, "/members/add"),
       label: t("actions.addMember.title"),
       description: t("actions.addMember.desc"),
       icon: UserPlus,
-      show: capabilities.canManageMembers,
+      show: !capabilities.readOnly && capabilities.canManageMembers,
     },
   ].filter((item) => item.show);
 

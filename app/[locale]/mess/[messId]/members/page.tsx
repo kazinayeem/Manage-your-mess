@@ -60,7 +60,7 @@ export default async function MessMembersPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t("title")}</h1>
-        {ctx.isManager && (
+        {ctx.capabilities.canManageMembers && (
           <Button asChild className="gap-2">
             <Link href={messPath(ctx.messId, "/members/add")}>
               <UserPlus className="h-4 w-4" />
@@ -70,11 +70,15 @@ export default async function MessMembersPage({
         )}
       </div>
 
-      {ctx.isManager && pending.length > 0 && (
+      {ctx.capabilities.canManageMembers && pending.length > 0 && (
         <PendingMembersPanel messId={ctx.messId} members={pending} />
       )}
 
-      <MembersTable members={members} messId={ctx.messId} isManager={ctx.isManager} />
+      <MembersTable
+        members={members}
+        messId={ctx.messId}
+        canManage={ctx.capabilities.canManageMembers}
+      />
     </div>
   );
 }

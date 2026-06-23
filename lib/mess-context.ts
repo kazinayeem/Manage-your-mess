@@ -35,8 +35,7 @@ function applySubscriptionToCapabilities(
     canTransferOwnership: capabilities.canTransferOwnership && canWrite,
     canGenerateReports:
       capabilities.canGenerateReports &&
-      (features.pdfReports || features.excelReports || features.csvExport) &&
-      canWrite,
+      (features.pdfReports || features.excelReports || features.csvExport),
     canViewMembers: capabilities.canViewMembers,
     canManageBazaar: capabilities.canManageBazaar && features.bazaarManagement && canWrite,
     canViewMyBazaar: capabilities.canViewMyBazaar && features.bazaarManagement,
@@ -45,7 +44,7 @@ function applySubscriptionToCapabilities(
     canUsePdfExport: capabilities.canUsePdfExport && features.pdfReports && canWrite,
     canUseExcelExport: capabilities.canUseExcelExport && features.excelReports && canWrite,
     canUseCsvExport: capabilities.canUseCsvExport && features.csvExport && canWrite,
-    canViewAnalytics: capabilities.canViewAnalytics && features.analytics && canWrite,
+    canViewAnalytics: capabilities.canViewAnalytics && features.analytics,
     canUseAiAnalytics: capabilities.canUseAiAnalytics && features.aiAnalytics && canWrite,
     canManageRooms: capabilities.canManageRooms && features.roomManagement && canWrite,
     canManageBeds: capabilities.canManageBeds && features.bedManagement && canWrite,

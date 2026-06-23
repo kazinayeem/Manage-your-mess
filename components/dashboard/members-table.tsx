@@ -26,11 +26,11 @@ type Member = {
 export function MembersTable({
   members,
   messId,
-  isManager = false,
+  canManage = false,
 }: {
   members: Member[];
   messId: string;
-  isManager?: boolean;
+  canManage?: boolean;
 }) {
   const router = useRouter();
   const t = useTranslations("messMembers");
@@ -72,7 +72,7 @@ export function MembersTable({
       header: t("deposit"),
       cell: ({ row }) => formatCurrency(row.original.totalDeposit),
     },
-    ...(isManager
+    ...(canManage
       ? [
           {
             id: "actions",

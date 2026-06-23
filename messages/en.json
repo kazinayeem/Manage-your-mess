@@ -380,7 +380,8 @@
   "workspace": {
     "readOnly": "Read-only",
     "portal": "Portal",
-    "readOnlyHint": "Read-only view — contact manager to add meals or deposits."
+    "readOnlyHint": "Read-only view — contact manager to add meals or deposits.",
+    "suspendedReadOnlyHint": "This account is suspended. You can view data only — adding or editing is disabled."
   },
   "roles": {
     "manager": "Manager",

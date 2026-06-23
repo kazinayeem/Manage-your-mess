@@ -92,6 +92,11 @@ export default async function MessLayout({
         <GlobalAnnouncementCenter announcements={announcements} />
 
         <main className={cn("min-h-0 min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8", MOBILE_BOTTOM_PAD)}>
+          {readOnly && ctx.subscriptionAccess.isSuspended && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+              {tWorkspace("suspendedReadOnlyHint")}
+            </p>
+          )}
           {children}
         </main>
       </div>

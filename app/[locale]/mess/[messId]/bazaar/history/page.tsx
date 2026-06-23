@@ -41,15 +41,15 @@ export default async function BazaarHistoryPage({
             </tr>
           </thead>
           <tbody>
-            {history.map((h) => {
-              const task = h.task;
+            {history.map((task) => {
               const budget = task.expectedBudget;
-              const actual = task.submission?.actualCost ?? h.actualCost ?? 0;
+              const actual = task.submission?.actualCost ?? 0;
               const diff = actual - budget;
-              const approver = task.approvals[0]?.reviewedBy?.name;
+              const approval = task.approvals[0];
+              const completedAt = approval?.createdAt ?? task.submission?.submittedAt ?? task.updatedAt;
               return (
-                <tr key={h.id} className="border-t dark:border-zinc-800">
-                  <td className="px-4 py-3">{formatDate(h.createdAt)}</td>
+                <tr key={task.id} className="border-t dark:border-zinc-800">
+                  <td className="px-4 py-3">{formatDate(completedAt)}</td>
                   <td className="px-4 py-3 font-medium">{task.title}</td>
                   <td className="px-4 py-3">{task.assignment?.member.fullName ?? "—"}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(budget)}</td>
@@ -60,7 +60,7 @@ export default async function BazaarHistoryPage({
                   <td className="px-4 py-3">
                     <Badge variant="outline">{t(`status_${task.status}`)}</Badge>
                   </td>
-                  <td className="px-4 py-3">{approver ?? "—"}</td>
+                  <td className="px-4 py-3">{approval?.reviewedBy?.name ?? "—"}</td>
                 </tr>
               );
             })}
