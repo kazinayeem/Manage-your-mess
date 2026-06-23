@@ -2,7 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import Image from "next/image";
 import { Globe, Mail, Share2 } from "lucide-react";
+import { MARKETING_COVER } from "@/lib/marketing-images";
 
 const BORNOSOFT_URL = "https://www.bornosoft.com";
 
@@ -15,9 +17,9 @@ export function MarketingFooter() {
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-                BM
+            <div className="flex items-center gap-3">
+              <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-zinc-200 shadow-sm dark:border-zinc-700">
+                <Image src={MARKETING_COVER} alt="" fill className="object-cover" sizes="40px" />
               </div>
               <span className="text-lg font-bold">{t("common.appName")}</span>
             </div>

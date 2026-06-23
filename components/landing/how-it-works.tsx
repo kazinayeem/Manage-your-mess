@@ -1,8 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { SectionHeader, SectionShell } from "@/components/landing/section-shell";
+import { HOW_IT_WORKS_SCREENSHOTS } from "@/lib/marketing-images";
 
 const steps = ["s1", "s2", "s3", "s4", "s5", "s6"] as const;
 
@@ -29,6 +31,16 @@ export function LandingHowItWorks() {
                 {i + 1}
               </div>
               <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="mb-4 overflow-hidden rounded-lg border border-zinc-100 dark:border-zinc-800">
+                  <Image
+                    src={HOW_IT_WORKS_SCREENSHOTS[i]}
+                    alt={t(`steps.${step}.title`)}
+                    width={640}
+                    height={400}
+                    className="aspect-[16/10] w-full object-cover object-top"
+                    sizes="(max-width: 768px) 100vw, 640px"
+                  />
+                </div>
                 <h3 className="font-semibold text-zinc-900 dark:text-white">{t(`steps.${step}.title`)}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-500">{t(`steps.${step}.desc`)}</p>
               </div>

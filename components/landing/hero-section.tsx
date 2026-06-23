@@ -4,7 +4,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, MessageCircle, TrendingUp, Users, Wallet } from "lucide-react";
+import { ArrowRight, Play, MessageCircle } from "lucide-react";
+import { AppScreenshot } from "@/components/landing/app-screenshot";
+import { MARKETING_COVER } from "@/lib/marketing-images";
 
 export function LandingHero() {
   const t = useTranslations("landing.hero");
@@ -90,26 +92,12 @@ export function LandingHero() {
                 </div>
                 <span className="ml-2 text-xs text-zinc-500">bornomess.bornosoft.com</span>
               </div>
-              <div className="grid gap-3 p-4 sm:grid-cols-2">
-                {[
-                  { icon: Users, label: t("cardMembers"), value: "৩৬", color: "text-blue-600" },
-                  { icon: Wallet, label: t("cardDeposits"), value: "৳১,১২,০০০", color: "text-emerald-600" },
-                  { icon: TrendingUp, label: t("cardMeals"), value: "৪৮২", color: "text-violet-600" },
-                  { icon: TrendingUp, label: t("cardDue"), value: "৳২,৮০০", color: "text-amber-600" },
-                ].map((card, i) => (
-                  <motion.div
-                    key={card.label}
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 3 + i * 0.5, ease: "easeInOut" }}
-                    className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-                  >
-                    <card.icon className={`h-5 w-5 ${card.color}`} />
-                    <p className="mt-2 text-xs text-zinc-500">{card.label}</p>
-                    <p className="text-xl font-bold text-zinc-900 dark:text-white">{card.value}</p>
-                  </motion.div>
-                ))}
-              </div>
-              <div className="mx-4 mb-4 h-28 rounded-lg bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-transparent" />
+              <AppScreenshot
+                src={MARKETING_COVER}
+                alt="BornoMess Manager — smart mess management dashboard"
+                priority
+                className="rounded-none border-0 shadow-none"
+              />
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import { baseApi } from "./base-api";
-import { getDashboardStats } from "@/lib/queries";
+import { getDashboardStats } from "@/actions/dashboard";
 
 export const messApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({

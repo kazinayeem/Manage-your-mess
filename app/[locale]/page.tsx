@@ -13,8 +13,10 @@ import { LandingMobile } from "@/components/landing/mobile-section";
 import { LandingTestimonials } from "@/components/landing/testimonials-section";
 import { LandingPricingSection } from "@/components/landing/pricing-section";
 import { LandingFaq } from "@/components/landing/faq-section";
+import { LandingScreenshotShowcase } from "@/components/landing/screenshot-showcase";
 import { LandingFinalCta } from "@/components/landing/final-cta";
 import { LandingJsonLd } from "@/components/landing/json-ld";
+import { MARKETING_COVER } from "@/lib/marketing-images";
 
 export async function generateMetadata({
   params,
@@ -43,12 +45,21 @@ export async function generateMetadata({
       type: "website",
       locale: locale === "bn" ? "bn_BD" : "en_US",
       url: canonical,
-      siteName: "MessFlow Pro",
+      siteName: "BornoMess Manager",
+      images: [
+        {
+          url: MARKETING_COVER,
+          width: 1200,
+          height: 630,
+          alt: "BornoMess Manager — smart mess management",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: t("title"),
       description: t("description"),
+      images: [MARKETING_COVER],
     },
     alternates: {
       canonical: locale === "bn" ? "/bn" : "/",
@@ -82,6 +93,7 @@ export default async function HomePage({
         <LandingTestimonials />
         <LandingPricingSection />
         <LandingFaq />
+        <LandingScreenshotShowcase />
         <LandingFinalCta />
       </main>
       <MarketingFooter />

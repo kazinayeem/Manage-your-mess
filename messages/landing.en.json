@@ -222,6 +222,22 @@
         "q16": { "q": "Are custom plans available?", "a": "Yes. Contact us for enterprise custom plans." }
       }
     },
+    "showcase": {
+      "eyebrow": "Product tour",
+      "title": "See BornoMess in action",
+      "subtitle": "Real screenshots from dashboard, meals, bazaar, analytics, and mobile workspace",
+      "shots": {
+        "1": "Dashboard overview",
+        "2": "Meal tracking",
+        "3": "Expenses & bazaar",
+        "4": "Deposits",
+        "5": "PDF reports",
+        "6": "Analytics center",
+        "7": "Bazaar assignments",
+        "8": "Mobile workspace",
+        "9": "Member portal"
+      }
+    },
     "cta": {
       "title": "Digitize Your Mess Today",
       "subtitle": "Join thousands of mess managers using smart management",

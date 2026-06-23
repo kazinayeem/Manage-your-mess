@@ -12,6 +12,8 @@ import {
   MiniMemberChart,
 } from "@/components/landing/mini-charts";
 import { cn } from "@/lib/utils";
+import { AppScreenshot } from "@/components/landing/app-screenshot";
+import { DASHBOARD_TAB_SCREENSHOTS, MARKETING_SCREENSHOTS } from "@/lib/marketing-images";
 
 const tabs = ["dashboard", "meals", "expenses", "deposits", "reports", "analytics"] as const;
 
@@ -28,6 +30,9 @@ export function LandingDashboardPreview() {
   const t = useTranslations("landing.dashboard");
   const [active, setActive] = useState<(typeof tabs)[number]>("dashboard");
   const Chart = chartMap[active];
+  const screenshotSrc = DASHBOARD_TAB_SCREENSHOTS[active] ?? "/1.png";
+  const screenshotAlt =
+    MARKETING_SCREENSHOTS.find((s) => s.src === screenshotSrc)?.alt ?? "BornoMess screenshot";
 
   return (
     <SectionShell id="preview" className="bg-zinc-50 dark:bg-zinc-900/40">
@@ -63,6 +68,7 @@ export function LandingDashboardPreview() {
                 transition={{ duration: 0.25 }}
               >
                 <p className="mb-4 text-sm font-medium text-zinc-500">{t(`chartLabels.${active}`)}</p>
+                <AppScreenshot src={screenshotSrc} alt={screenshotAlt} className="mb-4" />
                 <Chart />
               </motion.div>
             </AnimatePresence>

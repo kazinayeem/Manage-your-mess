@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Home, Utensils, Receipt, FileText, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
+import Image from "next/image";
+import { MARKETING_COVER } from "@/lib/marketing-images";
 
 type Tab = {
   href: string;
@@ -90,6 +92,17 @@ export function MobileBottomNav({
       className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200/80 bg-white/90 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-lg dark:border-zinc-800 dark:bg-zinc-950/90 lg:hidden"
       aria-label={t("mainNavigation")}
     >
+      <div className="relative h-1 w-full overflow-hidden">
+        <Image
+          src={MARKETING_COVER}
+          alt=""
+          fill
+          aria-hidden
+          className="object-cover object-top opacity-30 dark:opacity-20"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/40 via-teal-500/30 to-emerald-600/40" />
+      </div>
       <ul className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
         {tabs.map((tab) => {
           const active = tab.match(pathname);

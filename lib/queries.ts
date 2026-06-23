@@ -1,3 +1,5 @@
+import "server-only";
+
 import { db } from "@/lib/db";
 import { cacheGet, cacheSet } from "@/lib/redis";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
