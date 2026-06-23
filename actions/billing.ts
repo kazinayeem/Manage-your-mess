@@ -587,12 +587,17 @@ export async function getPaymentRequests(status?: PaymentRequestStatus) {
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { id: true, name: true, email: true } },
-      plan: true,
+      plan: { select: LEGACY_PLAN_SELECT },
       mess: { select: { id: true, name: true } },
       paymentMethod: true,
       reviewedBy: { select: { name: true } },
     },
-  });
+  }).then((rows) =>
+    rows.map((row) => ({
+      ...row,
+      plan: row.plan ? withPlanFallback(row.plan) : null,
+    }))
+  );
 }
 
 export async function getPaymentRequestsForAdmin(filters?: {
@@ -619,12 +624,17 @@ export async function getPaymentRequestsForAdmin(filters?: {
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { id: true, name: true, email: true } },
-      plan: true,
+      plan: { select: LEGACY_PLAN_SELECT },
       mess: { select: { id: true, name: true } },
       paymentMethod: true,
       reviewedBy: { select: { name: true } },
     },
-  });
+  }).then((rows) =>
+    rows.map((row) => ({
+      ...row,
+      plan: row.plan ? withPlanFallback(row.plan) : null,
+    }))
+  );
 }
 
 export async function getMyPaymentRequests() {
@@ -633,13 +643,29 @@ export async function getMyPaymentRequests() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     include: {
-      plan: true,
+      plan: { select: LEGACY_PLAN_SELECT },
       mess: { select: { id: true, name: true } },
       paymentMethod: true,
       reviewedBy: { select: { name: true } },
-      subscription: { include: { plan: true } },
+      subscription: {
+        select: {
+          ...LEGACY_SUBSCRIPTION_BASE_SELECT,
+          plan: { select: LEGACY_PLAN_SELECT },
+        },
+      },
     },
-  });
+  }).then((rows) =>
+    rows.map((row) => ({
+      ...row,
+      plan: row.plan ? withPlanFallback(row.plan) : null,
+      subscription: row.subscription
+        ? {
+            ...row.subscription,
+            plan: row.subscription.plan ? withPlanFallback(row.subscription.plan) : null,
+          }
+        : null,
+    }))
+  );
 }
 
 async function activateSubscriptionForUser(

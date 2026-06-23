@@ -75,12 +75,24 @@ export function MessWorkspaceSidebar({
       <aside
         data-collapsed={sidebarCollapsed ? true : undefined}
         className={cn(
-          "peer",
+          "peer relative",
           sidebarAsideClass(open),
           sidebarCollapsed && "lg:w-[4.5rem]",
           !sidebarCollapsed && "lg:w-72"
         )}
       >
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            onClick={toggleSidebarCollapsed}
+            className="hidden lg:flex absolute left-full top-20 z-30 ml-3 items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-md transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
+            aria-label={t("expandSidebar")}
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+            <span>{t("expandSidebar")}</span>
+          </button>
+        )}
+
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-zinc-200/80 px-4 dark:border-zinc-800">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-bold text-white shadow-sm">
             BM

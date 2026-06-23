@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth";
+import { Link } from "@/i18n/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
 import { ensureCurrentMonth } from "@/lib/mess-context";
 import { getMessMonthsForReports } from "@/actions/reports";
 import { ReportsHub } from "@/components/mess/reports-hub";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 
 export default async function MessReportsPage({
   params,
@@ -22,9 +24,18 @@ export default async function MessReportsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{t("subtitle")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="mt-1 text-sm text-zinc-500">{t("subtitle")}</p>
+        </div>
+        {ctx.capabilities.canViewAnalytics && (
+          <Button variant="outline" asChild>
+            <Link href={`/mess/${ctx.messId}/reports/analytics`}>
+              {ctx.userRole === "SUPER_ADMIN" ? "Analytics" : "Open Analytics"}
+            </Link>
+          </Button>
+        )}
       </div>
       <ReportsHub
         messId={ctx.messId}

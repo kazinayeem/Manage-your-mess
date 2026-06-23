@@ -24,7 +24,7 @@ export function PaymentsHistory({ payments }: { payments: PaymentRow[] }) {
         <Card key={payment.id}>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
-              <CardTitle>{payment.plan.name}</CardTitle>
+              <CardTitle>{payment.plan?.name ?? "Unknown plan"}</CardTitle>
               <p className="text-sm text-zinc-500">
                 Submitted {new Date(payment.createdAt).toLocaleString()}
               </p>
@@ -33,7 +33,7 @@ export function PaymentsHistory({ payments }: { payments: PaymentRow[] }) {
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div><span className="text-zinc-500">Plan Name:</span> {payment.plan.name}</div>
+              <div><span className="text-zinc-500">Plan Name:</span> {payment.plan?.name ?? "—"}</div>
               <div><span className="text-zinc-500">Amount:</span> {formatCurrency(payment.amount, payment.currency)}</div>
               <div><span className="text-zinc-500">Payment Method:</span> {payment.paymentMethod.name}</div>
               <div><span className="text-zinc-500">Transaction ID:</span> {payment.transactionId ?? "—"}</div>

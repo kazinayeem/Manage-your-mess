@@ -41,7 +41,7 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
       : [
           request.user.name ?? "",
           request.user.email ?? "",
-          request.plan.name,
+          request.plan?.name ?? "",
           request.paymentMethod.name,
           request.transactionId ?? "",
           request.mess?.name ?? "",
@@ -106,7 +106,7 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                      <div><span className="text-zinc-500">Plan:</span> {req.plan.name}</div>
+                      <div><span className="text-zinc-500">Plan:</span> {req.plan?.name ?? "—"}</div>
                       <div><span className="text-zinc-500">Amount:</span> {formatCurrency(req.amount, req.currency)}</div>
                       <div><span className="text-zinc-500">Method:</span> {req.paymentMethod.name}</div>
                       <div><span className="text-zinc-500">Transaction ID:</span> {req.transactionId ?? "—"}</div>

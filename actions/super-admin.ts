@@ -6,6 +6,29 @@ import { requireSuperAdmin } from "@/lib/billing/auth";
 import { updateSubscriptionStatus } from "@/actions/billing";
 import type { UserRole, TicketStatus, TicketPriority } from "@prisma/client";
 
+const LEGACY_PLAN_SELECT = {
+  id: true,
+  slug: true,
+  tier: true,
+  name: true,
+  description: true,
+  price: true,
+  currency: true,
+  durationType: true,
+  durationValue: true,
+  customExpiryDate: true,
+  maxMembers: true,
+  limits: true,
+  features: true,
+  featureToggles: true,
+  isActive: true,
+  isDefault: true,
+  isPopular: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 type ActionResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string };
@@ -79,7 +102,14 @@ export async function getAdminMesses(search?: string) {
     include: {
       owner: { select: { id: true, name: true, email: true } },
       manager: { select: { id: true, name: true, email: true } },
-      subscription: { include: { plan: true } },
+      subscription: {
+        select: {
+          id: true,
+          status: true,
+          currentPeriodEnd: true,
+          plan: { select: LEGACY_PLAN_SELECT },
+        },
+      },
       _count: { select: { members: { where: { deletedAt: null, status: "ACTIVE" } } } },
     },
   });
