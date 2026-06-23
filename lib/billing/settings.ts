@@ -14,6 +14,8 @@ export type ResolvedBillingSetting = {
   defaultTrialPlan: Plan | null;
 };
 
+let billingSettingTableExistsCache: boolean | null = null;
+
 function getFallbackBillingSetting(): ResolvedBillingSetting {
   return {
     id: "fallback-billing-setting",
@@ -28,42 +30,40 @@ function getFallbackBillingSetting(): ResolvedBillingSetting {
   };
 }
 
-function isMissingBillingSettingTable(error: unknown) {
-  return (
-    error instanceof Error &&
-    ("code" in error ? (error as { code?: string }).code === "P2021" : false)
-  );
+export async function hasBillingSettingTable() {
+  if (billingSettingTableExistsCache !== null) return billingSettingTableExistsCache;
+
+  try {
+    const rows = await db.$queryRawUnsafe<Array<{ exists: string | null }>>(
+      `select to_regclass('public."BillingSetting"')::text as exists`
+    );
+    billingSettingTableExistsCache = Boolean(rows[0]?.exists);
+  } catch {
+    billingSettingTableExistsCache = false;
+  }
+
+  return billingSettingTableExistsCache;
 }
 
 export async function getBillingSetting(): Promise<ResolvedBillingSetting> {
-  const billingSettingModel = (db as typeof db & {
-    billingSetting?: {
-      findFirst: (args: unknown) => Promise<ResolvedBillingSetting | null>;
-      create: (args: unknown) => Promise<ResolvedBillingSetting>;
-    };
-  }).billingSetting;
-
-  if (!billingSettingModel) {
+  if (!(await hasBillingSettingTable())) {
     return getFallbackBillingSetting();
   }
 
   let existing: ResolvedBillingSetting | null = null;
   try {
-    existing = await billingSettingModel.findFirst({
+    existing = await db.billingSetting.findFirst({
       include: { defaultTrialPlan: true },
       orderBy: { createdAt: "asc" },
     });
-  } catch (error) {
-    if (isMissingBillingSettingTable(error)) {
-      return getFallbackBillingSetting();
-    }
-    throw error;
+  } catch {
+    return getFallbackBillingSetting();
   }
 
   if (existing) return existing;
 
   try {
-    const created = await billingSettingModel.create({
+    const created = await db.billingSetting.create({
       data: {
         trialDurationType: "DAYS",
         trialDurationValue: 3,
@@ -73,11 +73,8 @@ export async function getBillingSetting(): Promise<ResolvedBillingSetting> {
     });
 
     return created;
-  } catch (error) {
-    if (isMissingBillingSettingTable(error)) {
-      return getFallbackBillingSetting();
-    }
-    throw error;
+  } catch {
+    return getFallbackBillingSetting();
   }
 }
 

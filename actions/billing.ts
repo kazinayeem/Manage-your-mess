@@ -6,6 +6,7 @@ import {
   PaymentRequestStatus,
   PlanDurationType,
   PlanVisibility,
+  Prisma,
   SubscriptionStatus,
   type Plan,
 } from "@prisma/client";
@@ -17,7 +18,7 @@ import {
   serializePlanJson,
   toParsedPlan,
 } from "@/lib/billing/plan-utils";
-import { getBillingSetting, resolveTrialEndDate } from "@/lib/billing/settings";
+import { getBillingSetting, hasBillingSettingTable, resolveTrialEndDate } from "@/lib/billing/settings";
 import { logBillingAudit } from "@/lib/billing/audit";
 import { slugify } from "@/lib/utils";
 
@@ -117,6 +118,96 @@ async function getLegacyPlanById(id: string) {
   return plan ? withPlanFallback(plan) : null;
 }
 
+let extendedPlanColumnsCache: boolean | null = null;
+
+async function hasExtendedPlanColumns() {
+  if (extendedPlanColumnsCache !== null) return extendedPlanColumnsCache;
+
+  try {
+    const rows = await db.$queryRawUnsafe<Array<{ exists: boolean }>>(
+      `select exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name in ('Plan', 'plan')
+          and column_name = 'badge'
+      ) as exists`
+    );
+    extendedPlanColumnsCache = rows[0]?.exists === true;
+  } catch {
+    extendedPlanColumnsCache = false;
+  }
+
+  return extendedPlanColumnsCache;
+}
+
+function isMissingPlanColumnError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2022" &&
+    String(error.meta?.column ?? "").includes("Plan.")
+  );
+}
+
+async function persistPlanWrite(input: {
+  id?: string;
+  slug?: string;
+  basePlanData: Record<string, unknown>;
+  extendedPlanData: Record<string, unknown>;
+}) {
+  const { id, slug, basePlanData, extendedPlanData } = input;
+  const writeData = { ...basePlanData, ...extendedPlanData };
+
+  try {
+    if (id) {
+      return await db.plan.update({ where: { id }, data: writeData as never });
+    }
+    if (!slug) throw new Error("Plan slug is required");
+    return await db.plan.create({ data: { slug, ...writeData } as never });
+  } catch (error) {
+    if (Object.keys(extendedPlanData).length > 0 && isMissingPlanColumnError(error)) {
+      extendedPlanColumnsCache = false;
+      if (id) {
+        return await db.plan.update({ where: { id }, data: basePlanData as never });
+      }
+      if (!slug) throw new Error("Plan slug is required");
+      return await db.plan.create({ data: { slug, ...basePlanData } as never });
+    }
+    throw error;
+  }
+}
+
+function buildPlanExtendedWriteData(input: {
+  badge: string | null;
+  color: string | null;
+  isTrialPlan: boolean;
+  isArchived: boolean;
+  visibility: PlanVisibility;
+}) {
+  return {
+    badge: input.badge,
+    color: input.color,
+    isTrialPlan: input.isTrialPlan,
+    isArchived: input.isArchived,
+    visibility: input.visibility,
+  };
+}
+
+async function buildPlanLifecycleUpdate(
+  action: "enable" | "disable" | "hide" | "show" | "archive"
+) {
+  if (action === "enable") return { isActive: true };
+  if (action === "disable") return { isActive: false };
+
+  if (!(await hasExtendedPlanColumns())) {
+    return { isActive: action === "show" };
+  }
+
+  if (action === "hide") return { visibility: "HIDDEN" as const };
+  if (action === "show") return { visibility: "PUBLIC" as const, isArchived: false };
+  return { isArchived: true, isActive: false, visibility: "HIDDEN" as const };
+}
+
 // ─── Plans ───────────────────────────────────────────────────────────────────
 
 export async function getActivePlans() {
@@ -209,31 +300,32 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
       await db.plan.updateMany({ data: { isDefault: false } });
     }
 
+    const basePlanData = {
+      name,
+      description,
+      price,
+      currency,
+      durationType,
+      durationValue,
+      customExpiryDate,
+      maxMembers,
+      ...serialized,
+      isActive,
+      isDefault,
+      isPopular,
+      sortOrder,
+    };
+    const extendedPlanData = (await hasExtendedPlanColumns())
+      ? buildPlanExtendedWriteData({ badge, color, isTrialPlan, isArchived, visibility })
+      : {};
+
     if (id) {
       const existing = await getLegacyPlanById(id);
       if (!existing) return { success: false, error: "Plan not found" };
-      const plan = await db.plan.update({
-        where: { id },
-        data: {
-          name,
-          description,
-          badge,
-          color,
-          price,
-          currency,
-          durationType,
-          durationValue,
-          customExpiryDate,
-          maxMembers,
-          ...serialized,
-          isActive,
-          isDefault,
-          isPopular,
-          isTrialPlan,
-          isArchived,
-          visibility,
-          sortOrder,
-        },
+      const plan = await persistPlanWrite({
+        id,
+        basePlanData,
+        extendedPlanData,
       });
       await logBillingAudit({
         action: "UPDATE",
@@ -254,28 +346,10 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
       slug = `${slugBase}-${n++}`;
     }
 
-    const plan = await db.plan.create({
-      data: {
-        slug,
-        name,
-        description,
-        badge,
-        color,
-        price,
-        currency,
-        durationType,
-        durationValue,
-        customExpiryDate,
-        maxMembers,
-        ...serialized,
-        isActive,
-        isDefault,
-        isPopular,
-        isTrialPlan,
-        isArchived,
-        visibility,
-        sortOrder,
-      },
+    const plan = await persistPlanWrite({
+      slug,
+      basePlanData,
+      extendedPlanData,
     });
 
     await logBillingAudit({
@@ -313,24 +387,28 @@ export async function duplicatePlan(planId: string): Promise<ActionResult<{ id: 
         tier: plan.tier,
         name: `${plan.name} Copy`,
         description: plan.description,
-        badge: plan.badge,
-        color: plan.color,
         price: plan.price,
         currency: plan.currency,
         durationType: plan.durationType,
         durationValue: plan.durationValue,
         customExpiryDate: plan.customExpiryDate,
         maxMembers: plan.maxMembers,
-        limits: plan.limits,
-        features: plan.features,
-        featureToggles: plan.featureToggles,
+        limits: plan.limits as string,
+        features: plan.features as string,
+        featureToggles: plan.featureToggles as string,
         isActive: false,
         isDefault: false,
         isPopular: false,
-        isTrialPlan: false,
-        visibility: plan.visibility as PlanVisibility,
-        isArchived: false,
         sortOrder: plan.sortOrder + 1,
+        ...((await hasExtendedPlanColumns())
+          ? buildPlanExtendedWriteData({
+              badge: typeof plan.badge === "string" ? plan.badge : null,
+              color: typeof plan.color === "string" ? plan.color : null,
+              isTrialPlan: false,
+              isArchived: false,
+              visibility: (plan.visibility as PlanVisibility) ?? "PUBLIC",
+            })
+          : {}),
       },
     });
 
@@ -356,16 +434,7 @@ export async function updatePlanLifecycle(
     const existing = await getLegacyPlanById(planId);
     if (!existing) return { success: false, error: "Plan not found" };
 
-    const data =
-      action === "enable"
-        ? { isActive: true }
-        : action === "disable"
-          ? { isActive: false }
-          : action === "hide"
-            ? { visibility: "HIDDEN" as const }
-            : action === "show"
-              ? { visibility: "PUBLIC" as const, isArchived: false }
-              : { isArchived: true, isActive: false, visibility: "HIDDEN" as const };
+    const data = await buildPlanLifecycleUpdate(action);
 
     const updated = await db.plan.update({
       where: { id: planId },
@@ -390,7 +459,19 @@ export async function updatePlanLifecycle(
 export async function saveBillingSettings(formData: FormData): Promise<ActionResult> {
   try {
     await requireSuperAdmin();
+    if (!(await hasBillingSettingTable())) {
+      return {
+        success: false,
+        error: "Billing settings table is missing. Run `npm run db:push` to enable trial settings.",
+      };
+    }
     const existing = await getBillingSetting();
+    if (existing.id === "fallback-billing-setting") {
+      return {
+        success: false,
+        error: "Billing settings are unavailable until the database migration is applied.",
+      };
+    }
     const trialDurationType = ((formData.get("trialDurationType") as string) || "DAYS") as PlanDurationType;
     const trialDurationValue = Number(formData.get("trialDurationValue") ?? 3);
     const trialCustomEndDateRaw = (formData.get("trialCustomEndDate") as string) || "";
@@ -434,7 +515,10 @@ export async function deletePlan(planId: string): Promise<ActionResult> {
     if (!existing) return { success: false, error: "Plan not found" };
     const count = await db.subscription.count({ where: { planId } });
     if (count > 0) {
-      await db.plan.update({ where: { id: planId }, data: { isActive: false, isArchived: true } });
+      const archiveData = (await hasExtendedPlanColumns())
+        ? { isActive: false, isArchived: true }
+        : { isActive: false };
+      await db.plan.update({ where: { id: planId }, data: archiveData });
     } else {
       await db.plan.delete({ where: { id: planId } });
     }
