@@ -15,7 +15,26 @@ import { logBillingAudit } from "@/lib/billing/audit";
 
 type ActionResult<T = void> = { success: true; data?: T } | { success: false; error: string };
 
+let announcementTableExistsCache: boolean | null = null;
 let announcementReadTableExistsCache: boolean | null = null;
+
+const ANNOUNCEMENTS_UNAVAILABLE_MESSAGE =
+  "Announcements are not enabled on this database yet. Run `npx prisma db push` or apply migrations to create the Announcement tables.";
+
+async function hasAnnouncementTable() {
+  if (announcementTableExistsCache !== null) return announcementTableExistsCache;
+
+  try {
+    const rows = await db.$queryRawUnsafe<Array<{ exists: string | null }>>(
+      `select to_regclass('public."Announcement"')::text as exists`
+    );
+    announcementTableExistsCache = Boolean(rows[0]?.exists);
+  } catch {
+    announcementTableExistsCache = false;
+  }
+
+  return announcementTableExistsCache;
+}
 
 async function hasAnnouncementReadTable() {
   if (announcementReadTableExistsCache !== null) return announcementReadTableExistsCache;
@@ -123,6 +142,9 @@ function announcementActiveWindow(announcement: {
 
 export async function getAdminAnnouncements() {
   await requireSuperAdmin();
+  if (!(await hasAnnouncementTable())) {
+    return [];
+  }
   try {
     return await db.announcement.findMany({
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
@@ -152,6 +174,9 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
 
     if (!title || !description) {
       return { success: false, error: "Title and description are required" };
+    }
+    if (!(await hasAnnouncementTable())) {
+      return { success: false, error: ANNOUNCEMENTS_UNAVAILABLE_MESSAGE };
     }
 
     const data = {
@@ -217,7 +242,7 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
 
 export async function getUserAnnouncements() {
   const user = await requireAuth();
-  if (!(await hasAnnouncementReadTable())) {
+  if (!(await hasAnnouncementTable()) || !(await hasAnnouncementReadTable())) {
     return [];
   }
   let rows:
@@ -277,7 +302,7 @@ export async function getActiveAnnouncementsForUser() {
 export async function markAnnouncementRead(announcementId: string): Promise<ActionResult> {
   try {
     const user = await requireAuth();
-    if (!(await hasAnnouncementReadTable())) {
+    if (!(await hasAnnouncementTable()) || !(await hasAnnouncementReadTable())) {
       return { success: true };
     }
     try {

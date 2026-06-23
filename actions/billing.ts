@@ -328,7 +328,7 @@ export async function duplicatePlan(planId: string): Promise<ActionResult<{ id: 
         isDefault: false,
         isPopular: false,
         isTrialPlan: false,
-        visibility: plan.visibility,
+        visibility: plan.visibility as PlanVisibility,
         isArchived: false,
         sortOrder: plan.sortOrder + 1,
       },
@@ -353,7 +353,7 @@ export async function updatePlanLifecycle(
 ): Promise<ActionResult> {
   try {
     await requireSuperAdmin();
-    const existing = await db.plan.findUnique({ where: { id: planId } });
+    const existing = await getLegacyPlanById(planId);
     if (!existing) return { success: false, error: "Plan not found" };
 
     const data =
@@ -430,7 +430,7 @@ export async function saveBillingSettings(formData: FormData): Promise<ActionRes
 export async function deletePlan(planId: string): Promise<ActionResult> {
   try {
     await requireSuperAdmin();
-    const existing = await db.plan.findUnique({ where: { id: planId } });
+    const existing = await getLegacyPlanById(planId);
     if (!existing) return { success: false, error: "Plan not found" };
     const count = await db.subscription.count({ where: { planId } });
     if (count > 0) {
@@ -539,7 +539,7 @@ export async function submitSubscriptionRequest(
     }
     if (!amount || amount <= 0) return { success: false, error: "Valid payment amount is required" };
 
-    const plan = await db.plan.findUnique({ where: { id: planId } });
+    const plan = await getLegacyPlanById(planId);
     if (!plan || !plan.isActive) return { success: false, error: "Plan not available" };
 
     const method = await db.paymentMethod.findUnique({ where: { id: paymentMethodId } });
@@ -964,7 +964,7 @@ export async function assignSubscriptionPlan(input: {
 }): Promise<ActionResult<{ subscriptionId: string }>> {
   try {
     const admin = await requireSuperAdmin();
-    const plan = await db.plan.findUnique({ where: { id: input.planId } });
+    const plan = await getLegacyPlanById(input.planId);
     if (!plan) return { success: false, error: "Plan not found" };
 
     const now = new Date();
