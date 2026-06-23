@@ -481,7 +481,7 @@
     "deposit": "জমা",
     "expense": "খরচ",
     "status": "অবস্থা",
-    "actions": "অ্যাকশন",
+    "tableActions": "অ্যাকশন",
     "view": "দেখুন",
     "searchMembers": "সদস্য খুঁজুন...",
     "memberTableEmptyTitle": "এখনও কোনো সদস্য নেই",

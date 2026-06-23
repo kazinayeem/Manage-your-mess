@@ -338,7 +338,9 @@ export function MessDashboardView({
             </section>
           )}
 
-          <DashboardAnalyticsGrid {...chartData} />
+          <div className="min-w-0 w-full">
+            <DashboardAnalyticsGrid {...chartData} />
+          </div>
 
           <section className="space-y-4">
             <div>

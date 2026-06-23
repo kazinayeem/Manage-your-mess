@@ -15,6 +15,23 @@ import { logBillingAudit } from "@/lib/billing/audit";
 
 type ActionResult<T = void> = { success: true; data?: T } | { success: false; error: string };
 
+let announcementReadTableExistsCache: boolean | null = null;
+
+async function hasAnnouncementReadTable() {
+  if (announcementReadTableExistsCache !== null) return announcementReadTableExistsCache;
+
+  try {
+    const rows = await db.$queryRawUnsafe<Array<{ exists: string | null }>>(
+      `select to_regclass('public."AnnouncementRead"')::text as exists`
+    );
+    announcementReadTableExistsCache = Boolean(rows[0]?.exists);
+  } catch {
+    announcementReadTableExistsCache = false;
+  }
+
+  return announcementReadTableExistsCache;
+}
+
 function parseTargetMessIds(raw: string | null | undefined) {
   try {
     return JSON.parse(raw || "[]") as string[];
@@ -157,7 +174,8 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
 
     if (announcement.isPublished) {
       const userIds = await resolveAnnouncementAudienceUserIds({ audienceType, targetMessIds });
-      if (userIds.length) {
+      const canTrackReads = await hasAnnouncementReadTable();
+      if (userIds.length && canTrackReads) {
         await db.announcementRead.createMany({
           data: userIds.map((userId) => ({
             announcementId: announcement.id,
@@ -199,6 +217,9 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
 
 export async function getUserAnnouncements() {
   const user = await requireAuth();
+  if (!(await hasAnnouncementReadTable())) {
+    return [];
+  }
   let rows:
     | Array<{
         announcement: {
@@ -256,6 +277,9 @@ export async function getActiveAnnouncementsForUser() {
 export async function markAnnouncementRead(announcementId: string): Promise<ActionResult> {
   try {
     const user = await requireAuth();
+    if (!(await hasAnnouncementReadTable())) {
+      return { success: true };
+    }
     try {
       await db.announcementRead.updateMany({
         where: { announcementId, userId: user.id },

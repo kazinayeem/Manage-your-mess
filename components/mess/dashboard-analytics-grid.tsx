@@ -39,16 +39,16 @@ function ChartShell({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded-2xl border-zinc-200/80 shadow-sm dark:border-zinc-800">
+    <Card className="min-w-0 rounded-2xl border-zinc-200/80 shadow-sm dark:border-zinc-800">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold text-zinc-900 dark:text-white">
           {title}
         </CardTitle>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{subtitle}</p>
       </CardHeader>
-      <CardContent>
-        <div className="h-[260px]">
-          <ResponsiveContainer width="100%" height="100%">
+      <CardContent className="min-w-0">
+        <div className="h-[260px] min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {children}
           </ResponsiveContainer>
         </div>

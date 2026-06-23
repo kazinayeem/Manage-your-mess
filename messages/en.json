@@ -481,7 +481,7 @@
     "deposit": "Deposit",
     "expense": "Expense",
     "status": "Status",
-    "actions": "Actions",
+    "tableActions": "Actions",
     "view": "View",
     "searchMembers": "Search members...",
     "memberTableEmptyTitle": "No members yet",
