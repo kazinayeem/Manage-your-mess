@@ -41,8 +41,9 @@ export function MessMobileBottomNav({
   capabilities,
   isManager,
   isOwner,
-  unreadCount = 0,
+  unreadCount: _unreadCount = 0,
 }: MessMobileNavProps) {
+  void _unreadCount;
   const pathname = usePathname();
   const t = useTranslations("mobileNav");
   const tSidebar = useTranslations("sidebar");
@@ -53,6 +54,7 @@ export function MessMobileBottomNav({
   const financeActive = isFinanceRoute(pathname, messId);
   const bazaarActive = isBazaarRoute(pathname, messId);
   const reportsActive = isReportsRoute(pathname, messId);
+  const locked = capabilities.subscriptionLocked;
 
   const tabs = [
     {
@@ -64,24 +66,25 @@ export function MessMobileBottomNav({
     },
     {
       id: "finance",
-      href: messPath(messId, capabilities.readOnly ? "/deposits" : "/deposits/add"),
+      href: locked
+        ? "/portal/subscription"
+        : messPath(messId, capabilities.readOnly ? "/deposits" : "/deposits/add"),
       label: t("finance"),
       icon: Wallet,
       active: financeActive,
     },
     {
       id: "bazaar",
-      href: messPath(
-        messId,
-        capabilities.canManageBazaar ? "/bazaar" : "/bazaar/my"
-      ),
+      href: locked
+        ? "/pricing"
+        : messPath(messId, capabilities.canManageBazaar ? "/bazaar" : "/bazaar/my"),
       label: t("bazaar"),
       icon: ShoppingCart,
       active: bazaarActive,
     },
     {
       id: "reports",
-      href: messPath(messId, "/reports"),
+      href: locked ? "/pricing" : messPath(messId, "/reports"),
       label: t("reports"),
       icon: BarChart3,
       active: reportsActive,

@@ -1,4 +1,4 @@
-import type { Plan, PlanDurationType } from "@prisma/client";
+import type { Plan, PlanDurationType, PlanVisibility } from "@prisma/client";
 import {
   LEGACY_FEATURE_MAP,
   type PlanFeatureKey,
@@ -22,6 +22,11 @@ export type ParsedPlan = {
   isActive: boolean;
   isDefault: boolean;
   isPopular: boolean;
+  isTrialPlan: boolean;
+  visibility: PlanVisibility;
+  isArchived: boolean;
+  badge: string | null;
+  color: string | null;
   tier: string | null;
 };
 
@@ -84,14 +89,25 @@ export function toParsedPlan(plan: Plan): ParsedPlan {
       reports: limits.reports ?? -1,
       pdf_exports: limits.pdf_exports ?? -1,
       excel_exports: limits.excel_exports ?? -1,
+      csv_exports: limits.csv_exports ?? -1,
       monthly_transactions: limits.monthly_transactions ?? -1,
       api_requests: limits.api_requests ?? -1,
+      bazaar_entries: limits.bazaar_entries ?? -1,
+      expenses: limits.expenses ?? -1,
+      bills: limits.bills ?? -1,
+      notices: limits.notices ?? -1,
+      tasks: limits.tasks ?? -1,
     },
     features,
     featureToggles,
     isActive: plan.isActive,
     isDefault: plan.isDefault,
     isPopular: plan.isPopular,
+    isTrialPlan: plan.isTrialPlan,
+    visibility: plan.visibility,
+    isArchived: plan.isArchived,
+    badge: plan.badge,
+    color: plan.color,
     tier: plan.tier,
   };
 }
@@ -112,6 +128,19 @@ export function planHasFeature(plan: ParsedPlan | Plan, feature: string): boolea
     "features" in plan && typeof plan.features === "string" ? plan.features : JSON.stringify(parsed.features)
   );
   return legacyFeatures.includes(feature) || legacyFeatures.includes(key);
+}
+
+export function getPlanLimit(plan: ParsedPlan | Plan, limit: PlanLimitKey): number {
+  const parsed =
+    "limits" in plan && typeof plan.limits === "object" && !Array.isArray(plan.limits)
+      ? (plan as ParsedPlan)
+      : toParsedPlan(plan as Plan);
+  return parsed.limits[limit] ?? -1;
+}
+
+export function isPlanVisible(plan: ParsedPlan | Plan): boolean {
+  const parsed = "limits" in plan ? (plan as ParsedPlan) : toParsedPlan(plan as Plan);
+  return parsed.isActive && !parsed.isArchived && parsed.visibility === "PUBLIC";
 }
 
 export function getMemberLimit(plan: ParsedPlan | Plan): number {

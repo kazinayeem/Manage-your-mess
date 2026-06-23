@@ -16,21 +16,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { extendSubscription, updateSubscriptionStatus } from "@/actions/billing";
+import { assignSubscriptionPlan, extendSubscription, updateSubscriptionStatus } from "@/actions/billing";
 import { EXTENSION_PRESETS } from "@/lib/billing/constants";
 import { daysRemaining, formatPlanDuration, toParsedPlan } from "@/lib/billing/plan-utils";
 import { formatCurrency } from "@/lib/utils";
 import { CalendarPlus, Pause, Play } from "lucide-react";
 
 type SubscriptionRow = Awaited<ReturnType<typeof import("@/actions/billing").getAllSubscriptions>>[number];
+type PlanRow = Awaited<ReturnType<typeof import("@/actions/billing").getAllPlans>>[number];
 
-export function SubscriptionsManager({ subscriptions }: { subscriptions: SubscriptionRow[] }) {
+export function SubscriptionsManager({
+  subscriptions,
+  plans,
+}: {
+  subscriptions: SubscriptionRow[];
+  plans: PlanRow[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [extraDays, setExtraDays] = useState("30");
   const [customEnd, setCustomEnd] = useState("");
   const [reason, setReason] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState(plans[0]?.id ?? "");
+  const [bonusDays, setBonusDays] = useState("0");
 
   function handleExtend(id: string) {
     startTransition(async () => {
@@ -53,6 +63,23 @@ export function SubscriptionsManager({ subscriptions }: { subscriptions: Subscri
       const result = await updateSubscriptionStatus(id, status, reason || undefined);
       if (result.success) {
         toast.success(`Status updated to ${status}`);
+        router.refresh();
+      } else toast.error(result.error);
+    });
+  }
+
+  function handleAssign(subscription: SubscriptionRow) {
+    startTransition(async () => {
+      const result = await assignSubscriptionPlan({
+        userId: subscription.user.id,
+        planId: selectedPlanId,
+        messId: subscription.messes[0]?.id ?? null,
+        customExpiryDate: customEnd || undefined,
+        bonusDays: Number(bonusDays || 0),
+      });
+      if (result.success) {
+        toast.success("Plan assigned");
+        setAssigningId(null);
         router.refresh();
       } else toast.error(result.error);
     });
@@ -92,6 +119,9 @@ export function SubscriptionsManager({ subscriptions }: { subscriptions: Subscri
                   <Button size="sm" variant="outline" className="gap-1" onClick={() => setExtendingId(extendingId === sub.id ? null : sub.id)}>
                     <CalendarPlus className="h-4 w-4" /> Extend
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAssigningId(assigningId === sub.id ? null : sub.id)}>
+                    Assign Plan
+                  </Button>
                   {sub.status === "ACTIVE" ? (
                     <Button size="sm" variant="outline" className="gap-1" disabled={pending} onClick={() => handleStatus(sub.id, "SUSPENDED")}>
                       <Pause className="h-4 w-4" /> Suspend
@@ -127,6 +157,37 @@ export function SubscriptionsManager({ subscriptions }: { subscriptions: Subscri
                       </div>
                     </div>
                     <Button size="sm" disabled={pending} onClick={() => handleExtend(sub.id)}>Save Extension</Button>
+                  </div>
+                )}
+
+                {assigningId === sub.id && (
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label>Plan</Label>
+                        <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {plans.map((plan) => (
+                              <SelectItem key={plan.id} value={plan.id}>
+                                {plan.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Bonus Days</Label>
+                        <Input type="number" value={bonusDays} onChange={(e) => setBonusDays(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Custom Expiry (optional)</Label>
+                        <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
+                      </div>
+                    </div>
+                    <Button size="sm" disabled={pending || !selectedPlanId} onClick={() => handleAssign(sub)}>
+                      Save Assignment
+                    </Button>
                   </div>
                 )}
               </CardContent>

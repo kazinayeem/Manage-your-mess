@@ -11,6 +11,7 @@ import { ReportPrintView } from "@/components/mess/report-print-view";
 import { formatReportCurrency } from "@/lib/reports/labels";
 import type { ReportPayload, ReportType, MonthOption, ReportCurrency } from "@/lib/reports/types";
 import { DATE_RANGE_PRESETS, resolveDateRange, type DateRangePreset } from "@/lib/reports/date-ranges";
+import type { MessCapabilities } from "@/lib/mess-permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   Download,
-  Table,
   Loader2,
   Calendar,
   BarChart3,
@@ -29,7 +29,6 @@ import {
   Wallet,
   Sheet,
   Printer,
-  Mail,
   Share2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -102,6 +101,7 @@ export function ReportsHub({
   defaultDate,
   planTier,
   generatedBy,
+  capabilities,
 }: {
   messId: string;
   months: MonthOption[];
@@ -109,6 +109,7 @@ export function ReportsHub({
   defaultDate: string;
   planTier: string;
   generatedBy?: string;
+  capabilities: MessCapabilities;
 }) {
   const t = useTranslations("messReports");
   const appLocale = useLocale();
@@ -120,7 +121,7 @@ export function ReportsHub({
   const [customStart, setCustomStart] = useState(defaultDate);
   const [customEnd, setCustomEnd] = useState(defaultDate);
   const [monthId, setMonthId] = useState(defaultMonthId);
-  const [reportDate, setReportDate] = useState(defaultDate);
+  const [reportDate] = useState(defaultDate);
   const [activeType, setActiveType] = useState<ReportType | null>("monthly");
   const [payload, setPayload] = useState<ReportPayload | null>(null);
   const [loading, setLoading] = useState(false);
@@ -136,8 +137,6 @@ export function ReportsHub({
       ),
     [datePreset, customStart, customEnd]
   );
-
-  const selectedMonth = useMemo(() => months.find((m) => m.id === monthId), [months, monthId]);
 
   const loadReport = useCallback(
     async (type: ReportType) => {
@@ -169,9 +168,11 @@ export function ReportsHub({
   );
 
   useEffect(() => {
-    loadReport("monthly");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const timer = window.setTimeout(() => {
+      void loadReport("monthly");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadReport]);
 
   async function handleExport(format: "pdf" | "csv" | "excel" | "print") {
     if (!payload) {
@@ -359,20 +360,28 @@ export function ReportsHub({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload || !!exporting} onClick={() => handleExport("pdf")}>
-              {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              PDF
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload || !!exporting} onClick={() => handleExport("csv")}>
-              CSV
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload || !!exporting} onClick={() => handleExport("excel")}>
-              Excel
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload} onClick={() => handleExport("print")}>
-              <Printer className="h-4 w-4" />
-              {t("print")}
-            </Button>
+            {capabilities.canUsePdfExport && (
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload || !!exporting} onClick={() => handleExport("pdf")}>
+                {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                PDF
+              </Button>
+            )}
+            {capabilities.canUseCsvExport && (
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload || !!exporting} onClick={() => handleExport("csv")}>
+                CSV
+              </Button>
+            )}
+            {capabilities.canUseExcelExport && (
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload || !!exporting} onClick={() => handleExport("excel")}>
+                Excel
+              </Button>
+            )}
+            {capabilities.canUsePdfExport && (
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload} onClick={() => handleExport("print")}>
+                <Printer className="h-4 w-4" />
+                {t("print")}
+              </Button>
+            )}
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!payload} onClick={handleShare}>
               <Share2 className="h-4 w-4" />
             </Button>

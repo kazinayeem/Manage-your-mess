@@ -27,7 +27,20 @@ export async function getPortalMesses(userId: string): Promise<PortalMessCard[]>
       mess: {
         include: {
           currentMonth: true,
-          subscription: { include: { plan: true } },
+          subscription: {
+            select: {
+              id: true,
+              status: true,
+              currentPeriodEnd: true,
+              plan: {
+                select: {
+                  id: true,
+                  name: true,
+                  tier: true,
+                },
+              },
+            },
+          },
           _count: { select: { members: { where: { deletedAt: null, status: "ACTIVE" } } } },
         },
       },

@@ -48,7 +48,10 @@ export function LandingAnalytics() {
   }));
 
   return (
-    <SectionShell id="analytics" dark className="bg-gradient-to-b from-zinc-950 to-zinc-900">
+    <SectionShell
+      id="analytics"
+      className="bg-gradient-to-b from-white via-emerald-50/40 to-white dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-950"
+    >
       <SectionHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
@@ -94,21 +97,21 @@ export function LandingAnalytics() {
         ].map((item) => (
           <div
             key={item.title}
-            className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 backdrop-blur"
+            className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80"
           >
-            <h3 className="mb-4 text-sm font-semibold text-zinc-300">{item.title}</h3>
+            <h3 className="mb-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300">{item.title}</h3>
             {item.chart}
           </div>
         ))}
 
-        <div className="rounded-2xl border border-emerald-800/50 bg-emerald-950/30 p-5 md:col-span-2 xl:col-span-3">
-          <h3 className="mb-4 text-sm font-semibold text-emerald-300">{t("charts.health")}</h3>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm md:col-span-2 xl:col-span-3 dark:border-emerald-800/50 dark:bg-emerald-950/30">
+          <h3 className="mb-4 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{t("charts.health")}</h3>
           <div className="grid gap-4 sm:grid-cols-4">
             {healthData.map((h) => (
               <div key={h.name} className="text-center">
                 <div className="relative mx-auto h-20 w-20">
                   <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="#27272a" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="#d4d4d8" strokeWidth="3" />
                     <circle
                       cx="18"
                       cy="18"
@@ -120,11 +123,11 @@ export function LandingAnalytics() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-white">
+                  <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-zinc-900 dark:text-white">
                     {h.value}
                   </span>
                 </div>
-                <p className="mt-2 text-xs text-zinc-400">{h.name}</p>
+                <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">{h.name}</p>
               </div>
             ))}
           </div>

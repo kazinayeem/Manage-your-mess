@@ -90,6 +90,7 @@ enum NotificationType {
   DEPOSIT_DUE
   PAYMENT_RECEIVED
   NEW_NOTICE
+  GLOBAL_ANNOUNCEMENT
   NEW_MEMBER
   APPROVAL_REQUIRED
   MONTHLY_REPORT
@@ -107,6 +108,32 @@ enum NotificationType {
   SUBSCRIPTION_ACTIVATED
   SUBSCRIPTION_EXPIRING
   SUBSCRIPTION_EXPIRED
+}
+
+enum AnnouncementType {
+  INFORMATION
+  UPDATE
+  MAINTENANCE
+  WARNING
+  PROMOTION
+}
+
+enum AnnouncementPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AnnouncementAudienceType {
+  ALL_USERS
+  ALL_MANAGERS
+  ALL_MEMBERS
+  FREE_PLAN_USERS
+  PRO_PLAN_USERS
+  BUSINESS_PLAN_USERS
+  ENTERPRISE_PLAN_USERS
+  SPECIFIC_MESSES
 }
 
 enum NotificationChannel {
@@ -302,6 +329,8 @@ model User {
   bazaarApprovals     BazaarApproval[] @relation("BazaarApprover")
   bazaarReceipts      BazaarReceipt[] @relation("BazaarReceiptUploader")
   bazaarHistory       BazaarHistory[] @relation("BazaarHistoryActor")
+  announcementsCreated Announcement[] @relation("AnnouncementCreator")
+  announcementReads    AnnouncementRead[]
 
   @@index([email])
   @@index([role])
@@ -1153,6 +1182,46 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+}
+
+model Announcement {
+  id            String               @id @default(cuid())
+  title         String
+  description   String
+  type          AnnouncementType     @default(INFORMATION)
+  priority      AnnouncementPriority @default(MEDIUM)
+  audienceType  AnnouncementAudienceType @default(ALL_USERS)
+  targetMessIds String               @default("[]")
+  isPublished   Boolean              @default(false)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  publishedAt   DateTime?
+  createdById   String
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  createdBy User @relation("AnnouncementCreator", fields: [createdById], references: [id])
+  reads     AnnouncementRead[]
+
+  @@index([isPublished])
+  @@index([audienceType])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  isRead         Boolean  @default(false)
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId, isRead])
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────────────

@@ -352,8 +352,10 @@
     "createMess": "মেস তৈরি",
     "joinMess": "মেসে যোগ দিন",
     "notifications": "নোটিফিকেশন",
+    "announcements": "ঘোষণা",
     "profile": "প্রোফাইল",
     "subscription": "সাবস্ক্রিপশন",
+    "payments": "পেমেন্ট",
     "settings": "সেটিংস",
     "helpCenter": "সহায়তা কেন্দ্র",
     "hello": "হ্যালো, {name}",
@@ -593,7 +595,9 @@
     "settings": "সেটিংস",
     "pricing": "মূল্য",
     "subscription": "সাবস্ক্রিপশন",
-    "portalHome": "পোর্টাল হোম"
+    "portalHome": "পোর্টাল হোম",
+    "payments": "পেমেন্ট",
+    "announcements": "ঘোষণা"
   },
   "ui": {
     "table": {

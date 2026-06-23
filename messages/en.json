@@ -352,8 +352,10 @@
     "createMess": "Create Mess",
     "joinMess": "Join Mess",
     "notifications": "Notifications",
+    "announcements": "Announcements",
     "profile": "Profile",
     "subscription": "Subscription",
+    "payments": "Payments",
     "settings": "Settings",
     "helpCenter": "Help Center",
     "hello": "Hello, {name}",
@@ -593,7 +595,9 @@
     "settings": "Settings",
     "pricing": "Pricing",
     "subscription": "Subscription",
-    "portalHome": "Portal Home"
+    "portalHome": "Portal Home",
+    "payments": "Payments",
+    "announcements": "Announcements"
   },
   "ui": {
     "table": {

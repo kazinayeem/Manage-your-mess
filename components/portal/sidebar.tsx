@@ -5,12 +5,13 @@ import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
-  Building2,
   PlusCircle,
   UserPlus,
   Bell,
   User,
   CreditCard,
+  Receipt,
+  Megaphone,
   Settings,
   HelpCircle,
   Menu,
@@ -34,13 +35,15 @@ const navItems = [
   { href: "/portal/create-mess", labelKey: "createMess", icon: PlusCircle },
   { href: "/portal/join-mess", labelKey: "joinMess", icon: UserPlus },
   { href: "/portal/notifications", labelKey: "notifications", icon: Bell },
+  { href: "/portal/announcements", labelKey: "announcements", icon: Megaphone },
   { href: "/portal/profile", labelKey: "profile", icon: User },
   { href: "/portal/subscription", labelKey: "subscription", icon: CreditCard },
+  { href: "/portal/payments", labelKey: "payments", icon: Receipt },
   { href: "/portal/settings", labelKey: "settings", icon: Settings },
   { href: "/portal/help", labelKey: "helpCenter", icon: HelpCircle },
 ];
 
-export function PortalSidebar() {
+export function PortalSidebar({ unreadNotifications = 0 }: { unreadNotifications?: number }) {
   const pathname = usePathname();
   const { open, toggle, close } = useMobileSidebar();
   const t = useTranslations("portal");
@@ -94,7 +97,14 @@ export function PortalSidebar() {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {t(item.labelKey)}
+                <span className="flex flex-1 items-center justify-between gap-2">
+                  <span>{t(item.labelKey)}</span>
+                  {item.href === "/portal/notifications" && unreadNotifications > 0 ? (
+                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">
+                      {unreadNotifications}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             );
           })}

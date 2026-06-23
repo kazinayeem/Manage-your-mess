@@ -44,7 +44,7 @@ export function SubscriptionRequestForm({
           <CheckCircle2 className="h-16 w-16 text-emerald-600" />
           <h2 className="text-xl font-bold">Subscription request submitted successfully</h2>
           <p className="text-zinc-500">
-            Please wait while our admin reviews your payment. You will receive a notification after approval.
+            Your payment request has been submitted successfully. Please wait for admin approval.
           </p>
           <p className="text-sm font-medium text-amber-600">Status: Pending Approval</p>
           <Button onClick={() => router.push("/portal/subscription")}>View Subscription</Button>

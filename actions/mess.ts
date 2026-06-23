@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 import { ensureUserSubscription } from "@/actions/billing";
+import { getMemberLimit } from "@/lib/billing/plan-utils";
 import { requireAuth, requireMessAccess, requireMessManager } from "@/lib/mess-access";
 import { assertMessWriteAccess } from "@/lib/billing/subscription-access";
 import { createInitialMonth, recalculateMonth } from "@/actions/monthly";
@@ -82,9 +82,10 @@ export async function createMess(formData: FormData): Promise<ActionResult<{ mes
     const slug = slugify(parsed.data.name) + "-" + Date.now().toString(36);
 
     // Reuse account subscription or create one on default plan
-    let subscription = await db.subscription.findFirst({
+    let subscription: { id: string } | null = await db.subscription.findFirst({
       where: { userId: user.id, status: { in: ["ACTIVE", "PENDING"] } },
       orderBy: { createdAt: "desc" },
+      select: { id: true },
     });
 
     if (!subscription) {
@@ -169,7 +170,7 @@ export async function joinMess(inviteCode: string): Promise<ActionResult<{ messI
     });
     if (existing) return { success: false, error: "Already a member" };
 
-    const maxMembers = mess.subscription?.plan.maxMembers ?? 10;
+    const maxMembers = mess.subscription?.plan ? getMemberLimit(mess.subscription.plan) : 10;
     if (maxMembers > 0 && mess.members.length >= maxMembers) {
       return { success: false, error: "Member limit reached for current plan" };
     }
@@ -576,7 +577,7 @@ export async function addMember(messId: string, formData: FormData): Promise<Act
       },
     });
     if (!mess) return { success: false, error: "Mess not found" };
-    const maxMembers = mess.subscription?.plan.maxMembers ?? 10;
+    const maxMembers = mess.subscription?.plan ? getMemberLimit(mess.subscription.plan) : 10;
     if (maxMembers > 0 && mess._count.members >= maxMembers) {
       return { success: false, error: "Member limit reached for current plan" };
     }

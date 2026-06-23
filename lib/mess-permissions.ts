@@ -2,6 +2,7 @@ import type { UserRole } from "@prisma/client";
 
 export type MessCapabilities = {
   readOnly: boolean;
+  subscriptionLocked: boolean;
   canAddMeals: boolean;
   canAddDeposits: boolean;
   canAddExpenses: boolean;
@@ -17,11 +18,28 @@ export type MessCapabilities = {
   canViewMembers: boolean;
   canManageBazaar: boolean;
   canViewMyBazaar: boolean;
+  canViewPricing: boolean;
+  canViewSubscription: boolean;
+  canUsePdfExport: boolean;
+  canUseExcelExport: boolean;
+  canUseCsvExport: boolean;
+  canViewAnalytics: boolean;
+  canUseAiAnalytics: boolean;
+  canManageRooms: boolean;
+  canManageBeds: boolean;
+  canManageVisitors: boolean;
+  canManageTasks: boolean;
+  canManageNotices: boolean;
+  canManageInventory: boolean;
+  canUseApi: boolean;
+  canUseWhiteLabel: boolean;
+  canUseCustomBranding: boolean;
 };
 
 export function getMessCapabilities(role: UserRole): MessCapabilities {
   const owner: MessCapabilities = {
     readOnly: true,
+    subscriptionLocked: false,
     canAddMeals: false,
     canAddDeposits: false,
     canAddExpenses: false,
@@ -37,10 +55,27 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canViewMembers: true,
     canManageBazaar: false,
     canViewMyBazaar: true,
+    canViewPricing: true,
+    canViewSubscription: true,
+    canUsePdfExport: true,
+    canUseExcelExport: true,
+    canUseCsvExport: true,
+    canViewAnalytics: true,
+    canUseAiAnalytics: false,
+    canManageRooms: false,
+    canManageBeds: false,
+    canManageVisitors: false,
+    canManageTasks: false,
+    canManageNotices: false,
+    canManageInventory: false,
+    canUseApi: false,
+    canUseWhiteLabel: false,
+    canUseCustomBranding: false,
   };
 
   const manager: MessCapabilities = {
     readOnly: false,
+    subscriptionLocked: false,
     canAddMeals: true,
     canAddDeposits: true,
     canAddExpenses: true,
@@ -56,10 +91,27 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canViewMembers: true,
     canManageBazaar: true,
     canViewMyBazaar: true,
+    canViewPricing: true,
+    canViewSubscription: true,
+    canUsePdfExport: true,
+    canUseExcelExport: true,
+    canUseCsvExport: true,
+    canViewAnalytics: true,
+    canUseAiAnalytics: true,
+    canManageRooms: true,
+    canManageBeds: true,
+    canManageVisitors: true,
+    canManageTasks: true,
+    canManageNotices: true,
+    canManageInventory: true,
+    canUseApi: true,
+    canUseWhiteLabel: true,
+    canUseCustomBranding: true,
   };
 
   const accountant: MessCapabilities = {
     readOnly: false,
+    subscriptionLocked: false,
     canAddMeals: false,
     canAddDeposits: true,
     canAddExpenses: true,
@@ -75,6 +127,22 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canViewMembers: true,
     canManageBazaar: false,
     canViewMyBazaar: true,
+    canViewPricing: true,
+    canViewSubscription: true,
+    canUsePdfExport: true,
+    canUseExcelExport: true,
+    canUseCsvExport: true,
+    canViewAnalytics: true,
+    canUseAiAnalytics: false,
+    canManageRooms: false,
+    canManageBeds: false,
+    canManageVisitors: false,
+    canManageTasks: false,
+    canManageNotices: false,
+    canManageInventory: false,
+    canUseApi: false,
+    canUseWhiteLabel: false,
+    canUseCustomBranding: false,
   };
 
   const assistant: MessCapabilities = {
@@ -89,6 +157,7 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
 
   const member: MessCapabilities = {
     readOnly: true,
+    subscriptionLocked: false,
     canAddMeals: false,
     canAddDeposits: false,
     canAddExpenses: false,
@@ -104,6 +173,22 @@ export function getMessCapabilities(role: UserRole): MessCapabilities {
     canViewMembers: false,
     canManageBazaar: false,
     canViewMyBazaar: true,
+    canViewPricing: true,
+    canViewSubscription: true,
+    canUsePdfExport: true,
+    canUseExcelExport: false,
+    canUseCsvExport: false,
+    canViewAnalytics: false,
+    canUseAiAnalytics: false,
+    canManageRooms: false,
+    canManageBeds: false,
+    canManageVisitors: false,
+    canManageTasks: false,
+    canManageNotices: false,
+    canManageInventory: false,
+    canUseApi: false,
+    canUseWhiteLabel: false,
+    canUseCustomBranding: false,
   };
 
   switch (role) {

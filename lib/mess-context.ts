@@ -4,6 +4,7 @@ import { getActiveMessIdFromCookie } from "@/lib/active-mess";
 import { getMessCapabilities, type MessCapabilities } from "@/lib/mess-permissions";
 import { resolveMessMemberRole, isDesignatedManager } from "@/lib/mess-role";
 import {
+  getFeatureAvailability,
   getSubscriptionAccessForMess,
   type SubscriptionAccessState,
 } from "@/lib/billing/subscription-access";
@@ -14,24 +15,47 @@ function applySubscriptionToCapabilities(
   capabilities: MessCapabilities,
   subscriptionAccess: SubscriptionAccessState
 ): MessCapabilities {
-  if (subscriptionAccess.canWrite) return capabilities;
+  const features = getFeatureAvailability(subscriptionAccess);
+  const canWrite = subscriptionAccess.canWrite && !capabilities.readOnly;
+
   return {
-    readOnly: true,
-    canAddMeals: false,
-    canAddDeposits: false,
-    canAddExpenses: false,
-    canManageBills: false,
-    canManageMembers: false,
-    canStartMonth: false,
-    canChangeManager: false,
-    canManageSettings: false,
-    canManageBilling: false,
-    canDeleteMess: false,
-    canTransferOwnership: false,
-    canGenerateReports: capabilities.canGenerateReports,
+    ...capabilities,
+    readOnly: !canWrite,
+    subscriptionLocked: !subscriptionAccess.canWrite,
+    canAddMeals: capabilities.canAddMeals && features.mealManagement && canWrite,
+    canAddDeposits: capabilities.canAddDeposits && features.depositManagement && canWrite,
+    canAddExpenses: capabilities.canAddExpenses && features.expenseManagement && canWrite,
+    canManageBills: capabilities.canManageBills && features.utilityBills && canWrite,
+    canManageMembers: capabilities.canManageMembers && canWrite,
+    canStartMonth: capabilities.canStartMonth && canWrite,
+    canChangeManager: capabilities.canChangeManager && canWrite,
+    canManageSettings: capabilities.canManageSettings && canWrite,
+    canManageBilling: capabilities.canManageBilling && canWrite,
+    canDeleteMess: capabilities.canDeleteMess && canWrite,
+    canTransferOwnership: capabilities.canTransferOwnership && canWrite,
+    canGenerateReports:
+      capabilities.canGenerateReports &&
+      (features.pdfReports || features.excelReports || features.csvExport) &&
+      canWrite,
     canViewMembers: capabilities.canViewMembers,
-    canManageBazaar: false,
-    canViewMyBazaar: capabilities.canViewMyBazaar,
+    canManageBazaar: capabilities.canManageBazaar && features.bazaarManagement && canWrite,
+    canViewMyBazaar: capabilities.canViewMyBazaar && features.bazaarManagement,
+    canViewPricing: true,
+    canViewSubscription: true,
+    canUsePdfExport: capabilities.canUsePdfExport && features.pdfReports && canWrite,
+    canUseExcelExport: capabilities.canUseExcelExport && features.excelReports && canWrite,
+    canUseCsvExport: capabilities.canUseCsvExport && features.csvExport && canWrite,
+    canViewAnalytics: capabilities.canViewAnalytics && features.analytics && canWrite,
+    canUseAiAnalytics: capabilities.canUseAiAnalytics && features.aiAnalytics && canWrite,
+    canManageRooms: capabilities.canManageRooms && features.roomManagement && canWrite,
+    canManageBeds: capabilities.canManageBeds && features.bedManagement && canWrite,
+    canManageVisitors: capabilities.canManageVisitors && features.visitorManagement && canWrite,
+    canManageTasks: capabilities.canManageTasks && features.taskManagement && canWrite,
+    canManageNotices: capabilities.canManageNotices && features.noticeBoard && canWrite,
+    canManageInventory: capabilities.canManageInventory && features.inventory && canWrite,
+    canUseApi: capabilities.canUseApi && features.apiAccess && canWrite,
+    canUseWhiteLabel: capabilities.canUseWhiteLabel && features.whiteLabel,
+    canUseCustomBranding: capabilities.canUseCustomBranding && features.customBranding,
   };
 }
 

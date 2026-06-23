@@ -11,6 +11,7 @@ import {
   isSubscriptionActive,
   toParsedPlan,
 } from "@/lib/billing/plan-utils";
+import type { SubscriptionAccessState } from "@/lib/billing/subscription-access";
 import { formatCurrency } from "@/lib/utils";
 import type { Subscription, Plan, Invoice, SubscriptionPaymentRequest } from "@prisma/client";
 
@@ -20,7 +21,13 @@ type SubWithRelations = Subscription & {
   paymentRequests: SubscriptionPaymentRequest[];
 };
 
-export function SubscriptionDashboard({ subscription }: { subscription: SubWithRelations | null }) {
+export function SubscriptionDashboard({
+  subscription,
+  access,
+}: {
+  subscription: SubWithRelations | null;
+  access: SubscriptionAccessState;
+}) {
   if (!subscription) {
     return (
       <Card>
@@ -45,6 +52,7 @@ export function SubscriptionDashboard({ subscription }: { subscription: SubWithR
           <p className="text-zinc-500">Manage your plan, billing history, and renewals.</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild><Link href="/portal/payments">My Payments</Link></Button>
           <Button variant="outline" asChild><Link href="/pricing">Upgrade Plan</Link></Button>
           <Button asChild><Link href={`/pricing/subscribe/${plan.id}`}>Renew Plan</Link></Button>
         </div>
@@ -71,6 +79,12 @@ export function SubscriptionDashboard({ subscription }: { subscription: SubWithR
             <Badge variant={active ? "default" : "destructive"} className="text-base">
               {subscription.status}
             </Badge>
+            {access.isTrial && (
+              <p className="mt-2 text-sm text-zinc-500">Trial expires in {access.daysRemaining} days</p>
+            )}
+            {!access.canWrite && access.lockedMessage && (
+              <p className="mt-2 text-sm text-amber-600">{access.lockedMessage}</p>
+            )}
           </CardContent>
         </Card>
       </div>

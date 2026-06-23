@@ -33,6 +33,7 @@ export default async function MessReportsPage({
         defaultDate={today}
         planTier={planTier}
         generatedBy={session?.user?.name ?? session?.user?.email ?? undefined}
+        capabilities={ctx.capabilities}
       />
     </div>
   );

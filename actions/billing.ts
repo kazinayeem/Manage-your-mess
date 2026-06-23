@@ -1,12 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { saveSecureUpload } from "@/lib/upload-storage";
 import {
   PaymentRequestStatus,
   PlanDurationType,
+  PlanVisibility,
   SubscriptionStatus,
   type Plan,
 } from "@prisma/client";
@@ -18,6 +17,8 @@ import {
   serializePlanJson,
   toParsedPlan,
 } from "@/lib/billing/plan-utils";
+import { getBillingSetting, resolveTrialEndDate } from "@/lib/billing/settings";
+import { logBillingAudit } from "@/lib/billing/audit";
 import { slugify } from "@/lib/utils";
 
 type ActionResult<T = void> =
@@ -50,14 +51,6 @@ async function createNotification(
   });
 }
 
-function parseJsonArray(raw: string | null): string[] {
-  try {
-    return JSON.parse(raw || "[]") as string[];
-  } catch {
-    return [];
-  }
-}
-
 function parseJsonObject(raw: string | null): Record<string, number> {
   try {
     return JSON.parse(raw || "{}") as Record<string, number>;
@@ -66,31 +59,87 @@ function parseJsonObject(raw: string | null): Record<string, number> {
   }
 }
 
+const LEGACY_PLAN_SELECT = {
+  id: true,
+  slug: true,
+  tier: true,
+  name: true,
+  description: true,
+  price: true,
+  currency: true,
+  durationType: true,
+  durationValue: true,
+  customExpiryDate: true,
+  maxMembers: true,
+  limits: true,
+  features: true,
+  featureToggles: true,
+  isActive: true,
+  isDefault: true,
+  isPopular: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function withPlanFallback<T extends Record<string, unknown>>(plan: T) {
+  return {
+    ...plan,
+    badge: typeof plan.badge === "string" ? plan.badge : null,
+    color: typeof plan.color === "string" ? plan.color : null,
+    isTrialPlan: typeof plan.isTrialPlan === "boolean" ? plan.isTrialPlan : false,
+    visibility: typeof plan.visibility === "string" ? plan.visibility : "PUBLIC",
+    isArchived: typeof plan.isArchived === "boolean" ? plan.isArchived : false,
+  };
+}
+
 // ─── Plans ───────────────────────────────────────────────────────────────────
 
 export async function getActivePlans() {
   const plans = await db.plan.findMany({
     where: { isActive: true },
     orderBy: [{ sortOrder: "asc" }, { price: "asc" }],
+    select: LEGACY_PLAN_SELECT,
   });
-  return plans.map(toParsedPlan);
+  return plans
+    .map(withPlanFallback)
+    .filter((plan) => !plan.isArchived && plan.visibility === "PUBLIC")
+    .map((plan) => toParsedPlan(plan as Plan));
 }
 
 export async function getAllPlans() {
   await requireSuperAdmin();
   const plans = await db.plan.findMany({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    include: { _count: { select: { subscriptions: true } } },
+    select: {
+      ...LEGACY_PLAN_SELECT,
+      _count: { select: { subscriptions: true } },
+    },
   });
-  return plans;
+  return plans.map((plan) => withPlanFallback(plan));
+}
+
+export async function getBillingSettings() {
+  await requireSuperAdmin();
+  return getBillingSetting();
 }
 
 export async function getDefaultPlan(): Promise<Plan | null> {
-  return (
-    (await db.plan.findFirst({ where: { isDefault: true, isActive: true } })) ??
-    (await db.plan.findFirst({ where: { slug: "free", isActive: true } })) ??
-    (await db.plan.findFirst({ where: { isActive: true }, orderBy: { price: "asc" } }))
-  );
+  const plan =
+    (await db.plan.findFirst({
+      where: { isDefault: true, isActive: true },
+      select: LEGACY_PLAN_SELECT,
+    })) ??
+    (await db.plan.findFirst({
+      where: { slug: "free", isActive: true },
+      select: LEGACY_PLAN_SELECT,
+    })) ??
+    (await db.plan.findFirst({
+      where: { isActive: true },
+      orderBy: { price: "asc" },
+      select: LEGACY_PLAN_SELECT,
+    }));
+  return plan ? (withPlanFallback(plan) as Plan) : null;
 }
 
 export async function savePlan(formData: FormData): Promise<ActionResult<{ id: string }>> {
@@ -100,6 +149,8 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
     const id = (formData.get("id") as string) || undefined;
     const name = (formData.get("name") as string)?.trim();
     const description = (formData.get("description") as string)?.trim() || null;
+    const badge = (formData.get("badge") as string)?.trim() || null;
+    const color = (formData.get("color") as string)?.trim() || null;
     const price = Number(formData.get("price") ?? 0);
     const currency = (formData.get("currency") as string) || "BDT";
     const durationType = (formData.get("durationType") as PlanDurationType) || "MONTHS";
@@ -113,6 +164,9 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
     const isActive = formData.get("isActive") === "true" || formData.get("isActive") === "on";
     const isDefault = formData.get("isDefault") === "true" || formData.get("isDefault") === "on";
     const isPopular = formData.get("isPopular") === "true" || formData.get("isPopular") === "on";
+    const isTrialPlan = formData.get("isTrialPlan") === "true" || formData.get("isTrialPlan") === "on";
+    const isArchived = formData.get("isArchived") === "true" || formData.get("isArchived") === "on";
+    const visibility = ((formData.get("visibility") as string) || "PUBLIC") as PlanVisibility;
     const sortOrder = Number(formData.get("sortOrder") ?? 0);
 
     const features = formData.getAll("features").map(String);
@@ -139,6 +193,8 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
         data: {
           name,
           description,
+          badge,
+          color,
           price,
           currency,
           durationType,
@@ -149,10 +205,21 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
           isActive,
           isDefault,
           isPopular,
+          isTrialPlan,
+          isArchived,
+          visibility,
           sortOrder,
         },
       });
+      await logBillingAudit({
+        action: "UPDATE",
+        entity: "Plan",
+        entityId: plan.id,
+        oldData: existing,
+        newData: plan,
+      });
       revalidatePath("/super-admin/plans");
+      revalidatePath("/super-admin/subscriptions");
       revalidatePath("/pricing");
       return { success: true, data: { id: plan.id } };
     }
@@ -168,6 +235,8 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
         slug,
         name,
         description,
+        badge,
+        color,
         price,
         currency,
         durationType,
@@ -178,11 +247,22 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
         isActive,
         isDefault,
         isPopular,
+        isTrialPlan,
+        isArchived,
+        visibility,
         sortOrder,
       },
     });
 
+    await logBillingAudit({
+      action: "CREATE",
+      entity: "Plan",
+      entityId: plan.id,
+      newData: plan,
+    });
+
     revalidatePath("/super-admin/plans");
+    revalidatePath("/super-admin/subscriptions");
     revalidatePath("/pricing");
     return { success: true, data: { id: plan.id } };
   } catch (e) {
@@ -190,15 +270,156 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
   }
 }
 
+export async function duplicatePlan(planId: string): Promise<ActionResult<{ id: string }>> {
+  try {
+    await requireSuperAdmin();
+    const plan = await db.plan.findUnique({ where: { id: planId } });
+    if (!plan) return { success: false, error: "Plan not found" };
+
+    const slugBase = `${plan.slug}-copy`;
+    let slug = slugBase;
+    let n = 1;
+    while (await db.plan.findUnique({ where: { slug } })) {
+      slug = `${slugBase}-${n++}`;
+    }
+
+    const copy = await db.plan.create({
+      data: {
+        slug,
+        tier: plan.tier,
+        name: `${plan.name} Copy`,
+        description: plan.description,
+        badge: plan.badge,
+        color: plan.color,
+        price: plan.price,
+        currency: plan.currency,
+        durationType: plan.durationType,
+        durationValue: plan.durationValue,
+        customExpiryDate: plan.customExpiryDate,
+        maxMembers: plan.maxMembers,
+        limits: plan.limits,
+        features: plan.features,
+        featureToggles: plan.featureToggles,
+        isActive: false,
+        isDefault: false,
+        isPopular: false,
+        isTrialPlan: false,
+        visibility: plan.visibility,
+        isArchived: false,
+        sortOrder: plan.sortOrder + 1,
+      },
+    });
+
+    await logBillingAudit({
+      action: "CREATE",
+      entity: "PlanDuplicate",
+      entityId: copy.id,
+      newData: copy,
+    });
+    revalidatePath("/super-admin/plans");
+    return { success: true, data: { id: copy.id } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed to duplicate plan" };
+  }
+}
+
+export async function updatePlanLifecycle(
+  planId: string,
+  action: "enable" | "disable" | "hide" | "show" | "archive"
+): Promise<ActionResult> {
+  try {
+    await requireSuperAdmin();
+    const existing = await db.plan.findUnique({ where: { id: planId } });
+    if (!existing) return { success: false, error: "Plan not found" };
+
+    const data =
+      action === "enable"
+        ? { isActive: true }
+        : action === "disable"
+          ? { isActive: false }
+          : action === "hide"
+            ? { visibility: "HIDDEN" as const }
+            : action === "show"
+              ? { visibility: "PUBLIC" as const, isArchived: false }
+              : { isArchived: true, isActive: false, visibility: "HIDDEN" as const };
+
+    const updated = await db.plan.update({
+      where: { id: planId },
+      data,
+    });
+
+    await logBillingAudit({
+      action: "UPDATE",
+      entity: "PlanLifecycle",
+      entityId: updated.id,
+      oldData: existing,
+      newData: updated,
+    });
+    revalidatePath("/super-admin/plans");
+    revalidatePath("/pricing");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed to update plan" };
+  }
+}
+
+export async function saveBillingSettings(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireSuperAdmin();
+    const existing = await getBillingSetting();
+    const trialDurationType = ((formData.get("trialDurationType") as string) || "DAYS") as PlanDurationType;
+    const trialDurationValue = Number(formData.get("trialDurationValue") ?? 3);
+    const trialCustomEndDateRaw = (formData.get("trialCustomEndDate") as string) || "";
+    const defaultTrialPlanId = (formData.get("defaultTrialPlanId") as string) || null;
+    const allowTrialOnCreate =
+      formData.get("allowTrialOnCreate") === "true" || formData.get("allowTrialOnCreate") === "on";
+
+    const updated = await db.billingSetting.update({
+      where: { id: existing.id },
+      data: {
+        trialDurationType,
+        trialDurationValue,
+        trialCustomEndDate:
+          trialDurationType === "CUSTOM_DATE" && trialCustomEndDateRaw
+            ? new Date(trialCustomEndDateRaw)
+            : null,
+        defaultTrialPlanId,
+        allowTrialOnCreate,
+      },
+    });
+
+    await logBillingAudit({
+      action: "UPDATE",
+      entity: "BillingSetting",
+      entityId: updated.id,
+      oldData: existing,
+      newData: updated,
+    });
+    revalidatePath("/super-admin/plans");
+    revalidatePath("/super-admin/settings");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed to save settings" };
+  }
+}
+
 export async function deletePlan(planId: string): Promise<ActionResult> {
   try {
     await requireSuperAdmin();
+    const existing = await db.plan.findUnique({ where: { id: planId } });
+    if (!existing) return { success: false, error: "Plan not found" };
     const count = await db.subscription.count({ where: { planId } });
     if (count > 0) {
-      await db.plan.update({ where: { id: planId }, data: { isActive: false } });
+      await db.plan.update({ where: { id: planId }, data: { isActive: false, isArchived: true } });
     } else {
       await db.plan.delete({ where: { id: planId } });
     }
+    await logBillingAudit({
+      action: "DELETE",
+      entity: "Plan",
+      entityId: planId,
+      oldData: existing,
+    });
     revalidatePath("/super-admin/plans");
     revalidatePath("/pricing");
     return { success: true };
@@ -328,6 +549,14 @@ export async function submitSubscriptionRequest(
 
     revalidatePath("/portal/subscription");
     revalidatePath("/super-admin/payments");
+    await logBillingAudit({
+      action: "CREATE",
+      entity: "SubscriptionPaymentRequest",
+      entityId: request.id,
+      userId: user.id,
+      messId,
+      newData: request,
+    });
     return { success: true, data: { requestId: request.id } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Submission failed" };
@@ -349,10 +578,58 @@ export async function getPaymentRequests(status?: PaymentRequestStatus) {
   });
 }
 
+export async function getPaymentRequestsForAdmin(filters?: {
+  status?: PaymentRequestStatus | "ALL";
+  search?: string;
+}) {
+  await requireSuperAdmin();
+  const search = filters?.search?.trim();
+  return db.subscriptionPaymentRequest.findMany({
+    where: {
+      ...(filters?.status && filters.status !== "ALL" ? { status: filters.status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { transactionId: { contains: search } },
+              { note: { contains: search } },
+              { user: { email: { contains: search } } },
+              { user: { name: { contains: search } } },
+              { mess: { name: { contains: search } } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      plan: true,
+      mess: { select: { id: true, name: true } },
+      paymentMethod: true,
+      reviewedBy: { select: { name: true } },
+    },
+  });
+}
+
+export async function getMyPaymentRequests() {
+  const user = await requireAuth();
+  return db.subscriptionPaymentRequest.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    include: {
+      plan: true,
+      mess: { select: { id: true, name: true } },
+      paymentMethod: true,
+      reviewedBy: { select: { name: true } },
+      subscription: { include: { plan: true } },
+    },
+  });
+}
+
 async function activateSubscriptionForUser(
   userId: string,
   plan: Plan,
-  paymentRequestId: string
+  paymentRequestId: string,
+  assignedById?: string | null
 ) {
   const now = new Date();
   const periodEnd = calculatePeriodEnd(
@@ -378,8 +655,11 @@ async function activateSubscriptionForUser(
         status: "ACTIVE",
         currentPeriodStart: now,
         currentPeriodEnd: newEnd,
+        trialStartedAt: null,
+        trialEndsAt: null,
         suspendedAt: null,
         suspendReason: null,
+        assignedById: assignedById ?? subscription.assignedById,
       },
     });
   } else {
@@ -390,6 +670,7 @@ async function activateSubscriptionForUser(
         status: "ACTIVE",
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
+        assignedById: assignedById ?? null,
       },
     });
   }
@@ -450,7 +731,8 @@ export async function reviewPaymentRequest(
       const subscription = await activateSubscriptionForUser(
         request.userId,
         request.plan,
-        request.id
+        request.id,
+        admin.id
       );
 
       await db.subscriptionPaymentRequest.update({
@@ -468,7 +750,7 @@ export async function reviewPaymentRequest(
         request.userId,
         "SUBSCRIPTION_APPROVED",
         "Payment approved",
-        `Your ${request.plan.name} subscription is now active.`,
+        "Your subscription has been activated successfully.",
         { subscriptionId: subscription.id }
       );
       await createNotification(
@@ -478,6 +760,14 @@ export async function reviewPaymentRequest(
         `Your plan expires on ${subscription.currentPeriodEnd.toLocaleDateString()}.`,
         { subscriptionId: subscription.id }
       );
+      await logBillingAudit({
+        action: "APPROVE",
+        entity: "SubscriptionPaymentRequest",
+        entityId: requestId,
+        userId: admin.id,
+        messId: request.messId,
+        newData: { status: "APPROVED", subscriptionId: subscription.id },
+      });
     } else if (action === "reject") {
       await db.subscriptionPaymentRequest.update({
         where: { id: requestId },
@@ -492,9 +782,17 @@ export async function reviewPaymentRequest(
         request.userId,
         "SUBSCRIPTION_REJECTED",
         "Payment rejected",
-        reason ?? "Your payment could not be verified. Please contact support.",
+        reason ?? "Your payment request was rejected. Please review the reason and submit again.",
         { requestId }
       );
+      await logBillingAudit({
+        action: "REJECT",
+        entity: "SubscriptionPaymentRequest",
+        entityId: requestId,
+        userId: admin.id,
+        messId: request.messId,
+        newData: { status: "REJECTED", reason },
+      });
     } else if (action === "needs_info") {
       await db.subscriptionPaymentRequest.update({
         where: { id: requestId },
@@ -512,6 +810,14 @@ export async function reviewPaymentRequest(
         reason ?? "Please provide additional payment details.",
         { requestId }
       );
+      await logBillingAudit({
+        action: "UPDATE",
+        entity: "SubscriptionPaymentRequest",
+        entityId: requestId,
+        userId: admin.id,
+        messId: request.messId,
+        newData: { status: "NEEDS_INFO", reason },
+      });
     } else if (action === "refund") {
       await db.subscriptionPaymentRequest.update({
         where: { id: requestId },
@@ -535,6 +841,14 @@ export async function reviewPaymentRequest(
         reason ?? "Your payment has been refunded.",
         { requestId }
       );
+      await logBillingAudit({
+        action: "UPDATE",
+        entity: "SubscriptionPaymentRequest",
+        entityId: requestId,
+        userId: admin.id,
+        messId: request.messId,
+        newData: { status: "REFUNDED", reason },
+      });
     }
 
     revalidatePath("/super-admin/payments");
@@ -576,6 +890,85 @@ export async function getAllSubscriptions() {
       messes: { select: { id: true, name: true } },
     },
   });
+}
+
+export async function assignSubscriptionPlan(input: {
+  userId: string;
+  planId: string;
+  messId?: string | null;
+  customExpiryDate?: string | null;
+  bonusDays?: number;
+}): Promise<ActionResult<{ subscriptionId: string }>> {
+  try {
+    const admin = await requireSuperAdmin();
+    const plan = await db.plan.findUnique({ where: { id: input.planId } });
+    if (!plan) return { success: false, error: "Plan not found" };
+
+    const now = new Date();
+    const end = input.customExpiryDate
+      ? new Date(input.customExpiryDate)
+      : calculatePeriodEnd(now, plan.durationType, plan.durationValue, plan.customExpiryDate);
+    const finalEnd = new Date(end.getTime() + (input.bonusDays ?? 0) * 24 * 60 * 60 * 1000);
+
+    const existing = await db.subscription.findFirst({
+      where: { userId: input.userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const subscription = existing
+      ? await db.subscription.update({
+          where: { id: existing.id },
+          data: {
+            planId: plan.id,
+            status: "ACTIVE",
+            currentPeriodStart: now,
+            currentPeriodEnd: finalEnd,
+            bonusDays: input.bonusDays ?? 0,
+            assignedById: admin.id,
+            trialStartedAt: null,
+            trialEndsAt: null,
+            suspendedAt: null,
+            suspendReason: null,
+          },
+        })
+      : await db.subscription.create({
+          data: {
+            userId: input.userId,
+            planId: plan.id,
+            status: "ACTIVE",
+            currentPeriodStart: now,
+            currentPeriodEnd: finalEnd,
+            bonusDays: input.bonusDays ?? 0,
+            assignedById: admin.id,
+          },
+        });
+
+    if (input.messId) {
+      await db.mess.update({
+        where: { id: input.messId },
+        data: { subscriptionId: subscription.id },
+      });
+    } else {
+      await db.mess.updateMany({
+        where: { ownerId: input.userId },
+        data: { subscriptionId: subscription.id },
+      });
+    }
+
+    await logBillingAudit({
+      action: "UPDATE",
+      entity: "SubscriptionAssignment",
+      entityId: subscription.id,
+      userId: admin.id,
+      messId: input.messId ?? null,
+      newData: input,
+    });
+    revalidatePath("/super-admin/subscriptions");
+    revalidatePath("/portal/subscription");
+    return { success: true, data: { subscriptionId: subscription.id } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed to assign plan" };
+  }
 }
 
 export async function extendSubscription(
@@ -623,6 +1016,13 @@ export async function extendSubscription(
       `Your subscription has been extended until ${newEnd.toLocaleDateString()}.`,
       { subscriptionId }
     );
+    await logBillingAudit({
+      action: "UPDATE",
+      entity: "SubscriptionExtension",
+      entityId: subscriptionId,
+      userId: admin.id,
+      newData: { additionalDays, customEndDate, reason, newEnd },
+    });
 
     revalidatePath("/super-admin/subscriptions");
     revalidatePath("/portal/subscription");
@@ -668,6 +1068,13 @@ export async function updateSubscriptionStatus(
       );
     }
 
+    await logBillingAudit({
+      action: "UPDATE",
+      entity: "SubscriptionStatus",
+      entityId: subscriptionId,
+      newData: { status, reason },
+    });
+
     revalidatePath("/super-admin/subscriptions");
     revalidatePath("/portal/subscription");
     return { success: true };
@@ -678,26 +1085,59 @@ export async function updateSubscriptionStatus(
 
 export async function ensureUserSubscription(userId: string) {
   const existing = await db.subscription.findFirst({
-    where: { userId, status: { in: ["ACTIVE", "PENDING"] } },
+    where: { userId, status: { in: ["ACTIVE", "PENDING", "TRIALING"] } },
+    select: {
+      id: true,
+      userId: true,
+      planId: true,
+      status: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
+      suspendedAt: true,
+      suspendReason: true,
+      stripeCustomerId: true,
+      stripeSubId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
   if (existing) return existing;
 
-  const plan = await getDefaultPlan();
+  const billingSetting = await getBillingSetting();
+  const plan =
+    (billingSetting.defaultTrialPlanId
+      ? await db.plan.findUnique({
+          where: { id: billingSetting.defaultTrialPlanId },
+          select: LEGACY_PLAN_SELECT,
+        })
+      : null) ??
+    (await db.plan.findFirst({
+      where: { isActive: true },
+      orderBy: [{ isDefault: "desc" }, { sortOrder: "asc" }],
+      select: LEGACY_PLAN_SELECT,
+    })) ??
+    (await getDefaultPlan());
   if (!plan) throw new Error("No default plan configured");
 
   const now = new Date();
+  const normalizedPlan = withPlanFallback(plan as unknown as Record<string, unknown>);
+  const isTrial = billingSetting.allowTrialOnCreate || normalizedPlan.isTrialPlan;
+  const periodEnd = isTrial
+    ? resolveTrialEndDate({
+        trialDurationType: billingSetting.trialDurationType,
+        trialDurationValue: billingSetting.trialDurationValue,
+        trialCustomEndDate: billingSetting.trialCustomEndDate,
+      })
+    : calculatePeriodEnd(now, plan.durationType, plan.durationValue, plan.customExpiryDate);
+
   return db.subscription.create({
     data: {
       userId,
       planId: plan.id,
-      status: "ACTIVE",
+      status: isTrial ? "TRIALING" : "ACTIVE",
       currentPeriodStart: now,
-      currentPeriodEnd: calculatePeriodEnd(
-        now,
-        plan.durationType,
-        plan.durationValue,
-        plan.customExpiryDate
-      ),
+      currentPeriodEnd: periodEnd,
     },
   });
 }

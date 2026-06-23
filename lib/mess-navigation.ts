@@ -55,6 +55,17 @@ export function buildMessNavGroups(
         dialog: item.dialog,
       }));
 
+  if (cap.subscriptionLocked) {
+    const groups: NavGroup[] = [
+      {
+        id: "main",
+        labelKey: "navGroupMain",
+        items: [{ segment: "", labelKey: "dashboard", icon: LayoutDashboard, exact: true }],
+      },
+    ];
+    return groups.map((g) => ({ ...g, items: filter(g.items) })).filter((g) => g.items.length > 0);
+  }
+
   if (cap.readOnly) {
     const groups: NavGroup[] = [
       {
@@ -179,7 +190,7 @@ export function buildMessNavGroups(
       labelKey: "navGroupReports",
       items: [
         { segment: "/reports", labelKey: "pdfReports", icon: FileText, show: (c) => c.canGenerateReports },
-        { segment: "/analytics", labelKey: "analytics", icon: BarChart3, show: (c) => c.canGenerateReports },
+        { segment: "/analytics", labelKey: "analytics", icon: BarChart3, show: (c) => c.canViewAnalytics },
         { segment: "/settlement", labelKey: "settlement", icon: Receipt, show: (c) => c.canGenerateReports },
       ],
     },
@@ -220,5 +231,7 @@ export const PORTAL_MORE_LINKS = [
   { href: "/portal", labelKey: "portalHome", icon: LayoutGrid },
   { href: "/pricing", labelKey: "pricing", icon: Receipt },
   { href: "/portal/subscription", labelKey: "subscription", icon: Wallet },
+  { href: "/portal/payments", labelKey: "payments", icon: Receipt },
+  { href: "/portal/announcements", labelKey: "announcements", icon: LayoutGrid },
   { href: "/portal/settings", labelKey: "settings", icon: Settings },
 ] as const;

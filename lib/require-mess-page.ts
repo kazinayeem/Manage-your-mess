@@ -9,10 +9,15 @@ export async function requireMessPage(
     requireWrite?: boolean;
     requireManager?: boolean;
     capability?: keyof MessCapabilities;
+    allowWhenSubscriptionLocked?: boolean;
   }
 ): Promise<MessContext> {
   const ctx = await getMessContextById(messId);
   if (!ctx) notFound();
+
+  if (ctx.capabilities.subscriptionLocked && !options?.allowWhenSubscriptionLocked) {
+    redirect(messPath(messId));
+  }
 
   if (options?.requireManager && !ctx.isManager) {
     redirect(messPath(messId));

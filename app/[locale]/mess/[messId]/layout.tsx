@@ -3,9 +3,11 @@ import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { canAccessSuperAdmin } from "@/lib/route-guard";
 import { getMessContextById } from "@/lib/mess-context";
+import { getActiveAnnouncementsForUser } from "@/actions/announcements";
 import { MessWorkspaceSidebar } from "@/components/mess/workspace-sidebar";
 import { PortalMessSwitcher } from "@/components/portal/mess-switcher";
 import { SubscriptionBanner } from "@/components/billing/subscription-banner";
+import { GlobalAnnouncementCenter } from "@/components/announcements/global-announcement-center";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,7 @@ export default async function MessLayout({
 
   const ctx = await getMessContextById(messId);
   if (!ctx) notFound();
+  const announcements = await getActiveAnnouncementsForUser();
 
   const tRoles = await getTranslations("roles");
   const tWorkspace = await getTranslations("workspace");
@@ -86,6 +89,7 @@ export default async function MessLayout({
         </header>
 
         <SubscriptionBanner access={ctx.subscriptionAccess} />
+        <GlobalAnnouncementCenter announcements={announcements} />
 
         <main className={cn("min-h-0 min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8", MOBILE_BOTTOM_PAD)}>
           {children}

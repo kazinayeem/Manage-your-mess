@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ import { Check, X, MessageCircle, RotateCcw } from "lucide-react";
 type PaymentRequest = Awaited<ReturnType<typeof import("@/actions/billing").getPaymentRequests>>[number];
 
 const TABS: { key: PaymentRequestStatus | "ALL"; label: string }[] = [
+  { key: "ALL", label: "All" },
   { key: "PENDING", label: "Pending" },
   { key: "APPROVED", label: "Approved" },
   { key: "REJECTED", label: "Rejected" },
@@ -29,8 +31,26 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
   const [pending, startTransition] = useTransition();
   const [tab, setTab] = useState<string>("PENDING");
   const [note, setNote] = useState("");
+  const [search, setSearch] = useState("");
 
-  const filtered = tab === "ALL" ? requests : requests.filter((r) => r.status === tab);
+  const filtered = requests.filter((request) => {
+    const matchTab = tab === "ALL" ? true : request.status === tab;
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q
+      ? true
+      : [
+          request.user.name ?? "",
+          request.user.email ?? "",
+          request.plan.name,
+          request.paymentMethod.name,
+          request.transactionId ?? "",
+          request.mess?.name ?? "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+    return matchTab && matchSearch;
+  });
 
   function handleAction(id: string, action: "approve" | "reject" | "needs_info" | "refund") {
     startTransition(async () => {
@@ -50,13 +70,19 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
         <p className="text-zinc-500">Review subscription payments, approve, reject, or request more information.</p>
       </div>
 
+      <Input
+        placeholder="Search by user, mess, transaction ID, plan, or method"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           {TABS.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
               <Badge variant="secondary" className="ml-2">
-                {requests.filter((r) => r.status === t.key).length}
+                {t.key === "ALL" ? requests.length : requests.filter((r) => r.status === t.key).length}
               </Badge>
             </TabsTrigger>
           ))}
@@ -87,7 +113,11 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
                       <div><span className="text-zinc-500">Sender:</span> {req.senderNumber ?? "—"}</div>
                       <div><span className="text-zinc-500">Mess:</span> {req.mess?.name ?? "—"}</div>
                       <div><span className="text-zinc-500">Requested:</span> {new Date(req.createdAt).toLocaleString()}</div>
+                      <div><span className="text-zinc-500">Reviewed:</span> {req.reviewedAt ? new Date(req.reviewedAt).toLocaleString() : "—"}</div>
+                      <div><span className="text-zinc-500">Reviewer:</span> {req.reviewedBy?.name ?? "—"}</div>
                       {req.note && <div className="sm:col-span-2"><span className="text-zinc-500">Note:</span> {req.note}</div>}
+                      {req.rejectReason && <div className="sm:col-span-2"><span className="text-zinc-500">Rejection reason:</span> {req.rejectReason}</div>}
+                      {req.adminNote && <div className="sm:col-span-2"><span className="text-zinc-500">Admin note:</span> {req.adminNote}</div>}
                     </div>
 
                     {req.screenshotUrl && (

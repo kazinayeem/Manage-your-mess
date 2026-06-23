@@ -8,8 +8,8 @@ export default async function MessAnalyticsPage({
   params: Promise<{ locale: string; messId: string }>;
 }) {
   const { locale, messId } = await params;
-  const ctx = await requireMessPage(messId, { capability: "canGenerateReports" });
-  if (!ctx.capabilities.canGenerateReports) notFound();
+  const ctx = await requireMessPage(messId, { capability: "canViewAnalytics" });
+  if (!ctx.capabilities.canViewAnalytics) notFound();
 
   return (
     <div className="space-y-6">
