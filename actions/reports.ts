@@ -110,7 +110,10 @@ export async function fetchReportData(
       const [monthExpenses, bazaarTasks] = await Promise.all([
         db.expense.findMany({
           where: { messId, monthId, deletedAt: null, status: "APPROVED" },
-          include: { category: { select: { name: true } } },
+          include: {
+            category: { select: { name: true } },
+            createdBy: { select: { name: true } },
+          },
           orderBy: { date: "asc" },
         }),
         db.bazaarTask.findMany({
@@ -142,12 +145,18 @@ export async function fetchReportData(
         (cat.GAS ?? 0) -
         (cat.INTERNET ?? 0);
 
+      const totalBazaarCost = bazaarTasks.reduce(
+        (sum, task) => sum + (task.submission?.actualCost ?? task.expectedBudget),
+        0
+      );
+
       const summaryRows: { label: string; value: string }[] = [
         { label: "Total Members", value: String(summary.memberCount) },
         { label: "Total Meals", value: String(summary.totalMeals) },
         { label: "Meal Rate", value: formatBdt(summary.mealRate) },
         { label: "Total Deposits", value: formatBdt(summary.totalDeposits) },
         { label: "Total Expenses", value: formatBdt(summary.totalExpenses) },
+        { label: "Total Bazaar Cost", value: formatBdt(totalBazaarCost) },
         { label: "Total Rent", value: formatBdt(summary.billKpis.totalRent) },
         { label: "Electricity", value: formatBdt(cat.ELECTRICITY ?? 0) },
         { label: "Water", value: formatBdt(cat.WATER ?? 0) },
@@ -207,15 +216,14 @@ export async function fetchReportData(
           sections: [
             makeSection(
               "memberDetails",
-              locale === "bn" ? "সদস্য বিস্তারিত" : "Member Details",
+              locale === "bn" ? "সদস্য বিস্তারিত" : "Member Breakdown",
               [
                 { key: "name", label: "Member", align: "left" },
                 { key: "mealCount", label: "Meals", format: "number", align: "right" },
                 { key: "deposit", label: "Deposit", format: "currency", align: "right" },
                 { key: "mealCost", label: "Meal Cost", format: "currency", align: "right" },
-                { key: "billShare", label: "Bill Share", format: "currency", align: "right" },
-                { key: "otherCost", label: "Other Cost", format: "currency", align: "right" },
-                { key: "totalCost", label: "Total Cost", format: "currency", align: "right" },
+                { key: "sharedCost", label: "Shared Cost", format: "currency", align: "right" },
+                { key: "due", label: "Due", format: "currency", align: "right" },
                 { key: "balance", label: "Balance", format: "currency", align: "right", allowNegative: true },
                 { key: "status", label: "Status", align: "left" },
               ],
@@ -224,9 +232,8 @@ export async function fetchReportData(
                 mealCount: m.mealCount,
                 deposit: m.totalDeposit,
                 mealCost: m.mealCost,
-                billShare: m.totalBillShare,
-                otherCost: m.billShares.maintenance + m.billShares.other,
-                totalCost: m.totalCost,
+                sharedCost: m.totalBillShare,
+                due: m.due,
                 balance: m.advance > 0 ? m.advance : -m.due,
                 status: m.due > 0 ? "Due" : m.advance > 0 ? "Advance" : "Clear",
               }))
@@ -258,18 +265,18 @@ export async function fetchReportData(
             ),
             makeSection(
               "bazaar",
-              locale === "bn" ? "বাজার" : "Bazaar",
+              locale === "bn" ? "বাজার বিস্তারিত" : "Bazaar Breakdown",
               [
                 { key: "date", label: "Date", align: "left" },
                 { key: "member", label: "Member", align: "left" },
-                { key: "items", label: "Description", align: "left" },
+                { key: "itemCount", label: "Items", format: "number", align: "right" },
                 { key: "amount", label: "Amount", format: "currency", align: "right" },
                 { key: "status", label: "Status", align: "left" },
               ],
               bazaarTasks.map((task) => ({
                 date: formatDateStr(task.shoppingDate),
                 member: task.assignment?.member.fullName ?? "—",
-                items: task.items.map((item) => item.name).join(", ") || "—",
+                itemCount: task.items.length,
                 amount: task.submission?.actualCost ?? task.expectedBudget,
                 status: task.status,
               })),
@@ -277,18 +284,20 @@ export async function fetchReportData(
             ),
             makeSection(
               "expenses",
-              locale === "bn" ? "খরচ" : "Expenses",
+              locale === "bn" ? "খরচ বিস্তারিত" : "Expense Breakdown",
               [
                 { key: "date", label: "Date", align: "left" },
                 { key: "category", label: "Category", align: "left" },
                 { key: "description", label: "Description", align: "left" },
                 { key: "amount", label: "Amount", format: "currency", align: "right" },
+                { key: "addedBy", label: "Added By", align: "left" },
               ],
               monthExpenses.map((expense) => ({
                 date: formatDateStr(expense.date),
                 category: expense.category.name,
                 description: expense.description ?? "—",
                 amount: expense.amount,
+                addedBy: expense.createdBy.name ?? "—",
               })),
               locale === "bn" ? "এই মাসে কোনো খরচের রেকর্ড নেই।" : "No expense records were found for this month."
             ),

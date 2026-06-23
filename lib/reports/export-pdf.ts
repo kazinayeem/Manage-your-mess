@@ -3,9 +3,12 @@ import autoTable, { type CellInput } from "jspdf-autotable";
 import type { ReportColumn, ReportPayload, ReportSection } from "@/lib/reports/types";
 import { reportLabel, formatReportCurrency, appBrandName } from "@/lib/reports/labels";
 import { localizeReportPayload } from "@/lib/reports/localize-payload";
-
-const FONT_NAME = "NotoSansBengali";
-const FONT_FILE = "NotoSansBengali-Regular.ttf";
+import { applyPdfFont, PDF_FONT, setPdfFont } from "@/lib/reports/pdf-font";
+import {
+  drawDepositVsExpenseChart,
+  drawExpenseBreakdownChart,
+  drawMealBreakdownChart,
+} from "@/lib/reports/pdf-charts";
 
 const C = {
   black: [0, 0, 0] as [number, number, number],
@@ -18,40 +21,58 @@ const C = {
 };
 
 const PAGE_MARGIN = 14;
-const FOOTER_HEIGHT = 18;
+const FOOTER_HEIGHT = 16;
+const COMPACT_HEADER_HEIGHT = 10;
 
-let cachedFontBase64: string | null = null;
+let cachedLogoData: { data: string; format: "PNG" | "JPEG" } | null = null;
 
-async function loadFontBase64(): Promise<string> {
-  if (cachedFontBase64) return cachedFontBase64;
-  const response = await fetch("/fonts/NotoSansBengali-Regular.ttf");
-  if (!response.ok) throw new Error("Failed to load embedded report font.");
-  const buffer = await response.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  cachedFontBase64 = btoa(binary);
-  return cachedFontBase64;
-}
-
-async function applyFont(doc: jsPDF): Promise<string> {
-  const base64 = await loadFontBase64();
-  if (!(doc as unknown as { existsFileInVFS?: (name: string) => boolean }).existsFileInVFS?.(FONT_FILE)) {
-    doc.addFileToVFS(FONT_FILE, base64);
-    doc.addFont(FONT_FILE, FONT_NAME, "normal");
-    doc.addFont(FONT_FILE, FONT_NAME, "bold");
+async function loadLogoImage(): Promise<{ data: string; format: "PNG" | "JPEG" } | null> {
+  if (cachedLogoData) return cachedLogoData;
+  for (const url of ["/cover.png", "/icon.svg"]) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) continue;
+      const format = blob.type.includes("png") ? "PNG" : "JPEG";
+      const buffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      cachedLogoData = { data: btoa(binary), format };
+      return cachedLogoData;
+    } catch {
+      // try next asset
+    }
   }
-  doc.setFont(FONT_NAME, "normal");
-  return FONT_NAME;
+  return null;
 }
 
-function formatCellValue(value: string | number, col: ReportColumn, currency: string, locale: string): string {
-  if (value === null || value === undefined || value === "") return "—";
+function formatCellValue(
+  value: string | number | null | undefined,
+  col: ReportColumn,
+  currency: string,
+  locale: string
+): string {
+  if (value === null || value === undefined || value === "") {
+    return locale === "bn" ? "কোনো ডেটা নেই" : "No Data";
+  }
   if (col.format === "currency" && typeof value === "number") {
     return formatReportCurrency(value, currency, locale, { suffix: currency !== "BDT" });
   }
   if (col.format === "number" && typeof value === "number") {
-    return value.toLocaleString(locale === "bn" ? "bn-BD" : "en-US");
+    return value.toLocaleString(locale === "bn" ? "bn-BD" : "en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  }
+  if (col.format === "portion" && typeof value === "number") {
+    return value.toLocaleString(locale === "bn" ? "bn-BD" : "en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
   }
   return String(value);
 }
@@ -83,144 +104,288 @@ function getGeneratedStrings(locale: string, generatedAt: string) {
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
-      second: "2-digit",
     }),
   };
 }
 
+function pageWidth(doc: jsPDF) {
+  return doc.internal.pageSize.getWidth();
+}
+
+function pageHeight(doc: jsPDF) {
+  return doc.internal.pageSize.getHeight();
+}
+
 function ensureSpace(doc: jsPDF, y: number, needed: number) {
-  const pageHeight = doc.internal.pageSize.getHeight();
-  if (y + needed <= pageHeight - FOOTER_HEIGHT) return y;
+  if (y + needed <= pageHeight(doc) - FOOTER_HEIGHT) return y;
   doc.addPage();
-  return PAGE_MARGIN;
+  return PAGE_MARGIN + COMPACT_HEADER_HEIGHT;
 }
 
-function drawSectionTitle(doc: jsPDF, title: string, y: number, pageWidth: number) {
-  doc.setFont(FONT_NAME, "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(...C.black);
-  doc.text(title, PAGE_MARGIN, y);
-  doc.setDrawColor(...C.border);
-  doc.setLineWidth(0.25);
-  doc.line(PAGE_MARGIN, y + 1.5, pageWidth - PAGE_MARGIN, y + 1.5);
-  doc.setFont(FONT_NAME, "normal");
+function columnWidthStyles(
+  columns: ReportColumn[],
+  tableWidth: number,
+  orientation: "portrait" | "landscape"
+): Record<number, { cellWidth: number; halign: "left" | "right" | "center" }> {
+  const weights = columns.map((col) => {
+    if (col.key === "description" || col.key === "items" || col.key === "notes") return 2.8;
+    if (col.key === "name" || col.key === "member" || col.key === "category") return 2;
+    if (col.format === "currency" || col.format === "number") return 1.2;
+    return 1.4;
+  });
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  return Object.fromEntries(
+    columns.map((col, index) => [
+      index,
+      {
+        cellWidth: (weights[index] / total) * tableWidth,
+        halign: (col.align ??
+          (col.format === "currency" || col.format === "number" ? "right" : "left")) as
+          | "left"
+          | "right"
+          | "center",
+      },
+    ])
+  );
 }
 
-function drawHeader(
+function drawBrandMark(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  size: number,
+  logo: { data: string; format: "PNG" | "JPEG" } | null
+) {
+  if (logo) {
+    try {
+      doc.addImage(logo.data, logo.format, x, y, size, size);
+      return;
+    } catch {
+      // fall through to text mark
+    }
+  }
+  doc.setFillColor(...C.black);
+  doc.roundedRect(x, y, size, size, 2, 2, "F");
+  setPdfFont(doc, Math.max(8, size * 0.38), C.white);
+  doc.text("MF", x + size / 2, y + size * 0.62, { align: "center" });
+}
+
+async function drawCoverPage(
   doc: jsPDF,
   payload: ReportPayload,
   locale: string,
-  generatedMeta: ReturnType<typeof getGeneratedStrings>
+  generatedMeta: ReturnType<typeof getGeneratedStrings>,
+  logo: { data: string; format: "PNG" | "JPEG" } | null
 ) {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const contentWidth = pageWidth - PAGE_MARGIN * 2;
-  let y = PAGE_MARGIN;
+  const w = pageWidth(doc);
+  const h = pageHeight(doc);
+  const cx = w / 2;
 
-  doc.setFillColor(...C.black);
-  doc.roundedRect(PAGE_MARGIN, y, 15, 15, 2, 2, "F");
-  doc.setFont(FONT_NAME, "bold");
-  doc.setTextColor(...C.white);
-  doc.setFontSize(10);
-  doc.text("MF", PAGE_MARGIN + 7.5, y + 9.5, { align: "center" });
+  doc.setFillColor(...C.light);
+  doc.rect(0, 0, w, h, "F");
 
-  doc.setTextColor(...C.black);
-  doc.setFontSize(8.5);
-  doc.text(appBrandName(locale), PAGE_MARGIN + 20, y + 4);
-  doc.setFontSize(15.5);
-  doc.text(payload.meta.messName, PAGE_MARGIN + 20, y + 10);
-  doc.setFont(FONT_NAME, "normal");
-  doc.setFontSize(8.5);
-  const address = payload.meta.messAddress || payload.emptyState?.description || reportLabel("confidential", locale);
-  doc.setTextColor(...C.mid);
-  doc.text(address, PAGE_MARGIN + 20, y + 14.5, {
-    maxWidth: contentWidth - 20,
-  });
+  drawBrandMark(doc, cx - 14, 38, 28, logo);
 
-  y += 20;
+  setPdfFont(doc, 11, C.mid);
+  doc.text(appBrandName(locale), cx, 74, { align: "center" });
 
-  doc.setDrawColor(...C.black);
-  doc.setLineWidth(0.45);
-  doc.line(PAGE_MARGIN, y, pageWidth - PAGE_MARGIN, y);
-  y += 5;
+  setPdfFont(doc, 20, C.black);
+  doc.text(payload.meta.reportTitle, cx, 88, { align: "center", maxWidth: w - PAGE_MARGIN * 4 });
 
-  doc.setFont(FONT_NAME, "bold");
-  doc.setFontSize(12.5);
-  doc.setTextColor(...C.black);
-  doc.text(payload.meta.reportTitle, PAGE_MARGIN, y);
+  setPdfFont(doc, 14, C.dark);
+  doc.text(payload.meta.messName, cx, 100, { align: "center", maxWidth: w - PAGE_MARGIN * 4 });
 
-  const metaRows: Array<[string, string]> = [
-    [reportLabel("generatedOn", locale), generatedMeta.dateStr],
-    [reportLabel("generatedAt", locale), generatedMeta.timeStr],
-    [reportLabel("generatedBy", locale), payload.meta.generatedBy || "—"],
-    [reportLabel("language", locale), payload.meta.language || locale],
+  if (payload.meta.messAddress) {
+    setPdfFont(doc, 9, C.mid);
+    doc.text(payload.meta.messAddress, cx, 108, { align: "center", maxWidth: w - PAGE_MARGIN * 4 });
+  }
+
+  const boxW = Math.min(150, w - PAGE_MARGIN * 2);
+  const boxX = (w - boxW) / 2;
+  const boxY = 118;
+  const boxH = 58;
+
+  doc.setDrawColor(...C.border);
+  doc.setFillColor(...C.white);
+  doc.setLineWidth(0.25);
+  doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, "FD");
+
+  const infoRows: Array<[string, string]> = [
+    [reportLabel("reportType", locale), payload.meta.reportTitle],
     [reportLabel("period", locale), payload.meta.periodLabel],
     [reportLabel("month", locale), payload.meta.monthLabel],
+    [reportLabel("generatedOn", locale), generatedMeta.dateStr],
+    [reportLabel("generatedAt", locale), generatedMeta.timeStr],
+    [
+      reportLabel("generatedBy", locale),
+      payload.meta.generatedBy || (locale === "bn" ? "কোনো ডেটা নেই" : "No Data"),
+    ],
   ];
 
-  const boxX = pageWidth - PAGE_MARGIN - 74;
-  const boxY = y - 6;
-  doc.setLineWidth(0.2);
-  doc.setDrawColor(...C.border);
-  doc.roundedRect(boxX, boxY, 74, 32, 1.5, 1.5);
-
-  doc.setFont(FONT_NAME, "normal");
-  doc.setFontSize(7.5);
-  metaRows.forEach(([label, value], index) => {
-    const rowY = boxY + 5 + index * 4.6;
-    doc.setTextColor(...C.mid);
-    doc.text(`${label}:`, boxX + 2.5, rowY);
-    doc.setTextColor(...C.black);
-    doc.text(value, boxX + 28, rowY, { maxWidth: 43 });
+  let rowY = boxY + 8;
+  infoRows.forEach(([label, value]) => {
+    setPdfFont(doc, 8, C.mid);
+    doc.text(`${label}:`, boxX + 6, rowY);
+    setPdfFont(doc, 8.5, C.black);
+    doc.text(value, boxX + boxW - 6, rowY, { align: "right", maxWidth: boxW * 0.58 });
+    rowY += 7.5;
   });
 
   if (payload.meta.reportId) {
-    y += 7;
-    doc.setFont(FONT_NAME, "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...C.dark);
-    doc.text(`${reportLabel("reportId", locale)}: ${payload.meta.reportId}`, PAGE_MARGIN, y);
+    setPdfFont(doc, 7.5, C.mid);
+    doc.text(`${reportLabel("reportId", locale)}: ${payload.meta.reportId}`, cx, boxY + boxH + 8, {
+      align: "center",
+    });
   }
 
-  return Math.max(y + 10, boxY + 36);
+  setPdfFont(doc, 8, C.mid);
+  doc.text(
+    locale === "bn" ? "গোপনীয় ব্যবসায়িক রিপোর্ট" : "Confidential Business Report",
+    cx,
+    h - 28,
+    { align: "center" }
+  );
 }
 
-function drawSummary(doc: jsPDF, payload: ReportPayload, locale: string, y: number, pageWidth: number) {
-  if (!payload.summary.length) return y;
-  y = ensureSpace(doc, y, 38);
-  drawSectionTitle(doc, reportLabel("summary", locale), y, pageWidth);
-  y += 4;
+function drawCompactHeader(doc: jsPDF, payload: ReportPayload, locale: string) {
+  const w = pageWidth(doc);
+  setPdfFont(doc, 7.5, C.mid);
+  doc.text(
+    `${appBrandName(locale)} · ${payload.meta.messName} · ${payload.meta.reportTitle}`,
+    PAGE_MARGIN,
+    PAGE_MARGIN + 3
+  );
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.2);
+  doc.line(
+    PAGE_MARGIN,
+    PAGE_MARGIN + COMPACT_HEADER_HEIGHT - 2,
+    w - PAGE_MARGIN,
+    PAGE_MARGIN + COMPACT_HEADER_HEIGHT - 2
+  );
+}
 
+function drawSectionTitle(doc: jsPDF, title: string, y: number) {
+  const w = pageWidth(doc);
+  setPdfFont(doc, 10.5, C.black);
+  doc.text(title, PAGE_MARGIN, y);
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.25);
+  doc.line(PAGE_MARGIN, y + 1.5, w - PAGE_MARGIN, y + 1.5);
+}
+
+function drawSummary(doc: jsPDF, payload: ReportPayload, locale: string, y: number) {
+  if (!payload.summary.length) return y;
+  y = ensureSpace(doc, y, 40);
+  drawSectionTitle(doc, reportLabel("summary", locale), y);
+  y += 5;
+
+  const w = pageWidth(doc);
   const cols = 3;
   const gutter = 4;
-  const cardWidth = (pageWidth - PAGE_MARGIN * 2 - gutter * (cols - 1)) / cols;
-  const cardHeight = 13.5;
+  const cardWidth = (w - PAGE_MARGIN * 2 - gutter * (cols - 1)) / cols;
+  const cardHeight = 14;
 
   payload.summary.forEach((item, index) => {
     const row = Math.floor(index / cols);
     const col = index % cols;
     const cardX = PAGE_MARGIN + col * (cardWidth + gutter);
     const cardY = y + row * (cardHeight + 3);
+
     doc.setDrawColor(...C.border);
     doc.setLineWidth(0.2);
     doc.setFillColor(...(index % 2 === 0 ? C.light : C.white));
     doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 1.5, 1.5, "FD");
-    doc.setFont(FONT_NAME, "normal");
-    doc.setFontSize(7.6);
-    doc.setTextColor(...C.mid);
+
+    setPdfFont(doc, 7.4, C.mid);
     doc.text(item.label, cardX + 2.5, cardY + 4.5, { maxWidth: cardWidth - 5 });
-    doc.setFont(FONT_NAME, "bold");
-    doc.setFontSize(9.4);
-    doc.setTextColor(...C.black);
-    doc.text(item.value, cardX + cardWidth - 2.5, cardY + 10, { align: "right", maxWidth: cardWidth - 5 });
+    setPdfFont(doc, 9.2, C.black);
+    doc.text(
+      item.value || (locale === "bn" ? "কোনো ডেটা নেই" : "No Data"),
+      cardX + cardWidth - 2.5,
+      cardY + 10.5,
+      { align: "right", maxWidth: cardWidth - 5 }
+    );
   });
 
   const rows = Math.ceil(payload.summary.length / cols);
-  return y + rows * (cardHeight + 3) + 3;
+  return y + rows * (cardHeight + 3) + 4;
 }
 
-function buildBodyRows(section: ReportSection, currency: string, locale: string): CellInput[][] {
+function drawAnalyticsSection(
+  doc: jsPDF,
+  payload: ReportPayload,
+  locale: string,
+  currency: string,
+  y: number
+) {
+  if (!payload.analytics) return y;
+
+  const depositTotal = payload.analytics.depositStats?.total ?? 0;
+  const expenseTotal =
+    payload.analytics.expenseBreakdown?.reduce((sum, item) => sum + item.amount, 0) ?? 0;
+
+  const hasCharts =
+    (payload.analytics.expenseBreakdown?.length ?? 0) > 0 ||
+    depositTotal > 0 ||
+    expenseTotal > 0 ||
+    payload.analytics.mealBreakdown;
+
+  if (!hasCharts) return y;
+
+  y = ensureSpace(doc, y, 50);
+  drawSectionTitle(doc, locale === "bn" ? "ভিজ্যুয়াল সারাংশ" : "Visual Summary", y);
+  y += 6;
+
+  const w = pageWidth(doc);
+  const contentWidth = w - PAGE_MARGIN * 2;
+  const half = (contentWidth - 4) / 2;
+
+  const leftEnd = drawExpenseBreakdownChart(
+    doc,
+    PAGE_MARGIN,
+    y,
+    half,
+    locale === "bn" ? "খরচ বিভাজন" : "Expense Distribution",
+    payload.analytics,
+    locale,
+    currency
+  );
+
+  const rightEnd = drawDepositVsExpenseChart(
+    doc,
+    PAGE_MARGIN + half + 4,
+    y,
+    half,
+    locale === "bn" ? "জমা বনাম খরচ" : "Deposits vs Expenses",
+    depositTotal,
+    expenseTotal,
+    locale,
+    currency
+  );
+
+  y = Math.max(leftEnd, rightEnd) + 4;
+
+  y = drawMealBreakdownChart(
+    doc,
+    PAGE_MARGIN,
+    y,
+    contentWidth,
+    locale === "bn" ? "মিল বিভাজন" : "Meal Breakdown",
+    payload.analytics,
+    locale
+  );
+
+  return y + 2;
+}
+
+function buildBodyRows(
+  section: ReportSection,
+  currency: string,
+  locale: string
+): CellInput[][] {
   return section.rows.map((row) =>
-    section.columns.map((col) => formatCellValue(row[col.key] ?? "", col, currency, locale))
+    section.columns.map((col) => formatCellValue(row[col.key], col, currency, locale))
   );
 }
 
@@ -230,65 +395,65 @@ function drawTableSection(
   locale: string,
   currency: string,
   y: number,
-  orientation: "portrait" | "landscape"
+  orientation: "portrait" | "landscape",
+  payload: ReportPayload
 ) {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  y = ensureSpace(doc, y, 24);
-  drawSectionTitle(doc, section.title, y, pageWidth);
-  y += 3.5;
+  const w = pageWidth(doc);
+  const tableWidth = w - PAGE_MARGIN * 2;
+  y = ensureSpace(doc, y, 22);
+  drawSectionTitle(doc, section.title, y);
+  y += 4;
 
   if (!section.rows.length) {
     doc.setDrawColor(...C.border);
-    doc.roundedRect(PAGE_MARGIN, y + 2, pageWidth - PAGE_MARGIN * 2, 18, 1.5, 1.5);
-    doc.setFont(FONT_NAME, "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...C.mid);
-    doc.text(section.emptyMessage || reportLabel("noData", locale), pageWidth / 2, y + 13, {
+    doc.roundedRect(PAGE_MARGIN, y + 2, tableWidth, 16, 1.5, 1.5);
+    setPdfFont(doc, 9, C.mid);
+    doc.text(section.emptyMessage || reportLabel("noData", locale), w / 2, y + 12, {
       align: "center",
     });
-    return y + 24;
+    return y + 22;
   }
 
   autoTable(doc, {
-    startY: y + 2,
-    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: PAGE_MARGIN, bottom: FOOTER_HEIGHT },
+    startY: y + 1,
+    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: PAGE_MARGIN + COMPACT_HEADER_HEIGHT, bottom: FOOTER_HEIGHT },
+    tableWidth,
     head: [section.columns.map((col) => col.label)],
     body: buildBodyRows(section, currency, locale),
     theme: "grid",
     showHead: "everyPage",
     rowPageBreak: "avoid",
     styles: {
-      font: FONT_NAME,
+      font: PDF_FONT,
       fontStyle: "normal",
-      fontSize: orientation === "landscape" ? 7 : 7.6,
-      cellPadding: { top: 2.2, right: 2.3, bottom: 2.2, left: 2.3 },
+      fontSize: orientation === "landscape" ? 7 : 7.4,
+      cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
       overflow: "linebreak",
       textColor: C.black,
       lineColor: C.border,
       lineWidth: 0.15,
       valign: "middle",
+      minCellHeight: 6,
     },
     headStyles: {
       fillColor: C.light,
       textColor: C.black,
-      font: FONT_NAME,
-      fontStyle: "bold",
+      font: PDF_FONT,
+      fontStyle: "normal",
+      fontSize: orientation === "landscape" ? 7.2 : 7.6,
       lineColor: C.border,
       lineWidth: 0.2,
     },
     alternateRowStyles: { fillColor: C.lightAlt },
-    columnStyles: Object.fromEntries(
-      section.columns.map((col, index) => [
-        index,
-        {
-          halign: col.align ?? (col.format === "currency" || col.format === "number" ? "right" : "left"),
-          cellWidth: "wrap",
-        },
-      ])
-    ),
+    columnStyles: columnWidthStyles(section.columns, tableWidth, orientation),
+    didDrawPage: (data) => {
+      if (data.pageNumber > 1) {
+        drawCompactHeader(doc, payload, locale);
+      }
+    },
   });
 
-  return (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 7;
+  return (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 }
 
 function drawPageFooter(
@@ -299,34 +464,38 @@ function drawPageFooter(
   locale: string,
   timestampStr: string
 ) {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const footerTop = pageHeight - 15;
+  const w = pageWidth(doc);
+  const h = pageHeight(doc);
+  const footerTop = h - 13;
 
   doc.setDrawColor(...C.border);
-  doc.setLineWidth(0.3);
-  doc.line(PAGE_MARGIN, footerTop, pageWidth - PAGE_MARGIN, footerTop);
+  doc.setLineWidth(0.25);
+  doc.line(PAGE_MARGIN, footerTop, w - PAGE_MARGIN, footerTop);
 
-  doc.setFont(FONT_NAME, "normal");
-  doc.setFontSize(7.2);
-  doc.setTextColor(...C.mid);
+  setPdfFont(doc, 7, C.mid);
   doc.text(
     locale === "bn" ? `${appBrandName(locale)} দ্বারা প্রস্তুত` : `Generated by ${appBrandName(locale)}`,
     PAGE_MARGIN,
-    footerTop + 5
+    footerTop + 4.5
   );
 
   const center = payload.meta.reportId
     ? `${reportLabel("reportId", locale)}: ${payload.meta.reportId} · ${timestampStr}`
     : timestampStr;
-  doc.text(center, pageWidth / 2, footerTop + 5, { align: "center" });
+  doc.text(center, w / 2, footerTop + 4.5, { align: "center" });
 
   doc.text(
     `${reportLabel("page", locale)} ${page} ${reportLabel("of", locale)} ${pageCount}`,
-    pageWidth - PAGE_MARGIN,
-    footerTop + 5,
+    w - PAGE_MARGIN,
+    footerTop + 4.5,
     { align: "right" }
   );
+}
+
+function validatePdfDocument(doc: jsPDF): void {
+  if (doc.getNumberOfPages() < 1) {
+    throw new Error("PDF generation produced an empty document.");
+  }
 }
 
 export async function buildReportPdf(
@@ -336,21 +505,29 @@ export async function buildReportPdf(
 ): Promise<{ doc: jsPDF; filename: string }> {
   const payload = localizeReportPayload(rawPayload, locale);
   const currency = payload.meta.currency ?? "BDT";
+  const logo = await loadLogoImage();
+
   const doc = new jsPDF({
     orientation,
     unit: "mm",
     format: "a4",
-    putOnlyUsedFonts: true,
     compress: true,
+    putOnlyUsedFonts: false,
   });
 
-  await applyFont(doc);
+  await applyPdfFont(doc);
+  doc.text("MessFlow Pro মেসফ্লো প্রো", -100, -100);
 
-  const pageWidth = doc.internal.pageSize.getWidth();
   const generatedMeta = getGeneratedStrings(locale, payload.meta.generatedAt);
-  let y = drawHeader(doc, payload, locale, generatedMeta);
 
-  y = drawSummary(doc, payload, locale, y, pageWidth);
+  await drawCoverPage(doc, payload, locale, generatedMeta, logo);
+  doc.addPage();
+
+  let y = PAGE_MARGIN + COMPACT_HEADER_HEIGHT;
+  drawCompactHeader(doc, payload, locale);
+
+  y = drawSummary(doc, payload, locale, y);
+  y = drawAnalyticsSection(doc, payload, locale, currency, y);
 
   const sections: ReportSection[] =
     payload.sections && payload.sections.length
@@ -369,26 +546,23 @@ export async function buildReportPdf(
 
   if (!sections.length) {
     y = ensureSpace(doc, y, 28);
+    const w = pageWidth(doc);
     doc.setDrawColor(...C.border);
-    doc.roundedRect(PAGE_MARGIN, y, pageWidth - PAGE_MARGIN * 2, 24, 2, 2);
-    doc.setFont(FONT_NAME, "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...C.black);
-    doc.text(payload.emptyState?.title || reportLabel("noData", locale), pageWidth / 2, y + 9, {
+    doc.roundedRect(PAGE_MARGIN, y, w - PAGE_MARGIN * 2, 24, 2, 2);
+    setPdfFont(doc, 11, C.black);
+    doc.text(payload.emptyState?.title || reportLabel("noData", locale), w / 2, y + 9, {
       align: "center",
     });
-    doc.setFont(FONT_NAME, "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.mid);
+    setPdfFont(doc, 8.5, C.mid);
     doc.text(
       payload.emptyState?.description || reportLabel("noData", locale),
-      pageWidth / 2,
+      w / 2,
       y + 15,
-      { align: "center", maxWidth: pageWidth - PAGE_MARGIN * 2 - 8 }
+      { align: "center", maxWidth: w - PAGE_MARGIN * 2 - 8 }
     );
   } else {
     for (const section of sections) {
-      y = drawTableSection(doc, section, locale, currency, y, orientation);
+      y = drawTableSection(doc, section, locale, currency, y, orientation, payload);
     }
   }
 
@@ -398,6 +572,7 @@ export async function buildReportPdf(
     drawPageFooter(doc, i, pageCount, payload, locale, generatedMeta.timestampStr);
   }
 
+  validatePdfDocument(doc);
   return { doc, filename: safeFilename(payload) };
 }
 
