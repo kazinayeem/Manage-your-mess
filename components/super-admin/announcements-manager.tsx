@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { saveAnnouncement } from "@/actions/announcements";
+import { deleteAnnouncement, saveAnnouncement } from "@/actions/announcements";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Pencil, Trash2 } from "lucide-react";
 
 const audienceOptions = [
   "ALL_USERS",
@@ -29,15 +30,36 @@ const audienceOptions = [
   "SPECIFIC_MESSES",
 ] as const;
 
+type AnnouncementRow = Awaited<
+  ReturnType<typeof import("@/actions/announcements").getAdminAnnouncements>
+>[number];
+
+function toDateTimeLocal(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseTargetMessIds(raw: string | null | undefined) {
+  try {
+    return JSON.parse(raw || "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
 export function AnnouncementsManager({
   announcements,
   messes,
 }: {
-  announcements: Awaited<ReturnType<typeof import("@/actions/announcements").getAdminAnnouncements>>;
+  announcements: AnnouncementRow[];
   messes: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("INFORMATION");
@@ -48,9 +70,37 @@ export function AnnouncementsManager({
   const [isPublished, setIsPublished] = useState(true);
   const [targetMessIds, setTargetMessIds] = useState<string[]>([]);
 
+  function resetForm() {
+    setEditingId(null);
+    setTitle("");
+    setDescription("");
+    setType("INFORMATION");
+    setPriority("MEDIUM");
+    setAudienceType("ALL_USERS");
+    setStartsAt("");
+    setEndsAt("");
+    setIsPublished(true);
+    setTargetMessIds([]);
+  }
+
+  function openEdit(announcement: AnnouncementRow) {
+    setEditingId(announcement.id);
+    setTitle(announcement.title);
+    setDescription(announcement.description);
+    setType(announcement.type);
+    setPriority(announcement.priority);
+    setAudienceType(announcement.audienceType);
+    setStartsAt(toDateTimeLocal(announcement.startsAt));
+    setEndsAt(toDateTimeLocal(announcement.endsAt));
+    setIsPublished(announcement.isPublished);
+    setTargetMessIds(parseTargetMessIds(announcement.targetMessIds));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const formData = new FormData();
+    if (editingId) formData.set("id", editingId);
     formData.set("title", title);
     formData.set("description", description);
     formData.set("type", type);
@@ -67,10 +117,22 @@ export function AnnouncementsManager({
         toast.error(result.error);
         return;
       }
-      toast.success("Announcement saved");
-      setTitle("");
-      setDescription("");
-      setTargetMessIds([]);
+      toast.success(editingId ? "Announcement updated" : "Announcement saved");
+      resetForm();
+      router.refresh();
+    });
+  }
+
+  function handleDelete(id: string) {
+    if (!confirm("Delete this announcement permanently?")) return;
+    startTransition(async () => {
+      const result = await deleteAnnouncement(id);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      if (editingId === id) resetForm();
+      toast.success("Announcement deleted");
       router.refresh();
     });
   }
@@ -79,7 +141,7 @@ export function AnnouncementsManager({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Create Announcement</CardTitle>
+          <CardTitle>{editingId ? "Edit Announcement" : "Create Announcement"}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -171,9 +233,16 @@ export function AnnouncementsManager({
                 </div>
               )}
             </div>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving..." : "Save Announcement"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving..." : editingId ? "Update Announcement" : "Save Announcement"}
+              </Button>
+              {editingId && (
+                <Button type="button" variant="outline" disabled={pending} onClick={resetForm}>
+                  Cancel
+                </Button>
+              )}
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -196,6 +265,24 @@ export function AnnouncementsManager({
                   <Badge variant="outline">{announcement.priority}</Badge>
                   <Badge>{announcement.isPublished ? "Published" : "Draft"}</Badge>
                   <Badge variant="secondary">{announcement._count.reads} deliveries</Badge>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => openEdit(announcement)}
+                    aria-label="Edit announcement"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => handleDelete(announcement.id)}
+                    aria-label="Delete announcement"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
                 </div>
               </div>
               <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{announcement.description}</p>

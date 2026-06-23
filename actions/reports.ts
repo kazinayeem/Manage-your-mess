@@ -190,7 +190,7 @@ export async function fetchReportData(
             { key: "billShare", label: "Bill Share", format: "currency", align: "right" },
             { key: "otherCost", label: "Other Cost", format: "currency", align: "right" },
             { key: "totalCost", label: "Total Cost", format: "currency", align: "right" },
-            { key: "balance", label: "Balance", format: "currency", align: "right" },
+            { key: "balance", label: "Balance", format: "currency", align: "right", allowNegative: true },
             { key: "status", label: "Status", align: "left" },
           ],
           rows: summary.members.map((m) => ({
@@ -216,7 +216,7 @@ export async function fetchReportData(
                 { key: "billShare", label: "Bill Share", format: "currency", align: "right" },
                 { key: "otherCost", label: "Other Cost", format: "currency", align: "right" },
                 { key: "totalCost", label: "Total Cost", format: "currency", align: "right" },
-                { key: "balance", label: "Balance", format: "currency", align: "right" },
+                { key: "balance", label: "Balance", format: "currency", align: "right", allowNegative: true },
                 { key: "status", label: "Status", align: "left" },
               ],
               summary.members.map((m) => ({
@@ -858,7 +858,7 @@ export async function fetchReportData(
             { key: "mealRate", label: "Meal Rate", align: "right" },
             { key: "expenses", label: "Expenses", format: "currency", align: "right" },
             { key: "deposits", label: "Deposits", format: "currency", align: "right" },
-            { key: "balance", label: "Balance", format: "currency", align: "right" },
+            { key: "balance", label: "Balance", format: "currency", align: "right", allowNegative: true },
             { key: "status", label: "Status", align: "left" },
           ],
           rows,

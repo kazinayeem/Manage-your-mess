@@ -26,6 +26,7 @@ export type ReportColumn = {
   label: string;
   format?: "currency" | "number" | "text" | "portion";
   align?: "left" | "right" | "center";
+  allowNegative?: boolean;
 };
 
 export type ReportAnalytics = {

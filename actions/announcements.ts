@@ -189,13 +189,29 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
       startsAt: startsAtRaw ? new Date(startsAtRaw) : null,
       endsAt: endsAtRaw ? new Date(endsAtRaw) : null,
       isPublished,
-      publishedAt: isPublished ? new Date() : null,
-      createdById: admin.id,
     };
 
-    const announcement = id
-      ? await db.announcement.update({ where: { id }, data })
-      : await db.announcement.create({ data });
+    let announcement;
+    if (id) {
+      const existing = await db.announcement.findUnique({ where: { id } });
+      if (!existing) return { success: false, error: "Announcement not found" };
+
+      announcement = await db.announcement.update({
+        where: { id },
+        data: {
+          ...data,
+          publishedAt: isPublished ? (existing.publishedAt ?? new Date()) : null,
+        },
+      });
+    } else {
+      announcement = await db.announcement.create({
+        data: {
+          ...data,
+          publishedAt: isPublished ? new Date() : null,
+          createdById: admin.id,
+        },
+      });
+    }
 
     if (announcement.isPublished) {
       const userIds = await resolveAnnouncementAudienceUserIds({ audienceType, targetMessIds });
@@ -237,6 +253,35 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
     return { success: true, data: { id: announcement.id } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Failed to save announcement" };
+  }
+}
+
+export async function deleteAnnouncement(id: string): Promise<ActionResult> {
+  try {
+    const admin = await requireSuperAdmin();
+    if (!(await hasAnnouncementTable())) {
+      return { success: false, error: ANNOUNCEMENTS_UNAVAILABLE_MESSAGE };
+    }
+
+    const existing = await db.announcement.findUnique({ where: { id } });
+    if (!existing) return { success: false, error: "Announcement not found" };
+
+    await db.announcement.delete({ where: { id } });
+
+    await logBillingAudit({
+      action: "DELETE",
+      entity: "Announcement",
+      entityId: id,
+      userId: admin.id,
+      oldData: existing,
+    });
+
+    revalidatePath("/super-admin/announcements");
+    revalidatePath("/portal");
+    revalidatePath("/portal/announcements");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed to delete announcement" };
   }
 }
 

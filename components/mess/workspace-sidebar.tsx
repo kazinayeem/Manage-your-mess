@@ -75,25 +75,20 @@ export function MessWorkspaceSidebar({
       <aside
         data-collapsed={sidebarCollapsed ? true : undefined}
         className={cn(
-          "peer relative",
+          "peer relative overflow-hidden",
           sidebarAsideClass(open),
           sidebarCollapsed && "lg:w-[4.5rem]",
           !sidebarCollapsed && "lg:w-72"
         )}
       >
-        {sidebarCollapsed && (
-          <button
-            type="button"
-            onClick={toggleSidebarCollapsed}
-            className="hidden lg:flex absolute left-full top-20 z-30 ml-3 items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-md transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
-            aria-label={t("expandSidebar")}
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-            <span>{t("expandSidebar")}</span>
-          </button>
-        )}
-
-        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-zinc-200/80 px-4 dark:border-zinc-800">
+        <div
+          className={cn(
+            "flex shrink-0 border-b border-zinc-200/80 dark:border-zinc-800",
+            sidebarCollapsed
+              ? "flex-col items-center gap-2 px-2 py-3"
+              : "h-16 items-center gap-3 px-4"
+          )}
+        >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-bold text-white shadow-sm">
             BM
           </div>
@@ -108,8 +103,14 @@ export function MessWorkspaceSidebar({
           <button
             type="button"
             onClick={toggleSidebarCollapsed}
-            className="hidden rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 lg:inline-flex dark:hover:bg-zinc-800"
+            className={cn(
+              "hidden rounded-lg text-zinc-500 hover:bg-zinc-100 lg:inline-flex dark:hover:bg-zinc-800",
+              sidebarCollapsed
+                ? "h-9 w-9 items-center justify-center"
+                : "p-1.5"
+            )}
             aria-label={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
+            title={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
           >
             {sidebarCollapsed ? (
               <PanelLeftOpen className="h-4 w-4" />
@@ -119,8 +120,16 @@ export function MessWorkspaceSidebar({
           </button>
         </div>
 
-        <div className="flex gap-1 border-b border-zinc-200/80 px-3 py-2 dark:border-zinc-800">
-          <ThemeToggle className="flex-1 justify-start" showLabel={!sidebarCollapsed} />
+        <div
+          className={cn(
+            "flex gap-1 border-b border-zinc-200/80 px-3 py-2 dark:border-zinc-800",
+            sidebarCollapsed && "justify-center px-2"
+          )}
+        >
+          <ThemeToggle
+            className={cn("justify-start", sidebarCollapsed ? "w-9 justify-center px-0" : "flex-1")}
+            showLabel={!sidebarCollapsed}
+          />
           {!sidebarCollapsed && <LocaleSwitcher className="flex-1 justify-start" />}
         </div>
 

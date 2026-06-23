@@ -1,9 +1,17 @@
-import type { ReportPayload } from "@/lib/reports/types";
+import type { ReportColumn, ReportPayload } from "@/lib/reports/types";
 
 export type ReportValidation = {
   valid: boolean;
   warnings: string[];
 };
+
+const NEGATIVE_ALLOWED_CURRENCY_KEYS = new Set(["balance"]);
+
+function hasInvalidCurrencyValue(value: number, col: ReportColumn) {
+  if (Number.isNaN(value)) return true;
+  if (col.allowNegative || NEGATIVE_ALLOWED_CURRENCY_KEYS.has(col.key)) return false;
+  return value < 0;
+}
 
 export function validateReportPayload(payload: ReportPayload): ReportValidation {
   const warnings: string[] = [];
@@ -30,7 +38,7 @@ export function validateReportPayload(payload: ReportPayload): ReportValidation 
       const values = payload.rows
         .map((r) => r[col.key])
         .filter((v): v is number => typeof v === "number");
-      if (values.some((v) => Number.isNaN(v) || v < 0)) {
+      if (values.some((v) => hasInvalidCurrencyValue(v, col))) {
         warnings.push(`Invalid amounts detected in column "${col.label}".`);
         break;
       }
@@ -44,7 +52,7 @@ export function validateReportPayload(payload: ReportPayload): ReportValidation 
         const values = section.rows
           .map((r) => r[col.key])
           .filter((v): v is number => typeof v === "number");
-        if (values.some((v) => Number.isNaN(v))) {
+        if (values.some((v) => hasInvalidCurrencyValue(v, col))) {
           warnings.push(`Invalid amounts detected in section "${section.title}".`);
           break;
         }
