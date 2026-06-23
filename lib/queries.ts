@@ -1,8 +1,16 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { cacheGet, cacheSet } from "@/lib/redis";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+
+function isDatabaseUnavailable(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P1001"
+  );
+}
 
 export async function getDashboardStats(messId: string) {
   const cacheKey = `dashboard:${messId}`;
@@ -177,65 +185,91 @@ export async function getAdminStats() {
   const monthEnd = endOfMonth(now);
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const [
-    totalUsers,
-    activeUsers,
-    totalMesses,
-    totalBranches,
-    totalMembers,
-    activeSubscriptions,
-    expiredSubscriptions,
-    trialAccounts,
-    pendingPayments,
-    approvedPayments,
-    rejectedPayments,
-    monthlyRevenue,
-    annualRevenue,
-    paidInvoices,
-  ] = await Promise.all([
-    db.user.count({ where: { deletedAt: null } }),
-    db.user.count({ where: { deletedAt: null, isActive: true, lastLoginAt: { gte: subMonths(now, 1) } } }),
-    db.mess.count({ where: { deletedAt: null } }),
-    db.branch.count({ where: { deletedAt: null } }),
-    db.member.count({ where: { deletedAt: null, status: "ACTIVE" } }),
-    db.subscription.count({ where: { status: "ACTIVE" } }),
-    db.subscription.count({ where: { status: "EXPIRED" } }),
-    db.subscription.count({ where: { status: "TRIALING" } }),
-    db.subscriptionPaymentRequest.count({ where: { status: "PENDING" } }),
-    db.subscriptionPaymentRequest.count({ where: { status: "APPROVED" } }),
-    db.subscriptionPaymentRequest.count({ where: { status: "REJECTED" } }),
-    db.invoice.aggregate({
-      where: { status: "paid", paidAt: { gte: monthStart, lte: monthEnd } },
-      _sum: { amount: true },
-    }),
-    db.invoice.aggregate({
-      where: { status: "paid", paidAt: { gte: yearStart, lte: monthEnd } },
-      _sum: { amount: true },
-    }),
-    db.invoice.aggregate({ where: { status: "paid" }, _sum: { amount: true } }),
-  ]);
+  try {
+    const [
+      totalUsers,
+      activeUsers,
+      totalMesses,
+      totalBranches,
+      totalMembers,
+      activeSubscriptions,
+      expiredSubscriptions,
+      trialAccounts,
+      pendingPayments,
+      approvedPayments,
+      rejectedPayments,
+      monthlyRevenue,
+      annualRevenue,
+      paidInvoices,
+    ] = await Promise.all([
+      db.user.count({ where: { deletedAt: null } }),
+      db.user.count({ where: { deletedAt: null, isActive: true, lastLoginAt: { gte: subMonths(now, 1) } } }),
+      db.mess.count({ where: { deletedAt: null } }),
+      db.branch.count({ where: { deletedAt: null } }),
+      db.member.count({ where: { deletedAt: null, status: "ACTIVE" } }),
+      db.subscription.count({ where: { status: "ACTIVE" } }),
+      db.subscription.count({ where: { status: "EXPIRED" } }),
+      db.subscription.count({ where: { status: "TRIALING" } }),
+      db.subscriptionPaymentRequest.count({ where: { status: "PENDING" } }),
+      db.subscriptionPaymentRequest.count({ where: { status: "APPROVED" } }),
+      db.subscriptionPaymentRequest.count({ where: { status: "REJECTED" } }),
+      db.invoice.aggregate({
+        where: { status: "paid", paidAt: { gte: monthStart, lte: monthEnd } },
+        _sum: { amount: true },
+      }),
+      db.invoice.aggregate({
+        where: { status: "paid", paidAt: { gte: yearStart, lte: monthEnd } },
+        _sum: { amount: true },
+      }),
+      db.invoice.aggregate({ where: { status: "paid" }, _sum: { amount: true } }),
+    ]);
 
-  const mrr = monthlyRevenue._sum.amount ?? 0;
-  const arr = (annualRevenue._sum.amount ?? 0) || mrr * 12;
+    const mrr = monthlyRevenue._sum.amount ?? 0;
+    const arr = (annualRevenue._sum.amount ?? 0) || mrr * 12;
 
-  return {
-    totalUsers,
-    activeUsers,
-    totalMesses,
-    totalBranches,
-    totalMembers,
-    monthlyRevenue: mrr,
-    annualRevenue: arr,
-    activeSubscriptions,
-    expiredSubscriptions,
-    trialAccounts,
-    pendingPayments,
-    approvedPayments,
-    rejectedPayments,
-    totalRevenue: paidInvoices._sum.amount ?? 0,
-    mrr,
-    arr,
-    churnRate: 0,
-    conversionRate: 0,
-  };
+    return {
+      totalUsers,
+      activeUsers,
+      totalMesses,
+      totalBranches,
+      totalMembers,
+      monthlyRevenue: mrr,
+      annualRevenue: arr,
+      activeSubscriptions,
+      expiredSubscriptions,
+      trialAccounts,
+      pendingPayments,
+      approvedPayments,
+      rejectedPayments,
+      totalRevenue: paidInvoices._sum.amount ?? 0,
+      mrr,
+      arr,
+      churnRate: 0,
+      conversionRate: 0,
+    };
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) {
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        totalMesses: 0,
+        totalBranches: 0,
+        totalMembers: 0,
+        monthlyRevenue: 0,
+        annualRevenue: 0,
+        activeSubscriptions: 0,
+        expiredSubscriptions: 0,
+        trialAccounts: 0,
+        pendingPayments: 0,
+        approvedPayments: 0,
+        rejectedPayments: 0,
+        totalRevenue: 0,
+        mrr: 0,
+        arr: 0,
+        churnRate: 0,
+        conversionRate: 0,
+      };
+    }
+    throw error;
+  }
 }

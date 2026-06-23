@@ -86,7 +86,6 @@ const LEGACY_SUBSCRIPTION_BASE_SELECT = {
   id: true,
   userId: true,
   planId: true,
-  assignedById: true,
   status: true,
   currentPeriodStart: true,
   currentPeriodEnd: true,
@@ -108,6 +107,14 @@ function withPlanFallback<T extends Record<string, unknown>>(plan: T) {
     visibility: typeof plan.visibility === "string" ? plan.visibility : "PUBLIC",
     isArchived: typeof plan.isArchived === "boolean" ? plan.isArchived : false,
   };
+}
+
+async function getLegacyPlanById(id: string) {
+  const plan = await db.plan.findUnique({
+    where: { id },
+    select: LEGACY_PLAN_SELECT,
+  });
+  return plan ? withPlanFallback(plan) : null;
 }
 
 // ─── Plans ───────────────────────────────────────────────────────────────────
@@ -203,7 +210,7 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
     }
 
     if (id) {
-      const existing = await db.plan.findUnique({ where: { id } });
+      const existing = await getLegacyPlanById(id);
       if (!existing) return { success: false, error: "Plan not found" };
       const plan = await db.plan.update({
         where: { id },
@@ -243,7 +250,7 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
 
     let slug = slugBase;
     let n = 1;
-    while (await db.plan.findUnique({ where: { slug } })) {
+    while (await db.plan.findUnique({ where: { slug }, select: { id: true } })) {
       slug = `${slugBase}-${n++}`;
     }
 
@@ -290,13 +297,13 @@ export async function savePlan(formData: FormData): Promise<ActionResult<{ id: s
 export async function duplicatePlan(planId: string): Promise<ActionResult<{ id: string }>> {
   try {
     await requireSuperAdmin();
-    const plan = await db.plan.findUnique({ where: { id: planId } });
+    const plan = await getLegacyPlanById(planId);
     if (!plan) return { success: false, error: "Plan not found" };
 
     const slugBase = `${plan.slug}-copy`;
     let slug = slugBase;
     let n = 1;
-    while (await db.plan.findUnique({ where: { slug } })) {
+    while (await db.plan.findUnique({ where: { slug }, select: { id: true } })) {
       slug = `${slugBase}-${n++}`;
     }
 
@@ -703,7 +710,7 @@ async function activateSubscriptionForUser(
         trialEndsAt: null,
         suspendedAt: null,
         suspendReason: null,
-        assignedById: assignedById ?? subscription.assignedById,
+        assignedById: assignedById ?? null,
       },
     });
   } else {
@@ -755,9 +762,13 @@ export async function reviewPaymentRequest(
     const admin = await requireSuperAdmin();
     const request = await db.subscriptionPaymentRequest.findUnique({
       where: { id: requestId },
-      include: { plan: true, user: true },
+      include: {
+        plan: { select: LEGACY_PLAN_SELECT },
+        user: true,
+      },
     });
     if (!request) return { success: false, error: "Request not found" };
+    const plan = request.plan ? withPlanFallback(request.plan) : null;
 
     if (action === "approve" && !["PENDING", "NEEDS_INFO"].includes(request.status)) {
       return { success: false, error: "This payment request has already been processed" };
@@ -772,9 +783,12 @@ export async function reviewPaymentRequest(
     const now = new Date();
 
     if (action === "approve") {
+      if (!plan) {
+        return { success: false, error: "Selected plan could not be loaded for this payment request" };
+      }
       const subscription = await activateSubscriptionForUser(
         request.userId,
-        request.plan,
+        plan as Plan,
         request.id,
         admin.id
       );
