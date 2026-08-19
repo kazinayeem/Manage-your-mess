@@ -1,7 +1,7 @@
 import { PrismaClient, PlanTier, UserRole, PlanDurationType } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { PLAN_FEATURES } from "../lib/billing/constants";
-import { PERMISSIONS } from "../lib/rbac";
+import { PLAN_FEATURES } from "../src/constants/plan-constants";
+import { PERMISSIONS } from "../src/constants/permissions";
 
 const prisma = new PrismaClient();
 

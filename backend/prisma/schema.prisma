@@ -1,14 +1,13 @@
 // MessFlow Pro - Enterprise Multi-Tenant SaaS Schema
-// PostgreSQL (Neon) — local dev can use SQLite by switching provider + DATABASE_URL
+// SQLite — local file-based database (backend/prisma/dev.db)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
