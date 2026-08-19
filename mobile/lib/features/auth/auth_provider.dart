@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/global_providers.dart';
-import '../../core/storage/secure_storage.dart';
 import '../../core/errors/app_exception.dart';
 import 'package:dio/dio.dart';
 
