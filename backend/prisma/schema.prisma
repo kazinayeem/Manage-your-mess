@@ -230,6 +230,13 @@ enum MonthStatus {
   ARCHIVED
 }
 
+enum MessStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
 enum BillCategoryType {
   HOUSE_RENT
   ELECTRICITY
@@ -457,6 +464,7 @@ model Mess {
   mealRate        Float     @default(0)
   totalMeals      Int       @default(0)
   totalExpenses   Float     @default(0)
+  status          MessStatus @default(ACTIVE)
   ownerId         String
   managerId       String?
   currentMonthId  String?   @unique

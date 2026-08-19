@@ -1,8 +1,6 @@
 import createMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
-import type { UserRole } from "@prisma/client";
 import { routing } from "./i18n/routing";
 import {
   canAccessSuperAdmin,
@@ -15,7 +13,6 @@ import {
   pathnameIsWelcome,
 } from "./lib/route-guard";
 import { isAdminRole } from "./lib/rbac";
-import { getSessionCookieName } from "./lib/auth-cookie";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -34,6 +31,19 @@ function stripLocale(pathname: string) {
   return pathname.replace(/^\/(en|bn)/, "") || "/";
 }
 
+/** Decode a JWT payload without verifying signature (Edge runtime safe). */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 export default async function middleware(request: NextRequest) {
   const pathnameWithoutLocale = stripLocale(request.nextUrl.pathname);
 
@@ -49,39 +59,44 @@ export default async function middleware(request: NextRequest) {
   }
 
   if (isProtected || isAuthPath) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET,
-      cookieName: getSessionCookieName(),
-      secureCookie: process.env.NODE_ENV === "production",
-    });
+    // Read JWT directly from Express-issued session cookie
+    const rawToken = request.cookies.get("bornomess.session")?.value ?? null;
 
-    if (isProtected && !token) {
+    let payload: Record<string, unknown> | null = null;
+    if (rawToken) {
+      payload = decodeJwtPayload(rawToken);
+      // Check expiry
+      if (payload?.exp && Date.now() >= Number(payload.exp) * 1000) {
+        payload = null;
+      }
+    }
+
+    if (isProtected && !payload) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathnameWithoutLocale);
       return NextResponse.redirect(loginUrl);
     }
 
-    const role = token?.role as UserRole | undefined;
+    const role = payload?.role as string | undefined;
 
-    if (token && role) {
+    if (payload && role) {
       if (pathnameWithoutLocale.startsWith("/admin")) {
         return NextResponse.redirect(new URL("/super-admin", request.url));
       }
 
-      if (pathnameIsSuperAdmin(pathnameWithoutLocale) && !canAccessSuperAdmin(role)) {
-        return NextResponse.redirect(new URL(getPlatformHomeRoute(role), request.url));
+      if (pathnameIsSuperAdmin(pathnameWithoutLocale) && !canAccessSuperAdmin(role as any)) {
+        return NextResponse.redirect(new URL(getPlatformHomeRoute(role as any), request.url));
       }
 
       if (
         (pathnameIsPortal(pathnameWithoutLocale) || pathnameIsMessScoped(pathnameWithoutLocale)) &&
-        isAdminRole(role)
+        isAdminRole(role as any)
       ) {
         return NextResponse.redirect(new URL("/super-admin", request.url));
       }
 
       if (isAuthPath) {
-        return NextResponse.redirect(new URL(getPlatformHomeRoute(role), request.url));
+        return NextResponse.redirect(new URL(getPlatformHomeRoute(role as any), request.url));
       }
     }
   }
@@ -90,5 +105,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)" ],
 };

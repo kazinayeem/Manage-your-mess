@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Globe } from "lucide-react";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,13 +29,23 @@ export function RegisterForm() {
       return;
     }
 
-    const signInResult = await signIn("credentials", {
-      email: formData.get("email"),
-      password: formData.get("password"),
-      redirect: false,
-    });
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.get("email"),
+          password: formData.get("password"),
+        }),
+      });
 
-    if (signInResult?.error) {
+      const res = await response.json();
+      if (!res.success) {
+        toast.error("Account created. Please sign in.");
+        router.push("/login");
+        return;
+      }
+    } catch {
       toast.error("Account created. Please sign in.");
       router.push("/login");
       return;

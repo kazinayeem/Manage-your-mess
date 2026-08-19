@@ -1,110 +1,52 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import type { UserRole } from "@prisma/client";
-import { normalizeEmail } from "@/lib/utils";
+import { cookies } from "next/headers";
 
-declare module "next-auth" {
-  interface Session {
-    accessToken?: string;
+function decodeJwt(token: string) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      Buffer.from(base64, "base64")
+        .toString()
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
+export async function auth() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("bornomess.session")?.value;
+  if (!token) return null;
+
+  const payload = decodeJwt(token);
+  if (!payload || (payload.exp && Date.now() >= payload.exp * 1000)) {
+    return null;
+  }
+
+  return {
+    accessToken: token,
     user: {
-      id: string;
-      email: string;
-      name?: string | null;
-      image?: string | null;
-      role: UserRole;
-    };
-  }
-  interface User {
-    role: UserRole;
-    accessToken?: string;
-    refreshToken?: string;
-  }
-}
-
-declare module "@auth/core/jwt" {
-  interface JWT {
-    id: string;
-    role: UserRole;
-    accessToken?: string;
-    refreshToken?: string;
-    suspended?: boolean;
-  }
-}
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-  providers: [
-    Credentials({
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        const email = normalizeEmail(String(credentials?.email ?? ""));
-        const password = String(credentials?.password ?? "");
-
-        if (!email || !password) return null;
-
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-
-          const res = await response.json();
-          if (!res.success || !res.data) {
-            throw new Error(res.message || "Invalid credentials");
-          }
-
-          return {
-            id: res.data.user.id,
-            email: res.data.user.email,
-            name: res.data.user.name,
-            role: res.data.user.role,
-            accessToken: res.data.accessToken,
-            refreshToken: res.data.refreshToken,
-          };
-        } catch (error: any) {
-          throw new Error(error.message || "Authentication failed");
-        }
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id!;
-        token.role = user.role;
-        token.accessToken = user.accessToken;
-        token.refreshToken = user.refreshToken;
-      }
-      return token;
+      id: payload.sub,
+      role: payload.role,
+      email: payload.email || "",
+      name: payload.name || "",
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-      }
-      session.accessToken = token.accessToken;
-      return session;
-    },
-  },
-});
+  };
+}
 
 export async function getCurrentUser() {
-  const session = await auth();
-  if (!session?.accessToken) return null;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("bornomess.session")?.value;
+  if (!token) return null;
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/me`, {
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -119,4 +61,17 @@ export async function getCurrentUser() {
     console.error("Error fetching current user from Express:", error);
   }
   return null;
+}
+
+// Mock handlers to satisfy NextAuth type expectations in case of imports
+export const handlers = {
+  GET: () => new Response("Not implemented", { status: 404 }),
+  POST: () => new Response("Not implemented", { status: 404 }),
+};
+
+export async function signIn() {}
+export async function signOut() {
+  const cookieStore = await cookies();
+  cookieStore.delete("bornomess.session");
+  cookieStore.delete("bornomess.refresh");
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth-client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
