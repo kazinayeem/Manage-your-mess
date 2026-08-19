@@ -140,6 +140,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: _onLogin,
                 ),
                 const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+                const Center(
+                  child: Text(
+                    'Quick Login (Dev Mode Only)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: authState.isLoading
+                            ? null
+                            : () async {
+                                final success = await ref
+                                    .read(authProvider.notifier)
+                                    .login('admin@messflow.pro', 'Admin@123456');
+                                if (success && mounted) {
+                                  context.go('/home');
+                                }
+                              },
+                        child: const Text('Super Admin', style: TextStyle(fontSize: 11)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: authState.isLoading
+                            ? null
+                            : () async {
+                                final success = await ref
+                                    .read(authProvider.notifier)
+                                    .login('demo@messflow.pro', 'Demo@123456');
+                                if (success && mounted) {
+                                  context.go('/home');
+                                }
+                              },
+                        child: const Text('Demo Owner', style: TextStyle(fontSize: 11)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: TextButton(
                     onPressed: () => context.go('/register'),

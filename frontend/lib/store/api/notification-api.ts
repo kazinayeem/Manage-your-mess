@@ -7,14 +7,7 @@ export const notificationApi = baseApi.injectEndpoints({
       Awaited<ReturnType<typeof getUserNotifications>>,
       { limit?: number }
     >({
-      async queryFn() {
-        try {
-          const data = await getUserNotifications();
-          return { data };
-        } catch (e) {
-          return { error: { status: 500, data: e instanceof Error ? e.message : "Failed" } };
-        }
-      },
+      query: ({ limit = 20 } = {}) => `/notifications?limit=${limit}`,
       providesTags: ["Notification"],
     }),
   }),

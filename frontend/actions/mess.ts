@@ -38,7 +38,7 @@ export async function registerUser(formData: FormData): Promise<ActionResult<{ u
 
     const email = normalizeEmail(parsed.data.email);
     const existing = await db.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
+      where: { email: { equals: email } },
     });
     if (existing) return { success: false, error: "Email already registered" };
 

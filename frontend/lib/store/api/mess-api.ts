@@ -7,14 +7,7 @@ export const messApi = baseApi.injectEndpoints({
       Awaited<ReturnType<typeof getDashboardStats>>,
       { messId: string }
     >({
-      async queryFn({ messId }) {
-        try {
-          const data = await getDashboardStats(messId);
-          return { data };
-        } catch (e) {
-          return { error: { status: 500, data: e instanceof Error ? e.message : "Failed" } };
-        }
-      },
+      query: ({ messId }) => `/analytics/dashboard?messId=${messId}`,
       providesTags: (_r, _e, { messId }) => [{ type: "Dashboard", id: messId }],
       keepUnusedDataFor: 300,
     }),

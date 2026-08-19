@@ -115,6 +115,60 @@ export function LoginForm() {
           {t("google")}
         </Button>
 
+        {process.env.NODE_ENV !== "production" && (
+          <div className="mt-6 border-t pt-4">
+            <p className="text-center text-xs font-semibold text-zinc-400 mb-3">
+              Quick Login (Dev Mode Only)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await signIn("credentials", {
+                      email: "admin@messflow.pro",
+                      password: "Admin@123456",
+                      callbackUrl,
+                    });
+                  } catch (err) {
+                    setError("Failed to quick login");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                Super Admin
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await signIn("credentials", {
+                      email: "demo@messflow.pro",
+                      password: "Demo@123456",
+                      callbackUrl,
+                    });
+                  } catch (err) {
+                    setError("Failed to quick login");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                Demo Owner
+              </Button>
+            </div>
+          </div>
+        )}
+
         <p className="mt-6 text-center text-sm text-zinc-500">
           {t("noAccount")}{" "}
           <Link href="/register" className="font-medium text-emerald-600 hover:underline">

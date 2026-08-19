@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx prisma generate --schema=../backend/prisma/schema.prisma && next dev",
-    "build": "npx prisma generate --schema=../backend/prisma/schema.prisma && next build",
-    "vercel-build": "npx prisma generate --schema=../backend/prisma/schema.prisma && next build",
+    "dev": "npx prisma generate --schema=../backend/prisma/schema.prisma && cp -R ../backend/node_modules/.prisma ./node_modules/ && next dev",
+    "build": "npx prisma generate --schema=../backend/prisma/schema.prisma && cp -R ../backend/node_modules/.prisma ./node_modules/ && next build",
+    "vercel-build": "npx prisma generate --schema=../backend/prisma/schema.prisma && cp -R ../backend/node_modules/.prisma ./node_modules/ && next build",
     "start": "next start",
-    "lint": "next lint",
-    "postinstall": "npx prisma generate --schema=../backend/prisma/schema.prisma"
+    "lint": "eslint .",
+    "test": "echo \"No frontend tests configured\"",
+    "postinstall": "npx prisma generate --schema=../backend/prisma/schema.prisma && cp -R ../backend/node_modules/.prisma ./node_modules/"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

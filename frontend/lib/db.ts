@@ -1,37 +1,53 @@
-import { statSync } from "fs";
-import path from "path";
 import { PrismaClient } from "@prisma/client";
+import { apiPost } from "@/lib/api-client";
 
-function getSchemaMtime(): number {
-  try {
-    return statSync(path.join(process.cwd(), "prisma/schema.prisma")).mtimeMs;
-  } catch {
-    return 0;
+function createModelProxy(modelName: string) {
+  return {
+    findMany: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "findMany", args });
+      return res.success ? res.data : [];
+    },
+    findUnique: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "findUnique", args });
+      return res.success ? res.data : null;
+    },
+    findFirst: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "findFirst", args });
+      return res.success ? res.data : null;
+    },
+    count: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "count", args });
+      return res.success ? res.data : 0;
+    },
+    aggregate: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "aggregate", args });
+      return res.success ? res.data : {};
+    },
+    update: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "update", args });
+      return res.success ? res.data : null;
+    },
+    create: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "create", args });
+      return res.success ? res.data : null;
+    },
+    delete: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "delete", args });
+      return res.success ? res.data : null;
+    },
+    upsert: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "upsert", args });
+      return res.success ? res.data : null;
+    },
+    updateMany: async (args: any) => {
+      const res = await apiPost("/query", { model: modelName, action: "updateMany", args });
+      return res.success ? res.data : null;
+    },
+  };
+}
+
+export const db = new Proxy({}, {
+  get: (target, prop: string) => {
+    return createModelProxy(prop);
   }
-}
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-  prismaSchemaMtime: number | undefined;
-};
-
-function createPrismaClient() {
-  return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
-}
-
-const schemaMtime = getSchemaMtime();
-
-if (
-  !globalForPrisma.prisma ||
-  globalForPrisma.prismaSchemaMtime !== schemaMtime
-) {
-  if (globalForPrisma.prisma) {
-    void globalForPrisma.prisma.$disconnect();
-  }
-  globalForPrisma.prisma = createPrismaClient();
-  globalForPrisma.prismaSchemaMtime = schemaMtime;
-}
-
-export const db = globalForPrisma.prisma;
+}) as unknown as PrismaClient;
