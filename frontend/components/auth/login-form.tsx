@@ -128,13 +128,18 @@ export function LoginForm() {
                 onClick={async () => {
                   setLoading(true);
                   try {
-                    await signIn("credentials", {
+                    const res = await signIn("credentials", {
                       email: "admin@messflow.pro",
                       password: "Admin@123456",
-                      callbackUrl,
+                      redirect: false,
                     });
+                    if (res?.error) {
+                      toast.error("Failed to quick login");
+                    } else {
+                      redirectAfterLogin(callbackUrl);
+                    }
                   } catch (err) {
-                    setError("Failed to quick login");
+                    toast.error("Failed to quick login");
                   } finally {
                     setLoading(false);
                   }
@@ -150,13 +155,18 @@ export function LoginForm() {
                 onClick={async () => {
                   setLoading(true);
                   try {
-                    await signIn("credentials", {
+                    const res = await signIn("credentials", {
                       email: "demo@messflow.pro",
                       password: "Demo@123456",
-                      callbackUrl,
+                      redirect: false,
                     });
+                    if (res?.error) {
+                      toast.error("Failed to quick login");
+                    } else {
+                      redirectAfterLogin(callbackUrl);
+                    }
                   } catch (err) {
-                    setError("Failed to quick login");
+                    toast.error("Failed to quick login");
                   } finally {
                     setLoading(false);
                   }

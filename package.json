@@ -1,0 +1,33 @@
+{
+  "name": "bornomess-manager-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:mobile": "cd mobile && flutter run",
+    "dev": "npx concurrently -k -p \"[{name}]\" -n \"backend,frontend\" -c \"cyan.bold,green.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "setup": "npm install && npm run build:backend && npm run postinstall --workspace=frontend && npm run db:push --workspace=backend && npm run db:seed --workspace=backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:mobile": "cd mobile && flutter analyze",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "cd backend && npm run test",
+    "test:mobile": "cd mobile && flutter test",
+    "test": "npm run test:backend && npm run test:frontend && npm run test:mobile",
+    "db:generate": "npm run db:generate --workspace=backend",
+    "db:push": "npm run db:push --workspace=backend",
+    "db:seed": "npm run db:seed --workspace=backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

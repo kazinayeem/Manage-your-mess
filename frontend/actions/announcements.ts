@@ -222,7 +222,6 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
             announcementId: announcement.id,
             userId,
           })),
-          skipDuplicates: true,
         });
 
         await db.notification.createMany({
@@ -234,7 +233,6 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
             data: JSON.stringify({ announcementId: announcement.id, priority: announcement.priority }),
             sentAt: new Date(),
           })),
-          skipDuplicates: false,
         });
       }
     }
