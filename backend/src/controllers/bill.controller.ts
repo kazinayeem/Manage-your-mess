@@ -5,10 +5,12 @@ import { sendSuccess } from "../utils/response";
 import { computeBillSplit } from "../utils/bills/split";
 import { getBillCategoryLabel } from "../utils/bills/categories";
 
-function deriveBillStatus(dueDate?: Date | null, paidDate?: Date | null, status?: string): string {
+import type { BillStatus } from "@prisma/client";
+
+function deriveBillStatus(dueDate?: Date | null, paidDate?: Date | null, status?: string): BillStatus {
   if (paidDate || status === "PAID") return "PAID";
   if (dueDate && dueDate < new Date()) return "OVERDUE";
-  return status ?? "PENDING";
+  return (status as BillStatus) ?? "PENDING";
 }
 
 async function getActiveMembersWithRooms(messId: string) {

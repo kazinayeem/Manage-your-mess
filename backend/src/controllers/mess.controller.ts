@@ -3,6 +3,7 @@ import { prisma } from "../config/database";
 import { AuthError, NotFoundError, ValidationError } from "../utils/errors";
 import { sendSuccess, sendList } from "../utils/response";
 import { setActiveMessCookie } from "../utils/cookies";
+import { requireMessAccess, requireMessManager } from "../services/access.service";
 
 export async function getMyMesses(req: Request, res: Response) {
   if (!req.user) throw new AuthError("Unauthorized");
@@ -13,27 +14,30 @@ export async function getMyMesses(req: Request, res: Response) {
       mess: {
         include: {
           _count: {
-            select: { members: true, rooms: true },
+            select: { members: { where: { deletedAt: null } }, rooms: { where: { deletedAt: null } } },
           },
+          currentMonth: true,
         },
       },
     },
   });
 
-  const messes = members.map((m) => ({
-    ...m.mess,
-    role: m.role,
-    status: m.status,
-    memberCount: m.mess._count.members,
-    roomCount: m.mess._count.rooms,
-  }));
+  const messes = members
+    .filter((m) => m.mess && !m.mess.deletedAt)
+    .map((m) => ({
+      ...m.mess,
+      memberRole: m.role,
+      memberStatus: m.status,
+      memberCount: m.mess._count.members,
+      roomCount: m.mess._count.rooms,
+    }));
 
   return sendList(res, messes, { total: messes.length }, "User messes retrieved");
 }
 
 export async function createMess(req: Request, res: Response) {
   if (!req.user) throw new AuthError("Unauthorized");
-  const { name, description, address } = req.body;
+  const { name, description, address, monthlyRules } = req.body;
 
   if (!name) throw new ValidationError("Mess name is required");
 
@@ -46,6 +50,7 @@ export async function createMess(req: Request, res: Response) {
         slug,
         description,
         address,
+        monthlyRules: monthlyRules ? (typeof monthlyRules === "string" ? monthlyRules : JSON.stringify(monthlyRules)) : null,
         ownerId: req.user!.id,
         managerId: req.user!.id,
       },
@@ -55,8 +60,9 @@ export async function createMess(req: Request, res: Response) {
       data: {
         messId: createdMess.id,
         userId: req.user!.id,
-        role: "MESS_OWNER",
+        role: "MESS_MANAGER",
         status: "ACTIVE",
+        fullName: req.user!.name || "Manager",
       },
     });
 
@@ -68,12 +74,46 @@ export async function createMess(req: Request, res: Response) {
         year: now.getFullYear(),
         month: now.getMonth() + 1,
         label: now.toLocaleString("default", { month: "long", year: "numeric" }),
+        status: "ACTIVE",
       },
     });
 
     await tx.mess.update({
       where: { id: createdMess.id },
       data: { currentMonthId: month.id },
+    });
+
+    // Default expense categories
+    const defaultCategories = [
+      { name: "Rent", isMealCost: false },
+      { name: "Electricity", isMealCost: false },
+      { name: "Water", isMealCost: false },
+      { name: "Gas", isMealCost: false },
+      { name: "Internet", isMealCost: false },
+      { name: "Grocery", isMealCost: true },
+      { name: "Cleaner", isMealCost: false },
+      { name: "Maintenance", isMealCost: false },
+      { name: "Emergency", isMealCost: false },
+      { name: "Other", isMealCost: false },
+    ];
+
+    await tx.expenseCategory.createMany({
+      data: defaultCategories.map((c) => ({
+        messId: createdMess.id,
+        name: c.name,
+        isDefault: true,
+        isMealCost: c.isMealCost,
+      })),
+    });
+
+    await tx.auditLog.create({
+      data: {
+        messId: createdMess.id,
+        userId: req.user!.id,
+        action: "CREATE",
+        entity: "Mess",
+        entityId: createdMess.id,
+      },
     });
 
     return createdMess;
@@ -118,6 +158,7 @@ export async function joinMess(req: Request, res: Response) {
       userId: req.user.id,
       role: "MEMBER",
       status: "PENDING",
+      fullName: req.user.name,
     },
   });
 
@@ -128,6 +169,8 @@ export async function getMessDetails(req: Request, res: Response) {
   const messId = req.params.id || req.activeMessId;
   if (!messId) throw new ValidationError("Mess ID required");
 
+  const access = await requireMessAccess(req.user!, messId);
+
   const mess = await prisma.mess.findUnique({
     where: { id: messId },
     include: {
@@ -135,13 +178,84 @@ export async function getMessDetails(req: Request, res: Response) {
       manager: { select: { id: true, name: true, email: true, phone: true } },
       currentMonth: true,
       _count: {
-        select: { members: true, rooms: true, meals: true, expenses: true },
+        select: {
+          members: { where: { deletedAt: null } },
+          rooms: { where: { deletedAt: null } },
+          meals: true,
+          expenses: { where: { deletedAt: null } },
+        },
       },
     },
   });
 
   if (!mess || mess.deletedAt) throw new NotFoundError("Mess not found");
-  return sendSuccess(res, mess);
+  return sendSuccess(res, { ...mess, userRole: access.role, userMember: access.member });
+}
+
+export async function updateMess(req: Request, res: Response) {
+  const messId = req.params.id || req.activeMessId;
+  if (!messId) throw new ValidationError("Mess ID required");
+
+  await requireMessAccess(req.user!, messId, "MESS_UPDATE");
+
+  const { name, description, address, monthlyRules } = req.body;
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (address !== undefined) updateData.address = address;
+  if (monthlyRules !== undefined) {
+    updateData.monthlyRules = typeof monthlyRules === "string" ? monthlyRules : JSON.stringify(monthlyRules);
+  }
+
+  const updated = await prisma.mess.update({
+    where: { id: messId },
+    data: updateData,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      messId,
+      userId: req.user!.id,
+      action: "UPDATE",
+      entity: "Mess",
+      entityId: messId,
+      newData: JSON.stringify(updateData),
+    },
+  });
+
+  return sendSuccess(res, updated, "Mess updated successfully");
+}
+
+export async function deleteMess(req: Request, res: Response) {
+  const messId = req.params.id || req.activeMessId;
+  if (!messId) throw new ValidationError("Mess ID required");
+
+  await requireMessAccess(req.user!, messId, "MESS_DELETE");
+
+  const mess = await prisma.mess.findFirst({
+    where: { id: messId, deletedAt: null },
+  });
+  if (!mess) throw new NotFoundError("Mess not found");
+
+  await prisma.mess.update({
+    where: { id: messId },
+    data: {
+      deletedAt: new Date(),
+      status: "ARCHIVED",
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      messId,
+      userId: req.user!.id,
+      action: "DELETE",
+      entity: "Mess",
+      entityId: messId,
+    },
+  });
+
+  return sendSuccess(res, null, "Mess archived successfully");
 }
 
 export async function switchActiveMess(req: Request, res: Response) {
@@ -164,6 +278,8 @@ export async function regenerateInviteCode(req: Request, res: Response) {
   const messId = req.params.id || req.activeMessId;
   if (!messId) throw new ValidationError("Mess ID required");
 
+  await requireMessAccess(req.user!, messId, "MEMBER_INVITE");
+
   const inviteCode = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
   const mess = await prisma.mess.update({
     where: { id: messId },
@@ -174,26 +290,53 @@ export async function regenerateInviteCode(req: Request, res: Response) {
 }
 
 export async function changeManager(req: Request, res: Response) {
-  if (!req.user) throw new AuthError("Unauthorized");
   const messId = req.params.id || req.activeMessId;
   const { memberId } = req.body;
   if (!messId || !memberId) throw new ValidationError("Mess ID and Member ID required");
 
+  const { mess } = await requireMessManager(req.user!, messId);
+
   const target = await prisma.member.findFirst({
     where: { id: memberId, messId, deletedAt: null, status: "ACTIVE" },
   });
-  if (!target) throw new NotFoundError("Member not found");
+  if (!target) throw new NotFoundError("Member not found or not active");
 
-  await prisma.mess.update({
-    where: { id: messId },
-    data: { managerId: target.userId },
-  });
+  if (target.userId === mess.managerId) {
+    throw new ValidationError("This member is already the manager");
+  }
 
-  await prisma.member.update({
-    where: { id: memberId },
-    data: { role: "MESS_MANAGER" },
+  const oldManagerUserId = mess.managerId;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.mess.update({
+      where: { id: messId },
+      data: { managerId: target.userId },
+    });
+
+    await tx.member.update({
+      where: { id: memberId },
+      data: { role: "MESS_MANAGER" },
+    });
+
+    if (oldManagerUserId) {
+      await tx.member.updateMany({
+        where: { messId, userId: oldManagerUserId },
+        data: { role: "MEMBER" },
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        messId,
+        userId: req.user!.id,
+        action: "TRANSFER",
+        entity: "Manager",
+        entityId: memberId,
+        oldData: JSON.stringify({ managerUserId: oldManagerUserId }),
+        newData: JSON.stringify({ managerUserId: target.userId }),
+      },
+    });
   });
 
   return sendSuccess(res, null, "Manager changed successfully");
 }
-

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/database";
-import { NotFoundError, ValidationError } from "../utils/errors";
+import { NotFoundError, ValidationError, AuthError, ForbiddenError } from "../utils/errors";
 import { sendSuccess, sendList } from "../utils/response";
 import { logAudit } from "../services/audit.service";
 

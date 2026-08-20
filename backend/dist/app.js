@@ -22,6 +22,12 @@ const utility_routes_1 = __importDefault(require("./routes/utility.routes"));
 const analytics_routes_1 = __importDefault(require("./routes/analytics.routes"));
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const super_admin_routes_1 = __importDefault(require("./routes/super-admin.routes"));
+const bill_routes_1 = __importDefault(require("./routes/bill.routes"));
+const billing_routes_1 = __importDefault(require("./routes/billing.routes"));
+const report_routes_1 = __importDefault(require("./routes/report.routes"));
+const announcement_routes_1 = __importDefault(require("./routes/announcement.routes"));
+const invitation_routes_1 = __importDefault(require("./routes/invitation.routes"));
+const month_routes_1 = __importDefault(require("./routes/month.routes"));
 const error_handler_1 = require("./middleware/error-handler");
 const env_1 = require("./config/env");
 exports.app = (0, express_1.default)();
@@ -52,6 +58,12 @@ exports.app.use("/api/v1/utilities", utility_routes_1.default);
 exports.app.use("/api/v1/analytics", analytics_routes_1.default);
 exports.app.use("/api/v1/notifications", notification_routes_1.default);
 exports.app.use("/api/v1/super-admin", super_admin_routes_1.default);
+exports.app.use("/api/v1/bills", bill_routes_1.default);
+exports.app.use("/api/v1/billing", billing_routes_1.default);
+exports.app.use("/api/v1/reports", report_routes_1.default);
+exports.app.use("/api/v1/announcements", announcement_routes_1.default);
+exports.app.use("/api/v1/invitations", invitation_routes_1.default);
+exports.app.use("/api/v1/months", month_routes_1.default);
 // Global Error Handler
 exports.app.use(error_handler_1.errorHandler);
 //# sourceMappingURL=app.js.map

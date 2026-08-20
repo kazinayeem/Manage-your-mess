@@ -1,15 +1,16 @@
 import type { Request, Response, NextFunction } from "express";
+import type { UserRole } from "@prisma/client";
 import { AuthError, ForbiddenError } from "../utils/errors";
 import { verifyAccessToken } from "../utils/jwt";
 import { prisma } from "../config/database";
-import { REFRESH_COOKIE_NAME, SESSION_COOKIE_NAME } from "../config/env";
+import { SESSION_COOKIE_NAME } from "../config/env";
 import { getActiveMessFromCookie } from "../utils/cookies";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string | null;
-  role: string;
+  role: UserRole;
   messId?: string;
   memberId?: string;
 }

@@ -1,4 +1,5 @@
 import type { PlanDurationType, PlanVisibility } from "@/types/domain";
+type Plan = any;
 import {
   LEGACY_FEATURE_MAP,
   type PlanFeatureKey,

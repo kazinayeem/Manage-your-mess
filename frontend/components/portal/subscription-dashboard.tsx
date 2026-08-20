@@ -100,11 +100,11 @@ export function SubscriptionDashboard({
       <Card>
         <CardHeader><CardTitle>Billing History</CardTitle></CardHeader>
         <CardContent>
-          {subscription.invoices.length === 0 && subscription.paymentRequests.length === 0 ? (
+          {!subscription.invoices?.length && !subscription.paymentRequests?.length ? (
             <p className="text-sm text-zinc-500">No billing history yet.</p>
           ) : (
             <div className="space-y-3">
-              {subscription.paymentRequests.map((req) => (
+              {(subscription.paymentRequests || []).map((req: any) => (
                 <div key={req.id} className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm">
                   <div>
                     <p className="font-medium">Payment Request</p>
@@ -116,7 +116,7 @@ export function SubscriptionDashboard({
                   </div>
                 </div>
               ))}
-              {subscription.invoices.map((inv) => (
+              {(subscription.invoices || []).map((inv: any) => (
                 <div key={inv.id} className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm">
                   <div>
                     <p className="font-medium">Invoice {inv.invoiceNumber}</p>

@@ -5,6 +5,8 @@ import {
   createMess,
   joinMess,
   getMessDetails,
+  updateMess,
+  deleteMess,
   switchActiveMess,
   regenerateInviteCode,
   changeManager,
@@ -19,8 +21,11 @@ router.get("/", asyncHandler(getMyMesses));
 router.post("/", asyncHandler(createMess));
 router.post("/join", asyncHandler(joinMess));
 router.post("/switch", asyncHandler(switchActiveMess));
-router.post("/:id/regenerate-invite", asyncHandler(regenerateInviteCode));
-router.post("/:id/manager", asyncHandler(changeManager));
 router.get("/:id", asyncHandler(getMessDetails));
+router.patch("/:id", asyncHandler(updateMess));
+router.delete("/:id", asyncHandler(deleteMess));
+router.post("/:id/regenerate-invite", asyncHandler(regenerateInviteCode));
+router.patch("/:id/manager", asyncHandler(changeManager));
+router.post("/:id/manager", asyncHandler(changeManager));
 
 export default router;

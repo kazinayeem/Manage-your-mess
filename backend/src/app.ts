@@ -17,11 +17,12 @@ import utilityRoutes from "./routes/utility.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 import notificationRoutes from "./routes/notification.routes";
 import superAdminRoutes from "./routes/super-admin.routes";
-import queryRoutes from "./routes/query.routes";
 import billRoutes from "./routes/bill.routes";
 import billingRoutes from "./routes/billing.routes";
 import reportRoutes from "./routes/report.routes";
 import announcementRoutes from "./routes/announcement.routes";
+import invitationRoutes from "./routes/invitation.routes";
+import monthRoutes from "./routes/month.routes";
 
 import { errorHandler } from "./middleware/error-handler";
 import { env } from "./config/env";
@@ -63,7 +64,8 @@ app.use("/api/v1/bills", billRoutes);
 app.use("/api/v1/billing", billingRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/announcements", announcementRoutes);
-app.use("/api/v1/query", queryRoutes);
+app.use("/api/v1/invitations", invitationRoutes);
+app.use("/api/v1/months", monthRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

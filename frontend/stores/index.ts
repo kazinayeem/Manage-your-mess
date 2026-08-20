@@ -2,17 +2,37 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AnalyticsRange } from "@/lib/store/api/analytics-api";
 
+export interface UserMessInfo {
+  id: string;
+  name: string;
+  slug: string;
+  memberRole?: string;
+  memberStatus?: string;
+  memberCount?: number;
+  currentMonth?: {
+    id: string;
+    label: string;
+  } | null;
+}
 
 interface MessStore {
   activeMessId: string | null;
+  activeMess: UserMessInfo | null;
+  userMesses: UserMessInfo[];
   setActiveMessId: (id: string | null) => void;
+  setActiveMess: (mess: UserMessInfo | null) => void;
+  setUserMesses: (messes: UserMessInfo[]) => void;
 }
 
 export const useMessStore = create<MessStore>()(
   persist(
     (set) => ({
       activeMessId: null,
+      activeMess: null,
+      userMesses: [],
       setActiveMessId: (id) => set({ activeMessId: id }),
+      setActiveMess: (mess) => set({ activeMess: mess, activeMessId: mess?.id || null }),
+      setUserMesses: (messes) => set({ userMesses: messes }),
     }),
     { name: "bornomess-active-mess" }
   )

@@ -39,9 +39,9 @@ export function StartNewMonthDialog({ messId, children, onOpenChange }: StartNew
     if (!open) return;
 
     setFetching(true);
-    apiGet<{ currentLabel: string; suggestedLabel: string }>(`/messes/${messId}/month-preview`)
+    apiGet<{ success: boolean; data?: { currentLabel: string; suggestedLabel: string } }>(`/messes/${messId}/month-preview`)
       .then((res) => {
-        if (!res.data) {
+        if (!res?.data) {
           toast.error(t("noActiveMonth"));
           setOpen(false);
           return;

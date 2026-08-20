@@ -9,6 +9,12 @@ router.use((0, async_handler_1.asyncHandler)(auth_1.authenticateUser));
 router.get("/", (0, async_handler_1.asyncHandler)(mess_controller_1.getMyMesses));
 router.post("/", (0, async_handler_1.asyncHandler)(mess_controller_1.createMess));
 router.post("/join", (0, async_handler_1.asyncHandler)(mess_controller_1.joinMess));
+router.post("/switch", (0, async_handler_1.asyncHandler)(mess_controller_1.switchActiveMess));
 router.get("/:id", (0, async_handler_1.asyncHandler)(mess_controller_1.getMessDetails));
+router.patch("/:id", (0, async_handler_1.asyncHandler)(mess_controller_1.updateMess));
+router.delete("/:id", (0, async_handler_1.asyncHandler)(mess_controller_1.deleteMess));
+router.post("/:id/regenerate-invite", (0, async_handler_1.asyncHandler)(mess_controller_1.regenerateInviteCode));
+router.patch("/:id/manager", (0, async_handler_1.asyncHandler)(mess_controller_1.changeManager));
+router.post("/:id/manager", (0, async_handler_1.asyncHandler)(mess_controller_1.changeManager));
 exports.default = router;
 //# sourceMappingURL=mess.routes.js.map
