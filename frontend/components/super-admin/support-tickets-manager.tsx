@@ -1,30 +1,31 @@
 "use client";
 
-import { useRouter } from "@/i18n/navigation";
+import { useGetAdminSupportTicketsQuery } from "@/lib/store/api/super-admin-api";
 import { updateSupportTicket } from "@/actions/super-admin";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import type { TicketStatus } from "@prisma/client";
+import type { TicketStatus } from "@/types/domain";
 
-type TicketRow = {
-  id: string;
-  subject: string;
-  description: string;
-  status: TicketStatus;
-  priority: string;
-  createdAt: Date;
-  user: { name: string | null; email: string };
-};
+export function SupportTicketsManager() {
+  const { data, isLoading, error } = useGetAdminSupportTicketsQuery();
+  const tickets = data?.data || data || [];
 
-export function SupportTicketsManager({ tickets }: { tickets: TicketRow[] }) {
-  const router = useRouter();
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading support tickets from Express API...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading support tickets</div>;
+  }
 
   return (
     <div className="grid gap-3">
-      {tickets.length === 0 && <p className="text-sm text-zinc-500">No support tickets.</p>}
-      {tickets.map((t) => (
+      {(!Array.isArray(tickets) || tickets.length === 0) && (
+        <p className="text-sm text-zinc-500">No support tickets.</p>
+      )}
+      {Array.isArray(tickets) && tickets.map((t: any) => (
         <Card key={t.id}>
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -33,7 +34,7 @@ export function SupportTicketsManager({ tickets }: { tickets: TicketRow[] }) {
             </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p className="text-zinc-500">{t.user.name ?? t.user.email}</p>
+            <p className="text-zinc-500">{t.user?.name ?? t.user?.email ?? "User"}</p>
             <p>{t.description}</p>
             <div className="flex gap-2 pt-2">
               {(["IN_PROGRESS", "RESOLVED", "CLOSED"] as TicketStatus[]).map((s) => (
@@ -45,7 +46,6 @@ export function SupportTicketsManager({ tickets }: { tickets: TicketRow[] }) {
                     const r = await updateSupportTicket(t.id, { status: s });
                     if (r.success) {
                       toast.success(`Marked ${s}`);
-                      router.refresh();
                     } else toast.error(r.error);
                   }}
                 >

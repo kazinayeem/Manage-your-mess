@@ -11,28 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { normalizeEmail } from "@/lib/utils";
-
-function loginErrorMessage(error?: string | null): string {
-  if (!error) return "Invalid email or password.";
-  const lower = error.toLowerCase();
-  if (lower.includes("locked")) {
-    return "Account is temporarily locked after too many failed attempts. Wait 30 minutes or contact support.";
-  }
-  if (lower.includes("too many")) return "Too many login attempts. Please wait and try again.";
-  if (error === "CredentialsSignin") return "Invalid email or password.";
-  if (lower.includes("google sign-in")) return error;
-  return error;
-}
+import { setTokens } from "@/lib/token-storage";
+import { apiGet, apiPost } from "@/lib/api-client";
 
 function safeCallbackUrl(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/portal";
   return raw;
-}
-
-/** Full-page navigation — reliable on Vercel after credentials sign-in (avoids router/cookie race). */
-function redirectAfterLogin(callbackUrl: string) {
-  const path = safeCallbackUrl(callbackUrl);
-  window.location.assign(path);
 }
 
 export function LoginForm() {
@@ -41,36 +25,46 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
   const [loading, setLoading] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(false);
-  const isDev = process.env.NODE_ENV === "development";
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function processLogin(email: string, password: string) {
     setLoading(true);
-
     try {
-      const formData = new FormData(e.currentTarget);
-      const email = normalizeEmail(String(formData.get("email") ?? ""));
-      const password = String(formData.get("password") ?? "");
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const res = await response.json();
-      if (!res.success) {
+      // 1. Login request
+      const res = await apiPost("/auth/login", { email, password });
+      if (!res.success || !res.data) {
         toast.error(res.message || "Invalid credentials");
         setLoading(false);
         return;
       }
 
-      redirectAfterLogin(callbackUrl);
+      // 2. Extract & Persist tokens
+      const { accessToken, refreshToken, user } = res.data;
+      if (accessToken) {
+        setTokens(accessToken, refreshToken);
+      }
+
+      // 3. Call /me via API client (attaches Authorization header) to verify session
+      const meRes = await apiGet("/auth/me");
+      const currentUser = meRes.success && meRes.data?.user ? meRes.data.user : user;
+
+      // 4. Navigate to role-specific dashboard
+      if (currentUser?.role === "SUPER_ADMIN") {
+        window.location.assign("/super-admin");
+      } else {
+        window.location.assign(callbackUrl);
+      }
     } catch {
       toast.error("Login failed. Please try again.");
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const email = normalizeEmail(String(formData.get("email") ?? ""));
+    const password = String(formData.get("password") ?? "");
+    await processLogin(email, password);
   }
 
   return (
@@ -129,29 +123,7 @@ export function LoginForm() {
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={async () => {
-                  setLoading(true);
-                  try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/login`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        email: "admin@messflow.pro",
-                        password: "Admin@123456",
-                      }),
-                    });
-                    const res = await response.json();
-                    if (!res.success) {
-                      toast.error("Failed to quick login");
-                    } else {
-                      redirectAfterLogin(callbackUrl);
-                    }
-                  } catch (err) {
-                    toast.error("Failed to quick login");
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
+                onClick={() => processLogin("admin@messflow.pro", "Admin@123456")}
                 disabled={loading}
               >
                 Super Admin
@@ -160,29 +132,7 @@ export function LoginForm() {
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={async () => {
-                  setLoading(true);
-                  try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/login`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        email: "demo@messflow.pro",
-                        password: "Demo@123456",
-                      }),
-                    });
-                    const res = await response.json();
-                    if (!res.success) {
-                      toast.error("Failed to quick login");
-                    } else {
-                      redirectAfterLogin(callbackUrl);
-                    }
-                  } catch (err) {
-                    toast.error("Failed to quick login");
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
+                onClick={() => processLogin("demo@messflow.pro", "Demo@123456")}
                 disabled={loading}
               >
                 Demo Owner

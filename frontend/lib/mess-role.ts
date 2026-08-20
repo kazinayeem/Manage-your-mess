@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 
 type MessRef = { ownerId: string; managerId: string | null };
 type MemberRef = { userId: string; role: UserRole };

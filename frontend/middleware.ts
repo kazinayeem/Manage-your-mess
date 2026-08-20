@@ -59,6 +59,15 @@ export default async function middleware(request: NextRequest) {
   }
 
   if (isProtected || isAuthPath) {
+    // Stale session (user no longer exists in DB): clear cookies and force re-login.
+    // loadActiveUser redirects here with this flag when the JWT sub is not found.
+    if (isAuthPath && request.nextUrl.searchParams.get("reason") === "session_expired") {
+      const res = NextResponse.redirect(new URL("/login", request.url));
+      res.cookies.delete("bornomess.session");
+      res.cookies.delete("bornomess.refresh");
+      return res;
+    }
+
     // Read JWT directly from Express-issued session cookie
     const rawToken = request.cookies.get("bornomess.session")?.value ?? null;
 

@@ -17,6 +17,7 @@ import utilityRoutes from "./routes/utility.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 import notificationRoutes from "./routes/notification.routes";
 import superAdminRoutes from "./routes/super-admin.routes";
+import queryRoutes from "./routes/query.routes";
 
 import { errorHandler } from "./middleware/error-handler";
 import { env } from "./config/env";
@@ -54,6 +55,7 @@ app.use("/api/v1/utilities", utilityRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/super-admin", superAdminRoutes);
+app.use("/api/v1/query", queryRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

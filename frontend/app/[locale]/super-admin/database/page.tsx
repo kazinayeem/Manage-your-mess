@@ -1,9 +1,22 @@
-import { getDatabaseStats } from "@/actions/super-admin";
+"use client";
+
+import { useGetDatabaseStatsQuery } from "@/lib/store/api/super-admin-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default async function SuperAdminDatabasePage() {
-  const stats = await getDatabaseStats();
-  const rows = Object.entries(stats).map(([k, v]) => ({
+export default function SuperAdminDatabasePage() {
+  const { data, isLoading, error } = useGetDatabaseStatsQuery();
+  const res = data?.data || data || {};
+  const tables = res.tables || res;
+
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading database monitor stats from Express API...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading database stats</div>;
+  }
+
+  const rows = Object.entries(tables || {}).map(([k, v]) => ({
     label: k.charAt(0).toUpperCase() + k.slice(1),
     value: v,
   }));
@@ -21,7 +34,7 @@ export default async function SuperAdminDatabasePage() {
               <CardTitle className="text-sm text-zinc-500">{r.label}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{r.value.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{String(r.value)}</p>
             </CardContent>
           </Card>
         ))}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 import { ensureUserSubscription } from "@/actions/billing";
 import { getMemberLimit } from "@/lib/billing/plan-utils";
 import { requireAuth, requireMessAccess, requireMessManager } from "@/lib/mess-access";
@@ -332,7 +332,7 @@ export async function addMealCost(
       ? `Bazar: ${bazarItems.join(", ")}`
       : "Meal cost";
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       const expense = await tx.expense.create({
         data: {
           messId,
@@ -490,7 +490,7 @@ export async function addMealEntry(
 
     let saved = 0;
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       for (const entry of parsed.data.entries) {
         const { memberId, breakfast: newB, lunch: newL, dinner: newD } = entry;
 
@@ -599,7 +599,7 @@ export async function addMember(messId: string, formData: FormData): Promise<Act
         fullName: parsed.data.fullName,
         phone: parsed.data.phone,
         nid: parsed.data.nid,
-        bloodGroup: parsed.data.bloodGroup as import("@prisma/client").BloodGroup | undefined,
+        bloodGroup: parsed.data.bloodGroup as any | undefined,
         address: parsed.data.address,
         occupation: parsed.data.occupation,
         university: parsed.data.university,
@@ -654,7 +654,7 @@ export async function updateMember(
           fullName: parsed.data.fullName,
           phone: parsed.data.phone ?? null,
           nid: parsed.data.nid ?? null,
-          bloodGroup: (parsed.data.bloodGroup as import("@prisma/client").BloodGroup) ?? null,
+          bloodGroup: (parsed.data.bloodGroup as any) ?? null,
           address: parsed.data.address ?? null,
           occupation: parsed.data.occupation ?? null,
           university: parsed.data.university ?? null,

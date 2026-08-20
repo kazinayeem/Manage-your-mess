@@ -1,25 +1,29 @@
+"use client";
+
+import { useGetAdminAuditLogsQuery } from "@/lib/store/api/super-admin-api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 
-type LogRow = {
-  id: string;
-  action: string;
-  entity: string;
-  entityId: string | null;
-  createdAt: Date;
-  user: { name: string | null; email: string } | null;
-  mess: { name: string } | null;
-};
+export function AuditLogsList() {
+  const { data, isLoading, error } = useGetAdminAuditLogsQuery();
+  const logs = data?.data || data || [];
 
-export function AuditLogsList({ logs }: { logs: LogRow[] }) {
-  if (!logs.length) {
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading audit logs from Express API...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading audit logs</div>;
+  }
+
+  if (!Array.isArray(logs) || !logs.length) {
     return <p className="text-sm text-zinc-500">No audit logs yet.</p>;
   }
 
   return (
     <div className="space-y-2">
-      {logs.map((log) => (
+      {logs.map((log: any) => (
         <Card key={log.id}>
           <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
             <div>

@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { getBillCategoryLabel } from "@/lib/bills/categories";
-import type { RecurringBill } from "@prisma/client";
+type RecurringBill = any;
 
 export function RecurringBillsClient({
   messId,

@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { registerUser } from "@/actions/mess";
 import { toast } from "sonner";
 import { useRouter } from "@/i18n/navigation";
+import { setTokens } from "@/lib/token-storage";
+import { apiGet, apiPost } from "@/lib/api-client";
 
 export function RegisterForm() {
   const t = useTranslations("auth");
@@ -21,6 +23,8 @@ export function RegisterForm() {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") ?? "");
+    const password = String(formData.get("password") ?? "");
 
     const result = await registerUser(formData);
     if (!result.success) {
@@ -30,17 +34,17 @@ export function RegisterForm() {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.get("email"),
-          password: formData.get("password"),
-        }),
-      });
-
-      const res = await response.json();
-      if (!res.success) {
+      const res = await apiPost("/auth/login", { email, password });
+      if (res.success && res.data) {
+        const { accessToken, refreshToken } = res.data;
+        if (accessToken) {
+          setTokens(accessToken, refreshToken);
+        }
+        await apiGet("/auth/me");
+        toast.success("Welcome to MessFlow Pro!");
+        window.location.assign("/portal");
+        return;
+      } else {
         toast.error("Account created. Please sign in.");
         router.push("/login");
         return;
@@ -50,9 +54,6 @@ export function RegisterForm() {
       router.push("/login");
       return;
     }
-
-    toast.success("Welcome to MessFlow Pro!");
-    router.push("/portal");
   }
 
   return (

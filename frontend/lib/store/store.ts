@@ -4,6 +4,7 @@ import { baseApi } from "./api/base-api";
 import "./api/analytics-api";
 import "./api/notification-api";
 import "./api/mess-api";
+import "./api/super-admin-api";
 
 export function makeStore() {
   return configureStore({

@@ -5,7 +5,6 @@ import { requireMessAccess } from "@/lib/mess-access";
 import { requireSuperAdmin } from "@/lib/billing/auth";
 import { getMonthSummary } from "@/actions/monthly";
 import { getBillCategoryLabel } from "@/lib/bills/categories";
-import type { BillCategoryType } from "@prisma/client";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 
 export type AnalyticsRange =
@@ -59,13 +58,13 @@ export async function getSuperAdminAnalytics(range: AnalyticsRange = "year") {
         where: { status: "paid", paidAt: { gte: start, lte: end } },
         _sum: { amount: true },
       });
-      return { month: label, revenue: r._sum.amount ?? 0 };
+      return { month: label, revenue: r?._sum?.amount ?? 0 };
     })
   );
 
   const plans = await db.plan.findMany({ where: { isActive: true } });
   const subscriptionDist = await Promise.all(
-    plans.map(async (p) => ({
+    plans.map(async (p: any) => ({
       name: p.name,
       value: await db.subscription.count({ where: { planId: p.id, status: "ACTIVE" } }),
     }))
@@ -87,7 +86,7 @@ export async function getSuperAdminAnalytics(range: AnalyticsRange = "year") {
 
   const paymentMethods = await db.paymentMethod.findMany({ where: { isActive: true } });
   const paymentUsage = await Promise.all(
-    paymentMethods.map(async (m) => ({
+    paymentMethods.map(async (m: any) => ({
       name: m.name,
       value: await db.subscriptionPaymentRequest.count({
         where: { paymentMethodId: m.id, status: "APPROVED" },
@@ -111,11 +110,11 @@ export async function getSuperAdminAnalytics(range: AnalyticsRange = "year") {
     range,
     overview: stats,
     revenueTrend,
-    subscriptionDist: subscriptionDist.filter((s) => s.value > 0),
+    subscriptionDist: subscriptionDist.filter((s: any) => s.value > 0),
     userGrowth,
-    topMesses: topMesses.map((m) => ({ name: m.name, members: m._count.members })),
-    paymentUsage: paymentUsage.filter((p) => p.value > 0),
-    tickets: tickets.map((t) => ({ status: t.status, count: t._count.status })),
+    topMesses: topMesses.map((m: any) => ({ name: m.name, members: m._count?.members ?? 0 })),
+    paymentUsage: paymentUsage.filter((p: any) => p.value > 0),
+    tickets: tickets.map((t: any) => ({ status: t.status, count: t._count?.status ?? 0 })),
     funnel,
     insights: buildSuperAdminInsights(stats),
   };
@@ -164,9 +163,9 @@ async function getPlatformStats() {
     activeUsers,
     totalMesses,
     totalMembers,
-    monthlyRevenue: monthlyRevenue._sum.amount ?? 0,
-    annualRevenue: annualRevenue._sum.amount ?? 0,
-    totalRevenue: totalRevenue._sum.amount ?? 0,
+    monthlyRevenue: monthlyRevenue?._sum?.amount ?? 0,
+    annualRevenue: annualRevenue?._sum?.amount ?? 0,
+    totalRevenue: totalRevenue?._sum?.amount ?? 0,
     activeSubscriptions,
     expiredSubscriptions,
     pendingPayments,
@@ -210,7 +209,7 @@ export async function getMessAnalytics(messId: string, range: AnalyticsRange = "
         where: { messId, status: "APPROVED", date: { gte: s, lte: e }, deletedAt: null },
         _sum: { amount: true },
       });
-      return { month: label, amount: r._sum.amount ?? 0 };
+      return { month: label, amount: r?._sum?.amount ?? 0 };
     })
   );
 
@@ -220,14 +219,14 @@ export async function getMessAnalytics(messId: string, range: AnalyticsRange = "
         where: { messId, status: "APPROVED", createdAt: { gte: s, lte: e }, deletedAt: null },
         _sum: { amount: true },
       });
-      return { month: label, amount: r._sum.amount ?? 0 };
+      return { month: label, amount: r?._sum?.amount ?? 0 };
     })
   );
 
   const expenseBreakdown = Object.entries(summary.billsByCategory)
-    .filter(([, v]) => v > 0)
+    .filter(([, v]) => typeof v === "number" && v > 0)
     .map(([cat, amount]) => ({
-      name: getBillCategoryLabel(cat as BillCategoryType),
+      name: getBillCategoryLabel(cat as any),
       value: amount,
     }));
 
@@ -237,30 +236,30 @@ export async function getMessAnalytics(messId: string, range: AnalyticsRange = "
   });
 
   const mealByMonth = months.map(({ label, start: s, end: e }) => {
-    const entries = mealEntries.filter((m) => m.meal.date >= s && m.meal.date <= e);
+    const entries = mealEntries.filter((m: any) => m.meal.date >= s && m.meal.date <= e);
     return {
       month: label,
-      breakfast: entries.reduce((a, m) => a + m.breakfast, 0),
-      lunch: entries.reduce((a, m) => a + m.lunch, 0),
-      dinner: entries.reduce((a, m) => a + m.dinner, 0),
+      breakfast: entries.reduce((a: number, m: any) => a + m.breakfast, 0),
+      lunch: entries.reduce((a: number, m: any) => a + m.lunch, 0),
+      dinner: entries.reduce((a: number, m: any) => a + m.dinner, 0),
     };
   });
 
   const depositRanking = [...summary.members]
-    .sort((a, b) => b.totalDeposit - a.totalDeposit)
+    .sort((a: any, b: any) => b.totalDeposit - a.totalDeposit)
     .slice(0, 8)
-    .map((m) => ({ name: m.fullName ?? "Member", deposit: m.totalDeposit }));
+    .map((m: any) => ({ name: m.fullName ?? "Member", deposit: m.totalDeposit }));
 
   const dueRanking = [...summary.members]
-    .filter((m) => m.due > 0)
-    .sort((a, b) => b.due - a.due)
+    .filter((m: any) => m.due > 0)
+    .sort((a: any, b: any) => b.due - a.due)
     .slice(0, 8)
-    .map((m) => ({ name: m.fullName ?? "Member", due: m.due }));
+    .map((m: any) => ({ name: m.fullName ?? "Member", due: m.due }));
 
   const utilityTrend = months.map(({ label, start: s, end: e }) => {
-    const bills = summary.bills.filter((b) => b.billingMonth >= s && b.billingMonth <= e);
+    const bills = summary.bills.filter((b: any) => b.billingMonth >= s && b.billingMonth <= e);
     const pick = (cats: string[]) =>
-      bills.filter((b) => cats.includes(b.category)).reduce((a, b) => a + b.amount, 0);
+      bills.filter((b: any) => cats.includes(b.category)).reduce((a: number, b: any) => a + b.amount, 0);
     return {
       month: label,
       electricity: pick(["ELECTRICITY"]),
@@ -284,7 +283,7 @@ export async function getMessAnalytics(messId: string, range: AnalyticsRange = "
     mealRate: summary.mealRate,
     totalDue: summary.totalDue,
     currentBalance: summary.billKpis.messBalance,
-    bazaarCost: bazaarTotal._sum.totalAmount ?? 0,
+    bazaarCost: bazaarTotal?._sum?.totalAmount ?? 0,
   };
 
   return {
@@ -311,7 +310,7 @@ function buildMessInsights(
   expenseTrend: { month: string; amount: number }[]
 ) {
   const insights: string[] = [];
-  const dueCount = summary.members.filter((m) => m.due > 0).length;
+  const dueCount = summary.members.filter((m: any) => m.due > 0).length;
   if (dueCount > 0) insights.push(`${dueCount} members currently have overdue balances.`);
   if (expenseTrend.length >= 2) {
     const last = expenseTrend[expenseTrend.length - 1].amount;
@@ -325,10 +324,10 @@ function buildMessInsights(
       );
     }
   }
-  const topCat = Object.entries(summary.billsByCategory).sort((a, b) => b[1] - a[1])[0];
+  const topCat = Object.entries(summary.billsByCategory).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
   if (topCat) {
     insights.push(
-      `${getBillCategoryLabel(topCat[0] as BillCategoryType)} is the highest expense category.`
+      `${getBillCategoryLabel(topCat[0] as any)} is the highest expense category.`
     );
   }
   if (summary.totalDeposits < summary.totalExpenses) {
@@ -348,7 +347,7 @@ export async function getMemberAnalytics(messId: string) {
   if (!mess?.currentMonthId) throw new Error("No active month");
 
   const summary = await getMonthSummary(messId, mess.currentMonthId);
-  const myStats = summary?.members.find((m) => m.id === member.id);
+  const myStats = summary?.members.find((m: any) => m.id === member.id);
 
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = subMonths(new Date(), 5 - i);
@@ -360,7 +359,7 @@ export async function getMemberAnalytics(messId: string) {
       const entries = await db.mealEntry.findMany({
         where: { memberId: member.id, meal: { date: { gte: start, lte: end } } },
       });
-      const total = entries.reduce((s, e) => s + e.breakfast + e.lunch + e.dinner, 0);
+      const total = entries.reduce((s: number, e: any) => s + e.breakfast + e.lunch + e.dinner, 0);
       return { month: label, meals: total };
     })
   );
@@ -376,7 +375,7 @@ export async function getMemberAnalytics(messId: string) {
         },
         _sum: { amount: true },
       });
-      return { month: label, amount: r._sum.amount ?? 0 };
+      return { month: label, amount: r?._sum?.amount ?? 0 };
     })
   );
 

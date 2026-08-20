@@ -1,7 +1,6 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { canAccessSuperAdmin } from "@/lib/route-guard";
-import { getAdminStats } from "@/lib/queries";
+"use client";
+
+import { useGetSuperAdminOverviewQuery } from "@/lib/store/api/super-admin-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -20,27 +19,32 @@ import {
   XCircle,
 } from "lucide-react";
 
-export default async function SuperAdminDashboardPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  if (!canAccessSuperAdmin(session.user.role)) redirect("/dashboard");
+export default function SuperAdminDashboardPage() {
+  const { data: res, isLoading, error } = useGetSuperAdminOverviewQuery();
+  const stats = res?.data || res || {};
 
-  const stats = await getAdminStats();
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading dashboard stats from Express API...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading dashboard overview</div>;
+  }
 
   const kpis = [
-    { label: "Total Users", value: stats.totalUsers, icon: Users },
-    { label: "Active Users (30d)", value: stats.activeUsers, icon: UserCheck },
-    { label: "Total Messes", value: stats.totalMesses, icon: Building2 },
-    { label: "Total Branches", value: stats.totalBranches, icon: GitBranch },
-    { label: "Total Members", value: stats.totalMembers, icon: UsersRound },
-    { label: "Monthly Revenue", value: formatCurrency(stats.monthlyRevenue), icon: DollarSign },
-    { label: "Annual Revenue", value: formatCurrency(stats.annualRevenue), icon: TrendingUp },
-    { label: "Active Subscriptions", value: stats.activeSubscriptions, icon: CreditCard },
-    { label: "Expired Subscriptions", value: stats.expiredSubscriptions, icon: Clock },
-    { label: "Trial Accounts", value: stats.trialAccounts, icon: FlaskConical },
-    { label: "Pending Payments", value: stats.pendingPayments, icon: Wallet },
-    { label: "Approved Payments", value: stats.approvedPayments, icon: CheckCircle },
-    { label: "Rejected Payments", value: stats.rejectedPayments, icon: XCircle },
+    { label: "Total Users", value: stats.totalUsers ?? 0, icon: Users },
+    { label: "Active Users (30d)", value: stats.activeUsers ?? 0, icon: UserCheck },
+    { label: "Total Messes", value: stats.totalMesses ?? 0, icon: Building2 },
+    { label: "Total Branches", value: stats.totalBranches ?? 0, icon: GitBranch },
+    { label: "Total Members", value: stats.totalMembers ?? 0, icon: UsersRound },
+    { label: "Monthly Revenue", value: formatCurrency(stats.monthlyRevenue ?? 0), icon: DollarSign },
+    { label: "Annual Revenue", value: formatCurrency(stats.annualRevenue ?? 0), icon: TrendingUp },
+    { label: "Active Subscriptions", value: stats.activeSubscriptions ?? 0, icon: CreditCard },
+    { label: "Expired Subscriptions", value: stats.expiredSubscriptions ?? 0, icon: Clock },
+    { label: "Trial Accounts", value: stats.trialAccounts ?? 0, icon: FlaskConical },
+    { label: "Pending Payments", value: stats.pendingPayments ?? 0, icon: Wallet },
+    { label: "Approved Payments", value: stats.approvedPayments ?? 0, icon: CheckCircle },
+    { label: "Rejected Payments", value: stats.rejectedPayments ?? 0, icon: XCircle },
   ];
 
   return (
@@ -73,9 +77,9 @@ export default async function SuperAdminDashboardPage() {
             <CardTitle>Revenue</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>MRR: {formatCurrency(stats.mrr)}</p>
-            <p>ARR: {formatCurrency(stats.arr)}</p>
-            <p>Lifetime Revenue: {formatCurrency(stats.totalRevenue)}</p>
+            <p>MRR: {formatCurrency(stats.monthlyRevenue ?? 0)}</p>
+            <p>ARR: {formatCurrency(stats.annualRevenue ?? 0)}</p>
+            <p>Lifetime Revenue: {formatCurrency(stats.totalRevenue ?? 0)}</p>
           </CardContent>
         </Card>
         <Card>

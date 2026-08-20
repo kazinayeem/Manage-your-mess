@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
 import { bazaarTaskPath } from "@/lib/bazaar-routes";
-import type { BazaarTaskStatus } from "@prisma/client";
+type BazaarTaskStatus = any;
 
 type PendingTask = {
   id: string;

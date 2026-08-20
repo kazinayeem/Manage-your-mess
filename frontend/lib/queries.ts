@@ -1,67 +1,10 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
-import { apiGet } from "@/lib/api-client";
+import { apiGet } from "@/lib/server-api";
 
-export type UserMessesResult = Prisma.MemberGetPayload<{
-  include: {
-    mess: {
-      include: {
-        subscription: {
-          select: {
-            id: true;
-            status: true;
-            currentPeriodEnd: true;
-            plan: {
-              select: {
-                id: true;
-                slug: true;
-                tier: true;
-                name: true;
-                description: true;
-                price: true;
-                currency: true;
-                durationType: true;
-                durationValue: true;
-                customExpiryDate: true;
-                maxMembers: true;
-                limits: true;
-                features: true;
-                featureToggles: true;
-                isActive: true;
-                isDefault: true;
-                isPopular: true;
-                sortOrder: true;
-                createdAt: true;
-                updatedAt: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
-
-export type MessMembersResult = Prisma.MemberGetPayload<{
-  include: {
-    user: { select: { email: true; image: true } };
-    bed: { include: { room: true } };
-  };
-}>;
-
-export type MessExpensesResult = Prisma.ExpenseGetPayload<{
-  include: {
-    category: true;
-    createdBy: { select: { name: true } };
-  };
-}>;
-
-export type MessDepositsResult = Prisma.DepositGetPayload<{
-  include: {
-    member: { select: { fullName: true } };
-    createdBy: { select: { name: true } };
-  };
-}>;
+export type UserMessesResult = any;
+export type MessMembersResult = any;
+export type MessExpensesResult = any;
+export type MessDepositsResult = any;
 
 export async function getDashboardStats(messId: string) {
   const res = await apiGet(`/analytics/dashboard?messId=${messId}`);
@@ -142,21 +85,21 @@ export async function getAdminStats() {
     const data = res.data;
     return {
       totalUsers: data.totalUsers ?? 0,
-      activeUsers: data.totalUsers ?? 0,
+      activeUsers: data.activeUsers ?? data.totalUsers ?? 0,
       totalMesses: data.totalMesses ?? 0,
-      totalBranches: 0,
-      totalMembers: 0,
-      monthlyRevenue: 0,
-      annualRevenue: 0,
+      totalBranches: data.totalBranches ?? 0,
+      totalMembers: data.totalMembers ?? 0,
+      monthlyRevenue: data.monthlyRevenue ?? 0,
+      annualRevenue: data.annualRevenue ?? 0,
       activeSubscriptions: data.activeSubscriptions ?? 0,
-      expiredSubscriptions: 0,
-      trialAccounts: 0,
-      pendingPayments: 0,
-      approvedPayments: 0,
-      rejectedPayments: 0,
-      totalRevenue: data.totalPlatformExpense ?? 0,
-      mrr: 0,
-      arr: 0,
+      expiredSubscriptions: data.expiredSubscriptions ?? 0,
+      trialAccounts: data.trialAccounts ?? 0,
+      pendingPayments: data.pendingPayments ?? 0,
+      approvedPayments: data.approvedPayments ?? 0,
+      rejectedPayments: data.rejectedPayments ?? 0,
+      totalRevenue: data.totalRevenue ?? data.monthlyRevenue ?? 0,
+      mrr: data.monthlyRevenue ?? 0,
+      arr: data.annualRevenue ?? 0,
       churnRate: 0,
       conversionRate: 0,
     };

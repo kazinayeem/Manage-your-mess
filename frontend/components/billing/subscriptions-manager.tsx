@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useState } from "react";
+import { useGetAdminSubscriptionsQuery, useGetAdminPlansQuery } from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,67 +22,68 @@ import { daysRemaining, formatPlanDuration, toParsedPlan } from "@/lib/billing/p
 import { formatCurrency } from "@/lib/utils";
 import { CalendarPlus, Pause, Play } from "lucide-react";
 
-type SubscriptionRow = Awaited<ReturnType<typeof import("@/actions/billing").getAllSubscriptions>>[number];
-type PlanRow = Awaited<ReturnType<typeof import("@/actions/billing").getAllPlans>>[number];
+export function SubscriptionsManager() {
+  const { data: subData, isLoading: subLoading, error: subError } = useGetAdminSubscriptionsQuery();
+  const { data: planData, isLoading: planLoading } = useGetAdminPlansQuery();
 
-export function SubscriptionsManager({
-  subscriptions,
-  plans,
-}: {
-  subscriptions: SubscriptionRow[];
-  plans: PlanRow[];
-}) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const subscriptions = subData?.data || subData || [];
+  const plans = planData?.data || planData || [];
+
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [extraDays, setExtraDays] = useState("30");
   const [customEnd, setCustomEnd] = useState("");
   const [reason, setReason] = useState("");
-  const [selectedPlanId, setSelectedPlanId] = useState(plans[0]?.id ?? "");
+  const [selectedPlanId, setSelectedPlanId] = useState("");
   const [bonusDays, setBonusDays] = useState("0");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleExtend(id: string) {
-    startTransition(async () => {
-      const result = await extendSubscription(
-        id,
-        Number(extraDays),
-        reason || undefined,
-        customEnd || undefined
-      );
-      if (result.success) {
-        toast.success("Subscription extended");
-        setExtendingId(null);
-        router.refresh();
-      } else toast.error(result.error);
-    });
+  async function handleExtend(id: string) {
+    setIsSubmitting(true);
+    const result = await extendSubscription(
+      id,
+      Number(extraDays),
+      reason || undefined,
+      customEnd || undefined
+    );
+    if (result.success) {
+      toast.success("Subscription extended");
+      setExtendingId(null);
+    } else toast.error(result.error);
+    setIsSubmitting(false);
   }
 
-  function handleStatus(id: string, status: "ACTIVE" | "SUSPENDED" | "EXPIRED" | "CANCELLED") {
-    startTransition(async () => {
-      const result = await updateSubscriptionStatus(id, status, reason || undefined);
-      if (result.success) {
-        toast.success(`Status updated to ${status}`);
-        router.refresh();
-      } else toast.error(result.error);
-    });
+  async function handleStatus(id: string, status: "ACTIVE" | "SUSPENDED" | "EXPIRED" | "CANCELLED") {
+    setIsSubmitting(true);
+    const result = await updateSubscriptionStatus(id, status, reason || undefined);
+    if (result.success) {
+      toast.success(`Status updated to ${status}`);
+    } else toast.error(result.error);
+    setIsSubmitting(false);
   }
 
-  function handleAssign(subscription: SubscriptionRow) {
-    startTransition(async () => {
-      const result = await assignSubscriptionPlan({
-        userId: subscription.user.id,
-        planId: selectedPlanId,
-        messId: subscription.messes[0]?.id ?? null,
-        customExpiryDate: customEnd || undefined,
-        bonusDays: Number(bonusDays || 0),
-      });
-      if (result.success) {
-        toast.success("Plan assigned");
-        setAssigningId(null);
-        router.refresh();
-      } else toast.error(result.error);
+  async function handleAssign(subscription: any) {
+    setIsSubmitting(true);
+    const result = await assignSubscriptionPlan({
+      userId: subscription.user.id,
+      planId: selectedPlanId || (plans[0]?.id ?? ""),
+      messId: subscription.messes?.[0]?.id ?? null,
+      customExpiryDate: customEnd || undefined,
+      bonusDays: Number(bonusDays || 0),
     });
+    if (result.success) {
+      toast.success("Plan assigned");
+      setAssigningId(null);
+    } else toast.error(result.error);
+    setIsSubmitting(false);
+  }
+
+  if (subLoading || planLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading subscriptions from Express API...</div>;
+  }
+
+  if (subError) {
+    return <div className="p-4 text-sm text-red-500">Error loading subscriptions</div>;
   }
 
   return (
@@ -93,27 +94,28 @@ export function SubscriptionsManager({
       </div>
 
       <div className="space-y-4">
-        {subscriptions.map((sub) => {
+        {Array.isArray(subscriptions) && subscriptions.map((sub: any) => {
           if (!sub.plan) return null;
           const parsed = toParsedPlan(sub.plan as never);
-          const remaining = daysRemaining(sub.currentPeriodEnd);
+          const endDate = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : new Date();
+          const remaining = daysRemaining(endDate);
           return (
             <Card key={sub.id}>
               <CardHeader className="flex flex-row items-start justify-between">
                 <div>
-                  <CardTitle>{sub.user.name ?? sub.user.email}</CardTitle>
-                  <p className="text-sm text-zinc-500">{sub.user.email}</p>
+                  <CardTitle>{sub.user?.name ?? sub.user?.email ?? "User"}</CardTitle>
+                  <p className="text-sm text-zinc-500">{sub.user?.email}</p>
                 </div>
                 <Badge variant={sub.status === "ACTIVE" ? "default" : "secondary"}>{sub.status}</Badge>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
                   <div><span className="text-zinc-500">Plan:</span> {sub.plan.name}</div>
-                  <div><span className="text-zinc-500">Price:</span> {formatCurrency(sub.plan.price, sub.plan.currency)}</div>
+                  <div><span className="text-zinc-500">Price:</span> {formatCurrency(sub.plan.price ?? 0, sub.plan.currency ?? "BDT")}</div>
                   <div><span className="text-zinc-500">Duration:</span> {formatPlanDuration(parsed)}</div>
-                  <div><span className="text-zinc-500">Expires:</span> {sub.currentPeriodEnd.toLocaleDateString()}</div>
+                  <div><span className="text-zinc-500">Expires:</span> {endDate.toLocaleDateString()}</div>
                   <div><span className="text-zinc-500">Days left:</span> {remaining}</div>
-                  <div><span className="text-zinc-500">Messes:</span> {sub.messes.map((m) => m.name).join(", ") || "—"}</div>
+                  <div><span className="text-zinc-500">Messes:</span> {sub.messes?.map((m: any) => m.name).join(", ") || "—"}</div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -124,11 +126,11 @@ export function SubscriptionsManager({
                     Assign Plan
                   </Button>
                   {sub.status === "ACTIVE" ? (
-                    <Button size="sm" variant="outline" className="gap-1" disabled={pending} onClick={() => handleStatus(sub.id, "SUSPENDED")}>
+                    <Button size="sm" variant="outline" className="gap-1" disabled={isSubmitting} onClick={() => handleStatus(sub.id, "SUSPENDED")}>
                       <Pause className="h-4 w-4" /> Suspend
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" className="gap-1" disabled={pending} onClick={() => handleStatus(sub.id, "ACTIVE")}>
+                    <Button size="sm" variant="outline" className="gap-1" disabled={isSubmitting} onClick={() => handleStatus(sub.id, "ACTIVE")}>
                       <Play className="h-4 w-4" /> Activate
                     </Button>
                   )}
@@ -157,7 +159,7 @@ export function SubscriptionsManager({
                         <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />
                       </div>
                     </div>
-                    <Button size="sm" disabled={pending} onClick={() => handleExtend(sub.id)}>Save Extension</Button>
+                    <Button size="sm" disabled={isSubmitting} onClick={() => handleExtend(sub.id)}>Save Extension</Button>
                   </div>
                 )}
 
@@ -166,10 +168,10 @@ export function SubscriptionsManager({
                     <div className="grid gap-3 sm:grid-cols-3">
                       <div className="space-y-1">
                         <Label>Plan</Label>
-                        <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                        <Select value={selectedPlanId || plans[0]?.id || ""} onValueChange={setSelectedPlanId}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {plans.map((plan) => (
+                            {Array.isArray(plans) && plans.map((plan: any) => (
                               <SelectItem key={plan.id} value={plan.id}>
                                 {plan.name}
                               </SelectItem>
@@ -186,7 +188,7 @@ export function SubscriptionsManager({
                         <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
                       </div>
                     </div>
-                    <Button size="sm" disabled={pending || !selectedPlanId} onClick={() => handleAssign(sub)}>
+                    <Button size="sm" disabled={isSubmitting} onClick={() => handleAssign(sub)}>
                       Save Assignment
                     </Button>
                   </div>

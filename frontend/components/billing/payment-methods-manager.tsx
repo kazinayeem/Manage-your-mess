@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useState } from "react";
+import { useGetPaymentMethodsQuery } from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +11,13 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { savePaymentMethod, deletePaymentMethod } from "@/actions/billing";
-import type { PaymentMethod } from "@prisma/client";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
-export function PaymentMethodsManager({ methods }: { methods: PaymentMethod[] }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [editing, setEditing] = useState<PaymentMethod | null>(null);
+export function PaymentMethodsManager() {
+  const { data, isLoading, error } = useGetPaymentMethodsQuery();
+  const [editing, setEditing] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
     accountName: "",
@@ -30,13 +29,15 @@ export function PaymentMethodsManager({ methods }: { methods: PaymentMethod[] })
     sortOrder: "0",
   });
 
+  const methods = data?.data || data || [];
+
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", accountName: "", accountNumber: "", accountType: "", qrCodeUrl: "", instructions: "", isActive: true, sortOrder: String(methods.length) });
+    setForm({ name: "", accountName: "", accountNumber: "", accountType: "", qrCodeUrl: "", instructions: "", isActive: true, sortOrder: String(methods.length || 0) });
     setShowForm(true);
   }
 
-  function openEdit(m: PaymentMethod) {
+  function openEdit(m: any) {
     setEditing(m);
     setForm({
       name: m.name,
@@ -46,24 +47,31 @@ export function PaymentMethodsManager({ methods }: { methods: PaymentMethod[] })
       qrCodeUrl: m.qrCodeUrl ?? "",
       instructions: m.instructions ?? "",
       isActive: m.isActive,
-      sortOrder: String(m.sortOrder),
+      sortOrder: String(m.sortOrder ?? 0),
     });
     setShowForm(true);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setIsSubmitting(true);
     const fd = new FormData();
     if (editing) fd.set("id", editing.id);
     Object.entries(form).forEach(([k, v]) => fd.set(k, String(v)));
-    startTransition(async () => {
-      const result = await savePaymentMethod(fd);
-      if (result.success) {
-        toast.success(editing ? "Updated" : "Created");
-        setShowForm(false);
-        router.refresh();
-      } else toast.error(result.error);
-    });
+    const result = await savePaymentMethod(fd);
+    if (result.success) {
+      toast.success(editing ? "Updated" : "Created");
+      setShowForm(false);
+    } else toast.error(result.error);
+    setIsSubmitting(false);
+  }
+
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading payment methods...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading payment methods</div>;
   }
 
   return (
@@ -89,7 +97,7 @@ export function PaymentMethodsManager({ methods }: { methods: PaymentMethod[] })
               <div className="space-y-2 sm:col-span-2"><Label>Instructions</Label><Textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} rows={3} /></div>
               <label className="flex items-center gap-2 text-sm"><Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} /> Active</label>
               <div className="flex gap-2 sm:col-span-2">
-                <Button type="submit" disabled={pending}>Save</Button>
+                <Button type="submit" disabled={isSubmitting}>Save</Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
               </div>
             </form>
@@ -98,7 +106,7 @@ export function PaymentMethodsManager({ methods }: { methods: PaymentMethod[] })
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        {methods.map((m) => (
+        {Array.isArray(methods) && methods.map((m: any) => (
           <Card key={m.id}>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
@@ -107,7 +115,7 @@ export function PaymentMethodsManager({ methods }: { methods: PaymentMethod[] })
               </CardTitle>
               <div className="flex gap-1">
                 <Button size="icon" variant="ghost" onClick={() => openEdit(m)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" onClick={() => startTransition(async () => { await deletePaymentMethod(m.id); router.refresh(); })}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={async () => { await deletePaymentMethod(m.id); toast.success("Deleted"); }}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-1 text-sm text-zinc-600">

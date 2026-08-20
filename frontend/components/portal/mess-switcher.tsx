@@ -7,7 +7,7 @@ import { Building2, ChevronDown, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
 import { formatMessDisplayRole } from "@/lib/mess-permissions";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 import { switchActiveMess } from "@/actions/mess";
 import { toast } from "sonner";
 

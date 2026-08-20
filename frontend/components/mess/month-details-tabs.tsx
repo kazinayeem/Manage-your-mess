@@ -6,7 +6,7 @@ import { CurrentMonthReportTable, type MonthMemberReportRow } from "@/components
 import { BillsTable, type BillRow } from "@/components/mess/bills-table";
 import { formatCurrency } from "@/lib/utils";
 import { getBillCategoryLabel } from "@/lib/bills/categories";
-import type { BillCategoryType } from "@prisma/client";
+import type { BillCategoryType } from "@/types/domain";
 
 const TABS = [
   { id: "settlement", label: "Member Settlement" },

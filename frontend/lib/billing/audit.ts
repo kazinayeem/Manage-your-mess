@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { AuditAction } from "@prisma/client";
+import type { AuditAction } from "@/types/domain";
 
 export async function logBillingAudit(input: {
   userId?: string | null;

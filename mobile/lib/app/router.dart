@@ -13,6 +13,14 @@ import '../features/analytics/analytics_screen.dart';
 import '../features/notifications/notification_screen.dart';
 import '../features/profile/profile_screen.dart';
 
+// Super Admin imports
+import '../features/admin/admin_dashboard_screen.dart';
+import '../features/admin/admin_users_screen.dart';
+import '../features/admin/admin_user_detail_screen.dart';
+import '../features/admin/admin_messes_screen.dart';
+import '../features/admin/admin_mess_detail_screen.dart';
+import '../features/admin/admin_screens.dart';
+
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
@@ -31,6 +39,116 @@ final appRouter = GoRouter(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
     ),
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Super Admin Routes (Drawer-based, single shell)
+    // ────────────────────────────────────────────────────────────────────────
+    GoRoute(
+      path: '/admin',
+      builder: (context, state) => const AdminDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/admin/users',
+      builder: (context, state) => const AdminUsersScreen(),
+    ),
+    GoRoute(
+      path: '/admin/users/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return AdminUserDetailScreen(userId: id);
+      },
+    ),
+    GoRoute(
+      path: '/admin/messes',
+      builder: (context, state) => const AdminMessesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/messes/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return AdminMessDetailScreen(messId: id);
+      },
+    ),
+    GoRoute(
+      path: '/admin/subscriptions',
+      builder: (context, state) => const AdminSubscriptionsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/payments',
+      builder: (context, state) => const AdminPaymentsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/payment-methods',
+      builder: (context, state) => const AdminPaymentMethodsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/plans',
+      builder: (context, state) => const AdminPlansScreen(),
+    ),
+    GoRoute(
+      path: '/admin/coupons',
+      builder: (context, state) => const AdminCouponsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/referrals',
+      builder: (context, state) => const AdminReferralsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/support',
+      builder: (context, state) => const AdminSupportScreen(),
+    ),
+    GoRoute(
+      path: '/admin/announcements',
+      builder: (context, state) => const AdminAnnouncementsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/analytics',
+      builder: (context, state) => const AdminAnalyticsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/audit-logs',
+      builder: (context, state) => const AdminAuditLogsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/settings',
+      builder: (context, state) => const AdminSystemSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/database',
+      builder: (context, state) => const AdminDatabaseMonitorScreen(),
+    ),
+    GoRoute(
+      path: '/admin/feature-flags',
+      builder: (context, state) => const AdminFeatureFlagsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/backups',
+      builder: (context, state) => const AdminBackupManagerScreen(),
+    ),
+    GoRoute(
+      path: '/admin/api',
+      builder: (context, state) => const AdminApiManagementScreen(),
+    ),
+    GoRoute(
+      path: '/admin/email-templates',
+      builder: (context, state) => const AdminEmailTemplatesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/notification-templates',
+      builder: (context, state) => const AdminNotificationTemplatesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/security',
+      builder: (context, state) => const AdminSecurityCenterScreen(),
+    ),
+    GoRoute(
+      path: '/admin/profile',
+      builder: (context, state) => const AdminProfileScreen(),
+    ),
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Regular Member Shell Route (Bottom Navigation)
+    // ────────────────────────────────────────────────────────────────────────
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return Scaffold(

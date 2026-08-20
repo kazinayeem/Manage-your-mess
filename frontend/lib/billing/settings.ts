@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { calculatePeriodEnd } from "@/lib/billing/plan-utils";
-import type { Plan, PlanDurationType } from "@prisma/client";
+import type { PlanDurationType } from "@/types/domain";
+type Plan = any;
 
 export type ResolvedBillingSetting = {
   id: string;

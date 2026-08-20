@@ -24,7 +24,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     final authState = ref.read(authProvider);
     if (authState.status == AuthStatus.authenticated) {
-      context.go('/home');
+      if (authState.user?['role'] == 'SUPER_ADMIN') {
+        context.go('/admin');
+      } else {
+        context.go('/home');
+      }
     } else {
       context.go('/login');
     }
@@ -34,7 +38,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Widget build(BuildContext context) {
     ref.listen(authProvider, (prev, next) {
       if (next.status == AuthStatus.authenticated) {
-        context.go('/home');
+        if (next.user?['role'] == 'SUPER_ADMIN') {
+          context.go('/admin');
+        } else {
+          context.go('/home');
+        }
       } else if (next.status == AuthStatus.unauthenticated) {
         context.go('/login');
       }

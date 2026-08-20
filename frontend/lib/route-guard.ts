@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 import { isAdminRole } from "@/lib/rbac";
 
 export function getPlatformHomeRoute(platformRole: UserRole): string {

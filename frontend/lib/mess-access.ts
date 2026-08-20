@@ -1,8 +1,9 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { hasPermission, isAdminRole, PERMISSIONS, type Permission } from "@/lib/rbac";
 import { resolveMessMemberRole } from "@/lib/mess-role";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 
 const LEGACY_PLAN_SELECT = {
   id: true,
@@ -43,7 +44,7 @@ export class ForbiddenError extends Error {
 
 async function loadActiveUser(userId: string) {
   const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user || user.deletedAt) throw new AuthError("Account not found");
+  if (!user || user.deletedAt) redirect("/login?reason=session_expired");
   if (!user.isActive) throw new AuthError("Account suspended");
   if (user.isLocked && user.lockedUntil && user.lockedUntil > new Date()) {
     throw new AuthError("Account temporarily locked");

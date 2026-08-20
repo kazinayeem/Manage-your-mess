@@ -9,7 +9,7 @@ import {
   type SubscriptionAccessState,
 } from "@/lib/billing/subscription-access";
 import type { PlanTier } from "@/lib/plans";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 
 function applySubscriptionToCapabilities(
   capabilities: MessCapabilities,

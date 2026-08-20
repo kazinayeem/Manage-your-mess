@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { BillCategoryType, BillStatus } from "@prisma/client";
+import type { BillCategoryType, BillStatus, BillSplitMethod } from "@/types/domain";
 import { db } from "@/lib/db";
 import { requireMessAccess } from "@/lib/mess-access";
 import { assertMessWriteAccess } from "@/lib/billing/subscription-access";
@@ -32,7 +32,7 @@ async function getActiveMembersWithRooms(messId: string) {
     where: { messId, deletedAt: null, status: "ACTIVE" },
     include: { bed: { include: { room: true } } },
   });
-  return members.map((m) => ({
+  return members.map((m: any) => ({
     id: m.id,
     fullName: m.fullName,
     roomId: m.bed?.roomId ?? null,
@@ -43,7 +43,7 @@ async function getActiveMembersWithRooms(messId: string) {
 async function applyBillSplits(
   billId: string,
   amount: number,
-  splitMethod: "EQUAL" | "ROOM_BASED" | "CUSTOM",
+  splitMethod: BillSplitMethod,
   messId: string,
   customSplits?: { memberId: string; amount: number }[]
 ) {
@@ -51,15 +51,15 @@ async function applyBillSplits(
   const splitMap = computeBillSplit(
     amount,
     splitMethod,
-    members.map((m) => ({ id: m.id, roomId: m.roomId })),
+    members.map((m: any) => ({ id: m.id, roomId: m.roomId })),
     customSplits ?? []
   );
 
   await db.memberBill.deleteMany({ where: { billId } });
-  const entries = [...splitMap.entries()].filter(([, amt]) => amt > 0);
+  const entries = [...splitMap.entries()].filter(([, amt]: [string, number]) => amt > 0);
   if (entries.length > 0) {
     await db.memberBill.createMany({
-      data: entries.map(([memberId, shareAmount]) => ({
+      data: entries.map(([memberId, shareAmount]: [string, number]) => ({
         billId,
         memberId,
         amount: shareAmount,
@@ -221,7 +221,7 @@ export async function recordBillPayment(
     });
 
     if (parsed.data.memberId) {
-      const share = bill.memberShares.find((s) => s.memberId === parsed.data.memberId);
+      const share = bill.memberShares.find((s: any) => s.memberId === parsed.data.memberId);
       if (share) {
         await db.memberBill.update({
           where: { id: share.id },
@@ -230,7 +230,7 @@ export async function recordBillPayment(
       }
     }
 
-    const totalPaid = bill.memberShares.reduce((s, m) => s + m.paidAmount, 0) + parsed.data.amount;
+    const totalPaid = bill.memberShares.reduce((s: number, m: any) => s + m.paidAmount, 0) + parsed.data.amount;
     const newStatus: BillStatus = totalPaid >= bill.amount ? "PAID" : bill.status;
 
     await db.bill.update({

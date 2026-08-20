@@ -1,4 +1,4 @@
-import type { BillSplitMethod } from "@prisma/client";
+import type { BillSplitMethod } from "@/types/domain";
 
 export type SplitMember = {
   id: string;

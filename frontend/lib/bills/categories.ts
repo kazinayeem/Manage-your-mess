@@ -1,4 +1,4 @@
-import type { BillCategoryType } from "@prisma/client";
+import type { BillCategoryType } from "@/types/domain";
 
 export const BILL_CATEGORIES: { value: BillCategoryType; label: string; group: "rent" | "utility" | "service" | "other" }[] = [
   { value: "HOUSE_RENT", label: "House Rent", group: "rent" },

@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/types/domain";
 
 type RoleLabelFn = (key: string) => string;
 

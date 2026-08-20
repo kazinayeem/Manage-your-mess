@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { submitBazaarTask, markBazaarInProgress } from "@/actions/bazaar";
 import { toast } from "sonner";
-import type { BazaarItemStatus } from "@prisma/client";
+type BazaarItemStatus = any;
 
 type Item = {
   id: string;

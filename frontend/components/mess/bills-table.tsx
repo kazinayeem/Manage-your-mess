@@ -6,7 +6,7 @@ import { getBillCategoryLabel } from "@/lib/bills/categories";
 import { messPath } from "@/lib/mess-routes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { BillCategoryType, BillStatus } from "@prisma/client";
+import type { BillCategoryType, BillStatus } from "@/types/domain";
 import { Eye, Trash2 } from "lucide-react";
 import { deleteBill } from "@/actions/bills";
 import { toast } from "sonner";

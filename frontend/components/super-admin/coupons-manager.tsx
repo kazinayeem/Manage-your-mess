@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useGetAdminCouponsQuery } from "@/lib/store/api/super-admin-api";
 import { saveCoupon, deleteCoupon } from "@/actions/super-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,21 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-type CouponRow = {
-  id: string;
-  code: string;
-  discountPercent: number | null;
-  discountAmount: number | null;
-  maxUses: number | null;
-  usedCount: number;
-  isActive: boolean;
-};
-
-export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
-  const router = useRouter();
+export function CouponsManager() {
+  const { data, isLoading, error } = useGetAdminCouponsQuery();
   const [code, setCode] = useState("");
   const [discountPercent, setDiscountPercent] = useState("10");
   const [loading, setLoading] = useState(false);
+
+  const coupons = data?.data || data || [];
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -37,9 +29,16 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
     if (r.success) {
       toast.success("Coupon created");
       setCode("");
-      router.refresh();
     } else toast.error(r.error);
     setLoading(false);
+  }
+
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading coupons from Express API...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading coupons</div>;
   }
 
   return (
@@ -70,13 +69,13 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
         </CardContent>
       </Card>
       <div className="grid gap-2">
-        {coupons.map((c) => (
+        {Array.isArray(coupons) && coupons.map((c: any) => (
           <Card key={c.id}>
             <CardContent className="flex items-center justify-between py-3">
               <div>
                 <p className="font-mono font-semibold">{c.code}</p>
                 <p className="text-sm text-zinc-500">
-                  {c.discountPercent ?? 0}% off · used {c.usedCount}
+                  {c.discountPercent ?? 0}% off · used {c.usedCount ?? 0}
                   {c.maxUses ? ` / ${c.maxUses}` : ""}
                 </p>
               </div>
@@ -91,7 +90,6 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
                     const r = await deleteCoupon(c.id);
                     if (r.success) {
                       toast.success("Coupon deactivated");
-                      router.refresh();
                     } else toast.error(r.error);
                   }}
                 >

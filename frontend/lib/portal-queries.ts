@@ -6,7 +6,7 @@ export type PortalMessCard = {
   messId: string;
   name: string;
   logo: string | null;
-  roleRaw: import("@prisma/client").UserRole;
+  roleRaw: import("@/types/domain").UserRole;
   isManager: boolean;
   isLegalOwner: boolean;
   memberCount: number;

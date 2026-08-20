@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { BillCategoryType } from "@prisma/client";
+import type { BillCategoryType } from "@/types/domain";
 import { db } from "@/lib/db";
 import { requireMessAccess } from "@/lib/mess-access";
 import { assertMessWriteAccess } from "@/lib/billing/subscription-access";

@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useState } from "react";
 import Image from "next/image";
+import {
+  useGetAdminPaymentsQuery,
+  useApprovePaymentMutation,
+  useRejectPaymentMutation,
+} from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,12 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { reviewPaymentRequest } from "@/actions/billing";
-import type { PaymentRequestStatus } from "@prisma/client";
+import type { PaymentRequestStatus } from "@/types/domain";
 import { formatCurrency } from "@/lib/utils";
 import { Check, X, MessageCircle, RotateCcw } from "lucide-react";
-
-type PaymentRequest = Awaited<ReturnType<typeof import("@/actions/billing").getPaymentRequests>>[number];
 
 const TABS: { key: PaymentRequestStatus | "ALL"; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -26,41 +27,69 @@ const TABS: { key: PaymentRequestStatus | "ALL"; label: string }[] = [
   { key: "NEEDS_INFO", label: "Needs Info" },
 ];
 
-export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+export function PaymentsManager() {
+  const { data, isLoading, error } = useGetAdminPaymentsQuery();
+  const [approvePayment] = useApprovePaymentMutation();
+  const [rejectPayment] = useRejectPaymentMutation();
+
   const [tab, setTab] = useState<string>("PENDING");
   const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
 
-  const filtered = requests.filter((request) => {
-    const matchTab = tab === "ALL" ? true : request.status === tab;
-    const q = search.trim().toLowerCase();
-    const matchSearch = !q
-      ? true
-      : [
-          request.user.name ?? "",
-          request.user.email ?? "",
-          request.plan?.name ?? "",
-          request.paymentMethod.name,
-          request.transactionId ?? "",
-          request.mess?.name ?? "",
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(q);
-    return matchTab && matchSearch;
-  });
+  const requests = data?.data || data || [];
 
-  function handleAction(id: string, action: "approve" | "reject" | "needs_info" | "refund") {
-    startTransition(async () => {
-      const result = await reviewPaymentRequest(id, action, note || undefined);
-      if (result.success) {
-        toast.success(`Payment ${action}d`);
-        setNote("");
-        router.refresh();
-      } else toast.error(result.error);
-    });
+  const filtered = Array.isArray(requests)
+    ? requests.filter((request: any) => {
+        const matchTab = tab === "ALL" ? true : request.status === tab;
+        const q = search.trim().toLowerCase();
+        const matchSearch = !q
+          ? true
+          : [
+              request.user?.name ?? "",
+              request.user?.email ?? "",
+              request.plan?.name ?? "",
+              request.paymentMethod?.name ?? "",
+              request.transactionId ?? "",
+              request.mess?.name ?? "",
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(q);
+        return matchTab && matchSearch;
+      })
+    : [];
+
+  async function handleApprove(id: string) {
+    setSubmittingId(id);
+    try {
+      await approvePayment(id).unwrap();
+      toast.success("Payment approved");
+      setNote("");
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Failed to approve payment");
+    }
+    setSubmittingId(null);
+  }
+
+  async function handleReject(id: string) {
+    setSubmittingId(id);
+    try {
+      await rejectPayment({ paymentId: id, reason: note || "Payment rejected" }).unwrap();
+      toast.success("Payment rejected");
+      setNote("");
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Failed to reject payment");
+    }
+    setSubmittingId(null);
+  }
+
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading payments from Express API...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading payments</div>;
   }
 
   return (
@@ -82,7 +111,7 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
               <Badge variant="secondary" className="ml-2">
-                {t.key === "ALL" ? requests.length : requests.filter((r) => r.status === t.key).length}
+                {t.key === "ALL" ? requests.length : requests.filter((r: any) => r.status === t.key).length}
               </Badge>
             </TabsTrigger>
           ))}
@@ -93,13 +122,13 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
             {filtered.length === 0 ? (
               <Card><CardContent className="py-8 text-center text-zinc-500">No {t.label.toLowerCase()} payments.</CardContent></Card>
             ) : (
-              filtered.map((req) => (
+              filtered.map((req: any) => (
                 <Card key={req.id}>
                   <CardHeader>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <CardTitle>{req.user.name ?? req.user.email}</CardTitle>
-                        <p className="text-sm text-zinc-500">{req.user.email}</p>
+                        <CardTitle>{req.user?.name ?? req.user?.email ?? "User"}</CardTitle>
+                        <p className="text-sm text-zinc-500">{req.user?.email}</p>
                       </div>
                       <Badge>{req.status}</Badge>
                     </div>
@@ -107,8 +136,8 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
                   <CardContent className="space-y-4">
                     <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                       <div><span className="text-zinc-500">Plan:</span> {req.plan?.name ?? "—"}</div>
-                      <div><span className="text-zinc-500">Amount:</span> {formatCurrency(req.amount, req.currency)}</div>
-                      <div><span className="text-zinc-500">Method:</span> {req.paymentMethod.name}</div>
+                      <div><span className="text-zinc-500">Amount:</span> {formatCurrency(req.amount ?? 0, req.currency ?? "BDT")}</div>
+                      <div><span className="text-zinc-500">Method:</span> {req.paymentMethod?.name ?? "—"}</div>
                       <div><span className="text-zinc-500">Transaction ID:</span> {req.transactionId ?? "—"}</div>
                       <div><span className="text-zinc-500">Sender:</span> {req.senderNumber ?? "—"}</div>
                       <div><span className="text-zinc-500">Mess:</span> {req.mess?.name ?? "—"}</div>
@@ -133,23 +162,14 @@ export function PaymentsManager({ requests }: { requests: PaymentRequest[] }) {
                       <div className="space-y-3 border-t pt-4">
                         <Textarea placeholder="Admin note or rejection reason..." value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
                         <div className="flex flex-wrap gap-2">
-                          <Button size="sm" className="gap-1" disabled={pending} onClick={() => handleAction(req.id, "approve")}>
+                          <Button size="sm" className="gap-1" disabled={submittingId === req.id} onClick={() => handleApprove(req.id)}>
                             <Check className="h-4 w-4" /> Approve
                           </Button>
-                          <Button size="sm" variant="destructive" className="gap-1" disabled={pending} onClick={() => handleAction(req.id, "reject")}>
+                          <Button size="sm" variant="destructive" className="gap-1" disabled={submittingId === req.id} onClick={() => handleReject(req.id)}>
                             <X className="h-4 w-4" /> Reject
-                          </Button>
-                          <Button size="sm" variant="outline" className="gap-1" disabled={pending} onClick={() => handleAction(req.id, "needs_info")}>
-                            <MessageCircle className="h-4 w-4" /> Request Info
                           </Button>
                         </div>
                       </div>
-                    )}
-
-                    {req.status === "APPROVED" && (
-                      <Button size="sm" variant="outline" className="gap-1" disabled={pending} onClick={() => handleAction(req.id, "refund")}>
-                        <RotateCcw className="h-4 w-4" /> Refund
-                      </Button>
                     )}
                   </CardContent>
                 </Card>

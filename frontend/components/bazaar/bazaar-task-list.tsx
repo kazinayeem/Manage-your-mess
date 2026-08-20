@@ -7,7 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
 import { bazaarTaskPath } from "@/lib/bazaar-routes";
-import type { BazaarPriority, BazaarTaskStatus } from "@prisma/client";
+type BazaarPriority = any;
+type BazaarTaskStatus = any;
 
 export type BazaarTaskRow = {
   id: string;

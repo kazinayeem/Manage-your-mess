@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useState } from "react";
+import { useGetAdminPlansQuery } from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,15 +33,12 @@ import {
   PLAN_LIMIT_LABELS,
   TRIAL_DURATION_PRESETS,
 } from "@/lib/billing/constants";
-import type { BillingSetting, Plan, PlanDurationType, PlanVisibility } from "@prisma/client";
 import { Archive, Copy, Eye, EyeOff, Pencil, Plus, Power, Trash2 } from "lucide-react";
 import { formatPlanDuration, parsePlanFeatures, parsePlanLimits, toParsedPlan } from "@/lib/billing/plan-utils";
 import { formatCurrency } from "@/lib/utils";
 
-type PlanWithCount = Plan & { _count: { subscriptions: number } };
-type BillingSettingsWithPlan = BillingSetting & {
-  defaultTrialPlan: Plan | null;
-};
+export type PlanDurationType = "DAYS" | "WEEKS" | "MONTHS" | "YEARS" | "CUSTOM_DATE";
+export type PlanVisibility = "PUBLIC" | "HIDDEN" | "PRIVATE";
 
 type PlanForm = {
   name: string;
@@ -65,14 +62,6 @@ type PlanForm = {
   limits: Record<string, string>;
 };
 
-type TrialForm = {
-  trialDurationType: PlanDurationType;
-  trialDurationValue: string;
-  trialCustomEndDate: string;
-  defaultTrialPlanId: string;
-  allowTrialOnCreate: boolean;
-};
-
 const EMPTY_FORM: PlanForm = {
   name: "",
   description: "",
@@ -92,36 +81,25 @@ const EMPTY_FORM: PlanForm = {
   isArchived: false,
   sortOrder: "0",
   features: [PLAN_FEATURES.MEAL_MANAGEMENT, PLAN_FEATURES.DEPOSIT_MANAGEMENT, PLAN_FEATURES.EXPENSE_MANAGEMENT],
-  limits: {} as Record<string, string>,
+  limits: {},
 };
 
-export function PlansManager({
-  plans,
-  settings,
-}: {
-  plans: PlanWithCount[];
-  settings: BillingSettingsWithPlan;
-}) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [editing, setEditing] = useState<Plan | null>(null);
+export function PlansManager() {
+  const { data, isLoading, error } = useGetAdminPlansQuery();
+  const [editing, setEditing] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<PlanForm>(EMPTY_FORM);
-  const [trialForm, setTrialForm] = useState<TrialForm>({
-    trialDurationType: settings.trialDurationType,
-    trialDurationValue: String(settings.trialDurationValue),
-    trialCustomEndDate: settings.trialCustomEndDate ? settings.trialCustomEndDate.toISOString().slice(0, 10) : "",
-    defaultTrialPlanId: settings.defaultTrialPlanId ?? "none",
-    allowTrialOnCreate: settings.allowTrialOnCreate,
-  });
+
+  const plans = data?.data || data || [];
 
   function openCreate() {
     setEditing(null);
-    setForm({ ...EMPTY_FORM, sortOrder: String(plans.length) });
+    setForm({ ...EMPTY_FORM, sortOrder: String(plans.length || 0) });
     setShowForm(true);
   }
 
-  function openEdit(plan: Plan) {
+  function openEdit(plan: any) {
     const features = parsePlanFeatures(plan.features) as PlanFeatureKey[];
     const limits = parsePlanLimits(plan.limits);
     setEditing(plan);
@@ -134,7 +112,7 @@ export function PlansManager({
       currency: plan.currency,
       durationType: plan.durationType,
       durationValue: String(plan.durationValue),
-      customExpiryDate: plan.customExpiryDate ? plan.customExpiryDate.toISOString().slice(0, 10) : "",
+      customExpiryDate: plan.customExpiryDate ? new Date(plan.customExpiryDate).toISOString().slice(0, 10) : "",
       maxMembers: String(plan.maxMembers),
       visibility: plan.visibility,
       isActive: plan.isActive,
@@ -158,8 +136,9 @@ export function PlansManager({
     }));
   }
 
-  function submitPlan(e: React.FormEvent) {
+  async function submitPlan(e: React.FormEvent) {
     e.preventDefault();
+    setIsSubmitting(true);
     const fd = new FormData();
     if (editing) fd.set("id", editing.id);
     Object.entries(form).forEach(([key, value]) => {
@@ -176,77 +155,56 @@ export function PlansManager({
     limits.members = Number(form.maxMembers);
     fd.set("limits", JSON.stringify(limits));
 
-    startTransition(async () => {
-      const result = await savePlan(fd);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+    const result = await savePlan(fd);
+    if (!result.success) {
+      toast.error(result.error);
+    } else {
       toast.success(editing ? "Plan updated" : "Plan created");
       setShowForm(false);
-      router.refresh();
-    });
+    }
+    setIsSubmitting(false);
   }
 
-  function handleLifecycle(planId: string, action: "enable" | "disable" | "hide" | "show" | "archive") {
-    startTransition(async () => {
-      const result = await updatePlanLifecycle(planId, action);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  async function handleLifecycle(planId: string, action: "enable" | "disable" | "hide" | "show" | "archive") {
+    setIsSubmitting(true);
+    const result = await updatePlanLifecycle(planId, action);
+    if (!result.success) {
+      toast.error(result.error);
+    } else {
       toast.success("Plan updated");
-      router.refresh();
-    });
+    }
+    setIsSubmitting(false);
   }
 
-  function handleDuplicate(planId: string) {
-    startTransition(async () => {
-      const result = await duplicatePlan(planId);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  async function handleDuplicate(planId: string) {
+    setIsSubmitting(true);
+    const result = await duplicatePlan(planId);
+    if (!result.success) {
+      toast.error(result.error);
+    } else {
       toast.success("Plan duplicated");
-      router.refresh();
-    });
+    }
+    setIsSubmitting(false);
   }
 
-  function handleDelete(planId: string) {
+  async function handleDelete(planId: string) {
     if (!confirm("Delete or archive this plan?")) return;
-    startTransition(async () => {
-      const result = await deletePlan(planId);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+    setIsSubmitting(true);
+    const result = await deletePlan(planId);
+    if (!result.success) {
+      toast.error(result.error);
+    } else {
       toast.success("Plan removed");
-      router.refresh();
-    });
+    }
+    setIsSubmitting(false);
   }
 
-  function submitTrialSettings(e: React.FormEvent) {
-    e.preventDefault();
-    const fd = new FormData();
-    fd.set("trialDurationType", trialForm.trialDurationType);
-    fd.set("trialDurationValue", trialForm.trialDurationValue);
-    if (trialForm.trialDurationType === "CUSTOM_DATE" && trialForm.trialCustomEndDate) {
-      fd.set("trialCustomEndDate", trialForm.trialCustomEndDate);
-    }
-    if (trialForm.defaultTrialPlanId !== "none") {
-      fd.set("defaultTrialPlanId", trialForm.defaultTrialPlanId);
-    }
-    fd.set("allowTrialOnCreate", String(trialForm.allowTrialOnCreate));
+  if (isLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading plans from Express API...</div>;
+  }
 
-    startTransition(async () => {
-      const result = await saveBillingSettings(fd);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Trial settings updated");
-      router.refresh();
-    });
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">Error loading plans</div>;
   }
 
   return (
@@ -262,106 +220,6 @@ export function PlansManager({
           <Plus className="h-4 w-4" /> Create Plan
         </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Trial Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submitTrialSettings} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Trial Duration Type</Label>
-              <Select
-                value={trialForm.trialDurationType}
-                onValueChange={(value) =>
-                  setTrialForm((current) => ({
-                    ...current,
-                    trialDurationType: value as PlanDurationType,
-                  }))
-                }
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DAYS">Days</SelectItem>
-                  <SelectItem value="WEEKS">Weeks</SelectItem>
-                  <SelectItem value="MONTHS">Months</SelectItem>
-                  <SelectItem value="YEARS">Years</SelectItem>
-                  <SelectItem value="CUSTOM_DATE">Custom Date</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Trial Duration Value</Label>
-              <Input
-                type="number"
-                min="1"
-                value={trialForm.trialDurationValue}
-                onChange={(e) => setTrialForm((current) => ({ ...current, trialDurationValue: e.target.value }))}
-                disabled={trialForm.trialDurationType === "CUSTOM_DATE"}
-              />
-              <div className="flex flex-wrap gap-2">
-                {TRIAL_DURATION_PRESETS.map((preset) => (
-                  <Button
-                    key={preset.label}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      setTrialForm((current) => ({
-                        ...current,
-                        trialDurationType: preset.type,
-                        trialDurationValue: String(preset.value),
-                      }))
-                    }
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Default Trial Plan</Label>
-              <Select
-                value={trialForm.defaultTrialPlanId}
-                onValueChange={(value) => setTrialForm((current) => ({ ...current, defaultTrialPlanId: value }))}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Auto select</SelectItem>
-                  {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Allow Trial On Mess Create</Label>
-              <div className="flex h-10 items-center gap-3 rounded-lg border px-3">
-                <Switch
-                  checked={trialForm.allowTrialOnCreate}
-                  onCheckedChange={(value) => setTrialForm((current) => ({ ...current, allowTrialOnCreate: value }))}
-                />
-                <span className="text-sm text-zinc-600">Automatically assign trial</span>
-              </div>
-            </div>
-            {trialForm.trialDurationType === "CUSTOM_DATE" && (
-              <div className="space-y-2 md:col-span-2">
-                <Label>Custom Trial Expiry</Label>
-                <Input
-                  type="date"
-                  value={trialForm.trialCustomEndDate}
-                  onChange={(e) => setTrialForm((current) => ({ ...current, trialCustomEndDate: e.target.value }))}
-                />
-              </div>
-            )}
-            <div className="md:col-span-2 xl:col-span-4">
-              <Button type="submit" disabled={pending}>Save Trial Settings</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
 
       {showForm && (
         <Card>
@@ -461,7 +319,7 @@ export function PlansManager({
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => setForm({ ...form, durationType: preset.type, durationValue: String(preset.value) })}
+                      onClick={() => setForm({ ...form, durationType: preset.type as PlanDurationType, durationValue: String(preset.value) })}
                     >
                       {preset.label}
                     </Button>
@@ -510,7 +368,7 @@ export function PlansManager({
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={pending}>{editing ? "Save Changes" : "Create Plan"}</Button>
+                <Button type="submit" disabled={isSubmitting}>{editing ? "Save Changes" : "Create Plan"}</Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
               </div>
             </form>
@@ -519,7 +377,7 @@ export function PlansManager({
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {plans.map((plan) => {
+        {Array.isArray(plans) && plans.map((plan: any) => {
           const parsed = toParsedPlan(plan);
           return (
             <Card key={plan.id} className={!plan.isActive ? "opacity-70" : ""}>
@@ -547,14 +405,14 @@ export function PlansManager({
                 <p className="text-zinc-500">
                   {plan.maxMembers === -1 ? "Unlimited members" : `Up to ${plan.maxMembers} members`}
                 </p>
-                <p className="text-zinc-500">{plan._count.subscriptions} subscriptions</p>
+                <p className="text-zinc-500">{plan._count?.subscriptions ?? 0} subscriptions</p>
                 <div className="flex flex-wrap gap-1">
                   <Badge variant="outline">{plan.visibility}</Badge>
                   {plan.isArchived && <Badge variant="secondary">Archived</Badge>}
                   {!plan.isActive && <Badge variant="secondary">Disabled</Badge>}
                 </div>
                 <div className="flex flex-wrap gap-1 pt-1">
-                  {parsePlanFeatures(plan.features).slice(0, 5).map((feature) => (
+                  {parsePlanFeatures(plan.features).slice(0, 5).map((feature: any) => (
                     <Badge key={feature} variant="outline" className="text-xs">
                       {PLAN_FEATURE_LABELS[feature as keyof typeof PLAN_FEATURE_LABELS] ?? feature}
                     </Badge>

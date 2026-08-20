@@ -11,7 +11,8 @@ import { createUserNotification } from "@/lib/notifications";
 import { saveBazaarFiles } from "@/lib/bazaar-upload";
 import { isMissingBazaarTable, EMPTY_BAZAAR_ANALYTICS } from "@/lib/bazaar-db";
 import { bazaarTaskSchema, bazaarReviewSchema } from "@/lib/validations";
-import type { BazaarTaskStatus, BazaarItemStatus } from "@prisma/client";
+type BazaarTaskStatus = any;
+type BazaarItemStatus = any;
 
 type ActionResult<T = void> =
   | { success: true; data?: T }
@@ -106,7 +107,7 @@ export async function createBazaarTask(
     });
     if (!member) return { success: false, error: "Selected member not found" };
 
-    const task = await db.$transaction(async (tx) => {
+    const task = await db.$transaction(async (tx: any) => {
       const created = await tx.bazaarTask.create({
         data: {
           messId,
@@ -119,7 +120,7 @@ export async function createBazaarTask(
           status: "ASSIGNED",
           createdById: user.id,
           items: {
-            create: parsed.data.items.map((item, i) => ({
+            create: parsed.data.items.map((item: any, i: number) => ({
               name: item.name,
               quantity: item.quantity,
               unit: item.unit,
@@ -330,7 +331,7 @@ export async function submitBazaarTask(
       select: { managerId: true },
     });
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       const submission = await tx.bazaarSubmission.upsert({
         where: { taskId },
         create: {
@@ -469,7 +470,7 @@ export async function reviewBazaarTask(
       }
     }
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       await tx.bazaarApproval.create({
         data: {
           taskId,
@@ -484,7 +485,7 @@ export async function reviewBazaarTask(
         const category = await findBazaarCategory(messId);
         if (!category) throw new Error("No expense category found");
 
-        const itemNames = task.items.map((i) => `${i.name} ${i.quantity}${i.unit}`).join(", ");
+        const itemNames = task.items.map((i: any) => `${i.name} ${i.quantity}${i.unit}`).join(", ");
         const expense = await tx.expense.create({
           data: {
             messId,
@@ -503,7 +504,7 @@ export async function reviewBazaarTask(
         await tx.bazaarEntry.create({
           data: {
             messId,
-            items: JSON.stringify(task.items.map((i) => `${i.name} - ${i.quantity} ${i.unit}`)),
+            items: JSON.stringify(task.items.map((i: any) => `${i.name} - ${i.quantity} ${i.unit}`)),
             totalAmount: task.submission!.actualCost,
             date: task.shoppingDate,
             notes: `Bazaar task ${task.id}`,
@@ -618,13 +619,13 @@ export async function getBazaarAnalytics(messId: string) {
       },
     });
 
-    const totalCost = tasks.reduce((s, t) => s + (t.submission?.actualCost ?? 0), 0);
-  const totalBudget = tasks.reduce((s, t) => s + t.expectedBudget, 0);
+    const totalCost = tasks.reduce((s: number, t: any) => s + (t.submission?.actualCost ?? 0), 0);
+  const totalBudget = tasks.reduce((s: number, t: any) => s + t.expectedBudget, 0);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyTasks = tasks.filter((t) => t.shoppingDate >= monthStart);
-  const monthlyCost = monthlyTasks.reduce((s, t) => s + (t.submission?.actualCost ?? 0), 0);
+  const monthlyTasks = tasks.filter((t: any) => t.shoppingDate >= monthStart);
+  const monthlyCost = monthlyTasks.reduce((s: number, t: any) => s + (t.submission?.actualCost ?? 0), 0);
 
   const memberMap = new Map<string, { name: string; cost: number; count: number }>();
   for (const t of tasks) {
@@ -648,11 +649,11 @@ export async function getBazaarAnalytics(messId: string) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     const label = d.toLocaleString("en", { month: "short" });
-    const monthTasks = tasks.filter((t) => t.shoppingDate >= d && t.shoppingDate <= end);
+    const monthTasks = tasks.filter((t: any) => t.shoppingDate >= d && t.shoppingDate <= end);
     monthlyTrend.push({
       month: label,
-      budget: monthTasks.reduce((s, t) => s + t.expectedBudget, 0),
-      actual: monthTasks.reduce((s, t) => s + (t.submission?.actualCost ?? 0), 0),
+      budget: monthTasks.reduce((s: number, t: any) => s + t.expectedBudget, 0),
+      actual: monthTasks.reduce((s: number, t: any) => s + (t.submission?.actualCost ?? 0), 0),
     });
   }
 

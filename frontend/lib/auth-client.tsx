@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { apiGet, apiPost } from "@/lib/api-client";
+import { getAccessToken, clearTokens } from "@/lib/token-storage";
 
 export interface Session {
   accessToken?: string;
@@ -40,13 +42,11 @@ export function SessionProvider({
 
   async function fetchSession() {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/me`
-      );
+      const res = await apiGet("/auth/me");
 
-      const res = await response.json();
       if (res.success && res.data) {
         setSession({
+          accessToken: getAccessToken() || undefined,
           user: res.data.user,
         });
         setStatus("authenticated");
@@ -81,13 +81,10 @@ export async function signIn(provider?: string, options?: any) {
 
 export async function signOut(options?: { callbackUrl?: string }) {
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/logout`, {
-      method: "POST",
-    });
+    await apiPost("/auth/logout");
   } catch {}
 
-  document.cookie = "bornomess.session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-  document.cookie = "bornomess.refresh=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+  clearTokens();
 
   window.location.assign(options?.callbackUrl || "/");
 }

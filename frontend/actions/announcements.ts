@@ -1,17 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  AnnouncementAudienceType,
-  AnnouncementPriority,
-  AnnouncementType,
-  NotificationType,
-  type PlanTier,
-} from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/mess-access";
 import { requireSuperAdmin } from "@/lib/billing/auth";
 import { logBillingAudit } from "@/lib/billing/audit";
+
+type AnnouncementAudienceType = any;
+type AnnouncementPriority = any;
+type AnnouncementType = any;
 
 type ActionResult<T = void> = { success: true; data?: T } | { success: false; error: string };
 
@@ -25,10 +22,10 @@ async function hasAnnouncementTable() {
   if (announcementTableExistsCache !== null) return announcementTableExistsCache;
 
   try {
-    const rows = await db.$queryRawUnsafe<Array<{ exists: string | null }>>(
+    const rows = await db.$queryRawUnsafe(
       `select to_regclass('public."Announcement"')::text as exists`
     );
-    announcementTableExistsCache = Boolean(rows[0]?.exists);
+    announcementTableExistsCache = Boolean((rows as any)?.[0]?.exists);
   } catch {
     announcementTableExistsCache = false;
   }
@@ -40,10 +37,10 @@ async function hasAnnouncementReadTable() {
   if (announcementReadTableExistsCache !== null) return announcementReadTableExistsCache;
 
   try {
-    const rows = await db.$queryRawUnsafe<Array<{ exists: string | null }>>(
+    const rows = await db.$queryRawUnsafe(
       `select to_regclass('public."AnnouncementRead"')::text as exists`
     );
-    announcementReadTableExistsCache = Boolean(rows[0]?.exists);
+    announcementReadTableExistsCache = Boolean((rows as any)?.[0]?.exists);
   } catch {
     announcementReadTableExistsCache = false;
   }
@@ -70,7 +67,7 @@ async function resolveAnnouncementAudienceUserIds(input: {
       where: { deletedAt: null, isActive: true },
       select: { id: true },
     });
-    return users.map((user) => user.id);
+    return users.map((user: any) => user.id);
   }
 
   if (audienceType === "ALL_MANAGERS") {
@@ -82,7 +79,7 @@ async function resolveAnnouncementAudienceUserIds(input: {
       },
       select: { userId: true },
     });
-    return [...new Set(managers.map((row) => row.userId))];
+    return [...new Set(managers.map((row: any) => row.userId))];
   }
 
   if (audienceType === "ALL_MEMBERS") {
@@ -90,7 +87,7 @@ async function resolveAnnouncementAudienceUserIds(input: {
       where: { deletedAt: null, status: "ACTIVE" },
       select: { userId: true },
     });
-    return [...new Set(members.map((row) => row.userId))];
+    return [...new Set(members.map((row: any) => row.userId))];
   }
 
   if (audienceType === "SPECIFIC_MESSES") {
@@ -102,10 +99,10 @@ async function resolveAnnouncementAudienceUserIds(input: {
       },
       select: { userId: true },
     });
-    return [...new Set(members.map((row) => row.userId))];
+    return [...new Set(members.map((row: any) => row.userId))];
   }
 
-  const tierMap: Record<AnnouncementAudienceType, PlanTier> = {
+  const tierMap: Record<string, string> = {
     ALL_USERS: "FREE",
     ALL_MANAGERS: "FREE",
     ALL_MEMBERS: "FREE",
@@ -125,7 +122,7 @@ async function resolveAnnouncementAudienceUserIds(input: {
     orderBy: { createdAt: "desc" },
   });
 
-  return [...new Set(subscriptions.map((row) => row.userId))];
+  return [...new Set(subscriptions.map((row: any) => row.userId))];
 }
 
 function announcementActiveWindow(announcement: {
@@ -218,16 +215,16 @@ export async function saveAnnouncement(formData: FormData): Promise<ActionResult
       const canTrackReads = await hasAnnouncementReadTable();
       if (userIds.length && canTrackReads) {
         await db.announcementRead.createMany({
-          data: userIds.map((userId) => ({
+          data: userIds.map((userId: any) => ({
             announcementId: announcement.id,
             userId,
           })),
         });
 
         await db.notification.createMany({
-          data: userIds.map((userId) => ({
+          data: userIds.map((userId: any) => ({
             userId,
-            type: NotificationType.GLOBAL_ANNOUNCEMENT,
+            type: "GLOBAL_ANNOUNCEMENT",
             title: announcement.title,
             message: announcement.description,
             data: JSON.stringify({ announcementId: announcement.id, priority: announcement.priority }),
@@ -288,23 +285,7 @@ export async function getUserAnnouncements() {
   if (!(await hasAnnouncementTable()) || !(await hasAnnouncementReadTable())) {
     return [];
   }
-  let rows:
-    | Array<{
-        announcement: {
-          id: string;
-          title: string;
-          description: string;
-          type: AnnouncementType;
-          priority: AnnouncementPriority;
-          startsAt: Date | null;
-          endsAt: Date | null;
-          publishedAt: Date | null;
-          targetMessIds: string;
-        };
-        isRead: boolean;
-        readAt: Date | null;
-      }>
-    = [];
+  let rows: Array<any> = [];
 
   try {
     rows = await db.announcementRead.findMany({
@@ -316,24 +297,24 @@ export async function getUserAnnouncements() {
     return [];
   }
 
-  return rows.map((row) => ({
-      id: row.announcement.id,
-      title: row.announcement.title,
-      description: row.announcement.description,
-      type: row.announcement.type,
-      priority: row.announcement.priority,
-      startsAt: row.announcement.startsAt,
-      endsAt: row.announcement.endsAt,
-      publishedAt: row.announcement.publishedAt,
-      isRead: row.isRead,
-      readAt: row.readAt,
-      targetMessIds: parseTargetMessIds(row.announcement.targetMessIds),
-    }));
+  return rows.map((row: any) => ({
+    id: row.announcement.id,
+    title: row.announcement.title,
+    description: row.announcement.description,
+    type: row.announcement.type,
+    priority: row.announcement.priority,
+    startsAt: row.announcement.startsAt,
+    endsAt: row.announcement.endsAt,
+    publishedAt: row.announcement.publishedAt,
+    isRead: row.isRead,
+    readAt: row.readAt,
+    targetMessIds: parseTargetMessIds(row.announcement.targetMessIds),
+  }));
 }
 
 export async function getActiveAnnouncementsForUser() {
   const all = await getUserAnnouncements();
-  return all.filter((item) =>
+  return all.filter((item: any) =>
     announcementActiveWindow({
       startsAt: item.startsAt,
       endsAt: item.endsAt,

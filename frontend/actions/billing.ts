@@ -3,13 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { saveSecureUpload } from "@/lib/upload-storage";
 import {
-  PaymentRequestStatus,
-  PlanDurationType,
-  PlanVisibility,
-  Prisma,
-  SubscriptionStatus,
-  type Plan,
-} from "@prisma/client";
+  type PaymentRequestStatus,
+  type PlanDurationType,
+  type PlanVisibility,
+  type SubscriptionStatus,
+} from "@/types/domain";
+type Plan = any;
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/mess-access";
 import { requireSuperAdmin } from "@/lib/billing/auth";
@@ -124,7 +123,7 @@ async function hasExtendedPlanColumns() {
   if (extendedPlanColumnsCache !== null) return extendedPlanColumnsCache;
 
   try {
-    const rows = await db.$queryRawUnsafe<Array<{ exists: boolean }>>(
+    const rows = (await db.$queryRawUnsafe(
       `select exists (
         select 1
         from information_schema.columns
@@ -132,7 +131,7 @@ async function hasExtendedPlanColumns() {
           and table_name in ('Plan', 'plan')
           and column_name = 'badge'
       ) as exists`
-    );
+    )) as Array<{ exists: boolean }>;
     extendedPlanColumnsCache = rows[0]?.exists === true;
   } catch {
     extendedPlanColumnsCache = false;
@@ -143,9 +142,10 @@ async function hasExtendedPlanColumns() {
 
 function isMissingPlanColumnError(error: unknown) {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2022" &&
-    String(error.meta?.column ?? "").includes("Plan.")
+    typeof error === "object" &&
+    error !== null &&
+    (error as any).code === "P2022" &&
+    String((error as any).meta?.column ?? "").includes("Plan.")
   );
 }
 
@@ -218,8 +218,8 @@ export async function getActivePlans() {
   });
   return plans
     .map(withPlanFallback)
-    .filter((plan) => !plan.isArchived && plan.visibility === "PUBLIC")
-    .map((plan) => toParsedPlan(plan as Plan));
+    .filter((plan: any) => !plan.isArchived && plan.visibility === "PUBLIC")
+    .map((plan: any) => toParsedPlan(plan as Plan));
 }
 
 export async function getAllPlans() {
@@ -231,7 +231,7 @@ export async function getAllPlans() {
       _count: { select: { subscriptions: true } },
     },
   });
-  return plans.map((plan) => withPlanFallback(plan));
+  return plans.map((plan: any) => withPlanFallback(plan));
 }
 
 export async function getBillingSettings() {
@@ -683,8 +683,8 @@ export async function getPaymentRequests(status?: PaymentRequestStatus) {
       paymentMethod: true,
       reviewedBy: { select: { name: true } },
     },
-  }).then((rows) =>
-    rows.map((row) => ({
+  }).then((rows: any) =>
+    rows.map((row: any) => ({
       ...row,
       plan: row.plan ? withPlanFallback(row.plan) : null,
     }))
@@ -720,8 +720,8 @@ export async function getPaymentRequestsForAdmin(filters?: {
       paymentMethod: true,
       reviewedBy: { select: { name: true } },
     },
-  }).then((rows) =>
-    rows.map((row) => ({
+  }).then((rows: any) =>
+    rows.map((row: any) => ({
       ...row,
       plan: row.plan ? withPlanFallback(row.plan) : null,
     }))
@@ -745,8 +745,8 @@ export async function getMyPaymentRequests() {
         },
       },
     },
-  }).then((rows) =>
-    rows.map((row) => ({
+  }).then((rows: any) =>
+    rows.map((row: any) => ({
       ...row,
       plan: row.plan ? withPlanFallback(row.plan) : null,
       subscription: row.subscription
@@ -1033,7 +1033,7 @@ export async function getAllSubscriptions() {
       plan: { select: LEGACY_PLAN_SELECT },
       messes: { select: { id: true, name: true } },
     },
-  }).then((rows) => rows.map((row) => ({
+  }).then((rows: any) => rows.map((row: any) => ({
     ...row,
     plan: row.plan ? withPlanFallback(row.plan) : null,
   })));

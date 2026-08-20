@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useState } from "react";
+import {
+  useGetAdminAnnouncementsQuery,
+  useGetAdminMessesQuery,
+} from "@/lib/store/api/super-admin-api";
 import { deleteAnnouncement, saveAnnouncement } from "@/actions/announcements";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +33,6 @@ const audienceOptions = [
   "SPECIFIC_MESSES",
 ] as const;
 
-type AnnouncementRow = Awaited<
-  ReturnType<typeof import("@/actions/announcements").getAdminAnnouncements>
->[number];
-
 function toDateTimeLocal(value: Date | string | null | undefined) {
   if (!value) return "";
   const date = new Date(value);
@@ -50,15 +49,13 @@ function parseTargetMessIds(raw: string | null | undefined) {
   }
 }
 
-export function AnnouncementsManager({
-  announcements,
-  messes,
-}: {
-  announcements: AnnouncementRow[];
-  messes: { id: string; name: string }[];
-}) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+export function AnnouncementsManager() {
+  const { data: annData, isLoading: annLoading, error: annError } = useGetAdminAnnouncementsQuery();
+  const { data: messData } = useGetAdminMessesQuery();
+
+  const announcements = annData?.data || annData || [];
+  const messes = messData?.data || messData || [];
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -69,6 +66,7 @@ export function AnnouncementsManager({
   const [endsAt, setEndsAt] = useState("");
   const [isPublished, setIsPublished] = useState(true);
   const [targetMessIds, setTargetMessIds] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function resetForm() {
     setEditingId(null);
@@ -83,7 +81,7 @@ export function AnnouncementsManager({
     setTargetMessIds([]);
   }
 
-  function openEdit(announcement: AnnouncementRow) {
+  function openEdit(announcement: any) {
     setEditingId(announcement.id);
     setTitle(announcement.title);
     setDescription(announcement.description);
@@ -99,6 +97,7 @@ export function AnnouncementsManager({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setIsSubmitting(true);
     const formData = new FormData();
     if (editingId) formData.set("id", editingId);
     formData.set("title", title);
@@ -111,30 +110,35 @@ export function AnnouncementsManager({
     formData.set("isPublished", String(isPublished));
     targetMessIds.forEach((messId) => formData.append("targetMessIds", messId));
 
-    startTransition(async () => {
-      const result = await saveAnnouncement(formData);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+    const result = await saveAnnouncement(formData);
+    if (!result.success) {
+      toast.error(result.error);
+    } else {
       toast.success(editingId ? "Announcement updated" : "Announcement saved");
       resetForm();
-      router.refresh();
-    });
+    }
+    setIsSubmitting(false);
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (!confirm("Delete this announcement permanently?")) return;
-    startTransition(async () => {
-      const result = await deleteAnnouncement(id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+    setIsSubmitting(true);
+    const result = await deleteAnnouncement(id);
+    if (!result.success) {
+      toast.error(result.error);
+    } else {
       if (editingId === id) resetForm();
       toast.success("Announcement deleted");
-      router.refresh();
-    });
+    }
+    setIsSubmitting(false);
+  }
+
+  if (annLoading) {
+    return <div className="p-4 text-sm text-zinc-500">Loading announcements from Express API...</div>;
+  }
+
+  if (annError) {
+    return <div className="p-4 text-sm text-red-500">Error loading announcements</div>;
   }
 
   return (
@@ -212,7 +216,7 @@ export function AnnouncementsManager({
                 <div className="md:col-span-2 space-y-2">
                   <Label>Specific Messes</Label>
                   <div className="grid gap-2 md:grid-cols-2">
-                    {messes.map((mess) => (
+                    {Array.isArray(messes) && messes.map((mess: any) => (
                       <label key={mess.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
                         <input
                           type="checkbox"
@@ -234,11 +238,11 @@ export function AnnouncementsManager({
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={pending}>
-                {pending ? "Saving..." : editingId ? "Update Announcement" : "Save Announcement"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : editingId ? "Update Announcement" : "Save Announcement"}
               </Button>
               {editingId && (
-                <Button type="button" variant="outline" disabled={pending} onClick={resetForm}>
+                <Button type="button" variant="outline" disabled={isSubmitting} onClick={resetForm}>
                   Cancel
                 </Button>
               )}
@@ -252,23 +256,23 @@ export function AnnouncementsManager({
           <CardTitle>Announcement History</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {announcements.map((announcement) => (
+          {Array.isArray(announcements) && announcements.map((announcement: any) => (
             <div key={announcement.id} className="rounded-xl border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold">{announcement.title}</p>
                   <p className="text-sm text-zinc-500">
-                    {announcement.audienceType.replaceAll("_", " ")} · {announcement.type} · {announcement.createdBy.name ?? announcement.createdBy.email}
+                    {announcement.audienceType?.replaceAll("_", " ")} · {announcement.type} · {announcement.createdBy?.name ?? announcement.createdBy?.email ?? "Admin"}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{announcement.priority}</Badge>
                   <Badge>{announcement.isPublished ? "Published" : "Draft"}</Badge>
-                  <Badge variant="secondary">{announcement._count.reads} deliveries</Badge>
+                  <Badge variant="secondary">{announcement._count?.reads ?? 0} deliveries</Badge>
                   <Button
                     size="icon"
                     variant="ghost"
-                    disabled={pending}
+                    disabled={isSubmitting}
                     onClick={() => openEdit(announcement)}
                     aria-label="Edit announcement"
                   >
@@ -277,7 +281,7 @@ export function AnnouncementsManager({
                   <Button
                     size="icon"
                     variant="ghost"
-                    disabled={pending}
+                    disabled={isSubmitting}
                     onClick={() => handleDelete(announcement.id)}
                     aria-label="Delete announcement"
                   >
@@ -288,7 +292,9 @@ export function AnnouncementsManager({
               <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{announcement.description}</p>
             </div>
           ))}
-          {announcements.length === 0 && <p className="text-sm text-zinc-500">No announcements created yet.</p>}
+          {(!Array.isArray(announcements) || announcements.length === 0) && (
+            <p className="text-sm text-zinc-500">No announcements created yet.</p>
+          )}
         </CardContent>
       </Card>
     </div>

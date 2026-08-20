@@ -30,8 +30,7 @@ class AdminMessesParams {
   final String search;
   final String? status;
 
-  const AdminMessesParams(
-      {this.page = 1, this.search = '', this.status});
+  const AdminMessesParams({this.page = 1, this.search = '', this.status});
 
   @override
   bool operator ==(Object other) =>
@@ -155,7 +154,7 @@ final adminUserDetailProvider =
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// Payments
+// Payments & Payment Methods
 // ────────────────────────────────────────────────────────────────────────────
 
 final adminPaymentsParamsProvider =
@@ -186,8 +185,22 @@ final adminPaymentsProvider =
   }
 });
 
+final adminPaymentMethodsProvider =
+    FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/payment-methods');
+    if (res.data['success'] == true) {
+      return res.data['data'] as List;
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────────────
-// Subscriptions
+// Subscriptions, Plans, Coupons, Referrals
 // ────────────────────────────────────────────────────────────────────────────
 
 final adminSubscriptionsProvider =
@@ -207,8 +220,67 @@ final adminSubscriptionsProvider =
   }
 });
 
+final adminPlansProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/plans');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+final adminCouponsProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/coupons');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+final adminReferralsProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/referrals');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────────────
-// Analytics
+// Support Tickets & Announcements
+// ────────────────────────────────────────────────────────────────────────────
+
+final adminSupportTicketsProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/support');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+final adminAnnouncementsProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/announcements');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Analytics & Audit Logs
 // ────────────────────────────────────────────────────────────────────────────
 
 final adminAnalyticsPeriodProvider =
@@ -230,10 +302,6 @@ final adminAnalyticsProvider =
   }
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// Audit Logs
-// ────────────────────────────────────────────────────────────────────────────
-
 final adminAuditLogsProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
   try {
@@ -253,7 +321,99 @@ final adminAuditLogsProvider =
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// Action Helpers (non-provider, imperative API calls)
+// System & Admin Modules Providers
+// ────────────────────────────────────────────────────────────────────────────
+
+final adminSystemSettingsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/settings');
+    if (res.data['success'] == true) return res.data['data'] as Map<String, dynamic>;
+    return {};
+  } catch (e) {
+    return {};
+  }
+});
+
+final adminDatabaseStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/database');
+    if (res.data['success'] == true) return res.data['data'] as Map<String, dynamic>;
+    return {};
+  } catch (e) {
+    return {};
+  }
+});
+
+final adminFeatureFlagsProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/feature-flags');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+final adminBackupStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/backups');
+    if (res.data['success'] == true) return res.data['data'] as Map<String, dynamic>;
+    return {};
+  } catch (e) {
+    return {};
+  }
+});
+
+final adminApiOverviewProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/api-overview');
+    if (res.data['success'] == true) return res.data['data'] as Map<String, dynamic>;
+    return {};
+  } catch (e) {
+    return {};
+  }
+});
+
+final adminEmailTemplatesProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/email-templates');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+final adminNotificationTemplatesProvider = FutureProvider<List<dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/notification-templates');
+    if (res.data['success'] == true) return res.data['data'] as List;
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
+
+final adminSecurityOverviewProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  try {
+    final dio = ref.read(dioClientProvider).dio;
+    final res = await dio.get('/super-admin/security');
+    if (res.data['success'] == true) return res.data['data'] as Map<String, dynamic>;
+    return {};
+  } catch (e) {
+    return {};
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Action Helpers
 // ────────────────────────────────────────────────────────────────────────────
 
 class AdminActions {

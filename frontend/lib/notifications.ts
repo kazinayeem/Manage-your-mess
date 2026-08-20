@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { NotificationType } from "@prisma/client";
+import type { NotificationType } from "@/types/domain";
 
 export async function createUserNotification(
   userId: string,

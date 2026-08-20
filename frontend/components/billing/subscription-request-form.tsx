@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { submitSubscriptionRequest } from "@/actions/billing";
 import { formatPlanDuration, type ParsedPlan } from "@/lib/billing/plan-utils";
 import { formatCurrency } from "@/lib/utils";
-import type { PaymentMethod } from "@prisma/client";
+type PaymentMethod = any;
 import { CheckCircle2 } from "lucide-react";
 
 export function SubscriptionRequestForm({

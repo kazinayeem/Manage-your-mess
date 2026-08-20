@@ -25,6 +25,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  void _navigateAfterAuth() {
+    final user = ref.read(authProvider).user;
+    if (user?['role'] == 'SUPER_ADMIN') {
+      context.go('/admin');
+    } else {
+      context.go('/home');
+    }
+  }
+
   void _onLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -34,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
 
     if (success && mounted) {
-      context.go('/home');
+      _navigateAfterAuth();
     }
   }
 
@@ -164,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     .read(authProvider.notifier)
                                     .login('admin@messflow.pro', 'Admin@123456');
                                 if (success && mounted) {
-                                  context.go('/home');
+                                  _navigateAfterAuth();
                                 }
                               },
                         child: const Text('Super Admin', style: TextStyle(fontSize: 11)),
@@ -180,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     .read(authProvider.notifier)
                                     .login('demo@messflow.pro', 'Demo@123456');
                                 if (success && mounted) {
-                                  context.go('/home');
+                                  _navigateAfterAuth();
                                 }
                               },
                         child: const Text('Demo Owner', style: TextStyle(fontSize: 11)),

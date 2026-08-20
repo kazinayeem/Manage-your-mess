@@ -1,6 +1,6 @@
 import { getMemberLimit, planHasFeature, type ParsedPlan } from "@/lib/billing/plan-utils";
 import { PLAN_FEATURES, type PlanFeatureKey } from "@/lib/billing/constants";
-import type { Plan } from "@prisma/client";
+type Plan = any;
 
 export const FEATURES = PLAN_FEATURES;
 export type FeatureKey = PlanFeatureKey;

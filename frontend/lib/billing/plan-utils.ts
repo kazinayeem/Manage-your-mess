@@ -1,4 +1,4 @@
-import type { Plan, PlanDurationType, PlanVisibility } from "@prisma/client";
+import type { PlanDurationType, PlanVisibility } from "@/types/domain";
 import {
   LEGACY_FEATURE_MAP,
   type PlanFeatureKey,
