@@ -86,6 +86,7 @@ export type NotificationType = string;
 export type BillSplitMethod =
   | "EQUAL"
   | "BY_MEMBERS"
+  | "ROOM_BASED"
   | "CUSTOM"
   | "PERCENTAGE";
 

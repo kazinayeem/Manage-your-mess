@@ -48,7 +48,7 @@ export async function registerUser(formData: FormData): Promise<ActionResult<{ u
         name: parsed.data.name,
         email,
         passwordHash,
-        role: UserRole.MEMBER,
+        role: "MEMBER",
       },
     });
 
@@ -107,7 +107,7 @@ export async function createMess(formData: FormData): Promise<ActionResult<{ mes
         address: parsed.data.address,
         ownerId: user.id,
         managerId: user.id,
-        subscriptionId: subscription.id,
+        subscriptionId: subscription?.id ?? null,
         monthlyRules: JSON.stringify({ timezone, currency, language, memberLimit }),
       },
     });
@@ -116,7 +116,7 @@ export async function createMess(formData: FormData): Promise<ActionResult<{ mes
       data: {
         messId: mess.id,
         userId: user.id,
-        role: UserRole.MESS_MANAGER,
+        role: "MESS_MANAGER",
         status: "ACTIVE",
         fullName: user.name,
       },
@@ -179,7 +179,7 @@ export async function joinMess(inviteCode: string): Promise<ActionResult<{ messI
       data: {
         messId: mess.id,
         userId: user.id,
-        role: UserRole.MEMBER,
+        role: "MEMBER",
         status: "PENDING",
         fullName: user.name,
       },
@@ -588,7 +588,7 @@ export async function addMember(messId: string, formData: FormData): Promise<Act
         email,
         name: parsed.data.fullName,
         phone: parsed.data.phone,
-        role: UserRole.MEMBER,
+        role: "MEMBER",
       },
     });
 
@@ -604,7 +604,7 @@ export async function addMember(messId: string, formData: FormData): Promise<Act
         occupation: parsed.data.occupation,
         university: parsed.data.university,
         monthlyDeposit: parsed.data.monthlyDeposit,
-        role: UserRole.MEMBER,
+        role: "MEMBER",
         status: "ACTIVE",
       },
     });
@@ -720,13 +720,13 @@ export async function changeManager(messId: string, memberId: string): Promise<A
       }),
       db.member.update({
         where: { id: memberId },
-        data: { role: UserRole.MESS_MANAGER },
+        data: { role: "MESS_MANAGER" },
       }),
       ...(oldManagerUserId
         ? [
             db.member.updateMany({
               where: { messId, userId: oldManagerUserId },
-              data: { role: UserRole.MEMBER },
+              data: { role: "MEMBER" },
             }),
           ]
         : []),
@@ -734,9 +734,9 @@ export async function changeManager(messId: string, memberId: string): Promise<A
         where: {
           messId,
           userId: { not: target.userId },
-          role: { in: [UserRole.MESS_MANAGER, UserRole.ASSISTANT_MANAGER, UserRole.MESS_OWNER] },
+          role: { in: ["MESS_MANAGER", "ASSISTANT_MANAGER", "MESS_OWNER"] },
         },
-        data: { role: UserRole.MEMBER },
+        data: { role: "MEMBER" },
       }),
     ]);
 
