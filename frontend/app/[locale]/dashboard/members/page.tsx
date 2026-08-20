@@ -12,7 +12,7 @@ export default async function MembersPage() {
     : null;
 
   const members =
-    summary?.members.map((m) => ({
+    summary?.members.map((m: any) => ({
       id: m.id,
       fullName: m.fullName,
       role: m.role,

@@ -18,8 +18,8 @@ export default async function RoomsPage() {
     orderBy: { number: "asc" },
   });
 
-  const totalBeds = rooms.reduce((s, r) => s + r.beds.length, 0);
-  const occupied = rooms.reduce((s, r) => s + r.beds.filter((b) => b.isOccupied).length, 0);
+  const totalBeds = rooms.reduce((s: number, r: any) => s + r.beds.length, 0);
+  const occupied = rooms.reduce((s: number, r: any) => s + r.beds.filter((b: any) => b.isOccupied).length, 0);
 
   return (
     <div className="space-y-6">
@@ -31,14 +31,14 @@ export default async function RoomsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {rooms.map((room) => (
+        {rooms.map((room: any) => (
           <Card key={room.id}>
             <CardHeader>
               <CardTitle className="text-base">Room {room.number}</CardTitle>
               <p className="text-xs text-zinc-500">Floor {room.floor} · Capacity {room.capacity}</p>
             </CardHeader>
             <CardContent className="space-y-2">
-              {room.beds.map((bed) => (
+              {room.beds.map((bed: any) => (
                 <div key={bed.id} className="flex items-center justify-between text-sm">
                   <span>Bed {bed.number}</span>
                   <Badge variant={bed.isOccupied ? "default" : "outline"}>

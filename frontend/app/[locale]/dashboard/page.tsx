@@ -80,7 +80,7 @@ export default async function DashboardPage() {
       <div>
         <h2 className="mb-4 text-lg font-semibold">Members</h2>
         <MemberCardGrid
-          members={summary.members.map((m) => ({
+          members={summary.members.map((m: any) => ({
             id: m.id,
             fullName: m.fullName,
             phone: m.phone,

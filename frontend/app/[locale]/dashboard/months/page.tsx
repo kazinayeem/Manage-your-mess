@@ -17,7 +17,7 @@ export default async function AllMonthsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">All Months</h1>
       <div className="space-y-3">
-        {months.map((m) => (
+        {months.map((m: any) => (
           <Card key={m.id}>
             <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div>

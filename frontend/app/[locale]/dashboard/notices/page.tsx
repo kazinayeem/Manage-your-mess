@@ -23,7 +23,7 @@ export default async function NoticesPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Notice Board</h1>
       <div className="space-y-4">
-        {notices.map((notice) => (
+        {notices.map((notice: any) => (
           <Card key={notice.id} className={notice.isPinned ? "border-emerald-500" : ""}>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
