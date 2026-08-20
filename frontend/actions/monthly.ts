@@ -60,14 +60,14 @@ export async function getMonthSummary(messId: string, monthId: string) {
     }),
   ]);
 
-  const mealExpenses = expenses.filter((e) => isMealExpense(e.category));
-  const totalMealExpenses = mealExpenses.reduce((s, e) => s + e.amount, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const totalDeposits = deposits.reduce((s, d) => s + d.amount, 0);
-  const totalMeals = mealEntries.reduce((s, e) => s + countMeals(e), 0);
+  const mealExpenses = expenses.filter((e: any) => isMealExpense(e.category));
+  const totalMealExpenses = mealExpenses.reduce((s: number, e: any) => s + e.amount, 0);
+  const totalExpenses = expenses.reduce((s: number, e: any) => s + e.amount, 0);
+  const totalDeposits = deposits.reduce((s: number, d: any) => s + d.amount, 0);
+  const totalMeals = mealEntries.reduce((s: number, e: any) => s + countMeals(e), 0);
   const mealRate = calculateMealRate(totalMealExpenses, totalMeals);
 
-  const totalSharedBills = bills.reduce((s, b) => s + b.amount, 0);
+  const totalSharedBills = bills.reduce((s: number, b: any) => s + b.amount, 0);
   let totalRent = 0;
   let totalUtilities = 0;
   for (const b of bills) {
@@ -87,13 +87,13 @@ export async function getMonthSummary(messId: string, monthId: string) {
     }
   }
 
-  const memberStats = members.map((m) => {
+  const memberStats = members.map((m: any) => {
     const meals = mealEntries
-      .filter((e) => e.memberId === m.id)
-      .reduce((s, e) => s + countMeals(e), 0);
+      .filter((e: any) => e.memberId === m.id)
+      .reduce((s: number, e: any) => s + countMeals(e), 0);
     const memberDeposits = deposits
-      .filter((d) => d.memberId === m.id)
-      .reduce((s, d) => s + d.amount, 0);
+      .filter((d: any) => d.memberId === m.id)
+      .reduce((s: number, d: any) => s + d.amount, 0);
     const billShares = memberBillMap.get(m.id) ?? emptyBillBreakdown();
 
     return {
@@ -108,13 +108,13 @@ export async function getMonthSummary(messId: string, monthId: string) {
     };
   });
 
-  const totalDue = memberStats.reduce((s, m) => s + m.due, 0);
+  const totalDue = memberStats.reduce((s: number, m: any) => s + m.due, 0);
   const totalMealCost = totalMeals * mealRate;
 
-  const billsByCategory = bills.reduce<Record<string, number>>((acc, b) => {
+  const billsByCategory = bills.reduce((acc: Record<string, number>, b: any) => {
     acc[b.category] = (acc[b.category] ?? 0) + b.amount;
     return acc;
-  }, {});
+  }, {} as Record<string, number>);
 
   return {
     month: { ...month, sharedCost: totalSharedBills },
@@ -231,7 +231,7 @@ export async function startNewMonth(
         mealRate: summary.mealRate,
         sharedCost: summary.billKpis.totalSharedBills,
         snapshot: JSON.stringify(
-          summary.members.map((m) => ({
+          summary.members.map((m: any) => ({
             memberId: m.id,
             fullName: m.fullName,
             mealCount: m.mealCount,

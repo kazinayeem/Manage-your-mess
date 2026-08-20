@@ -38,7 +38,7 @@ export default async function MealsPage() {
         <CardHeader><CardTitle>Meal Calendar</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {recentMeals.map((meal) => (
+            {recentMeals.map((meal: any) => (
               <div key={meal.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
                 <span>{new Date(meal.date).toLocaleDateString()}</span>
                 <div className="flex gap-4 text-zinc-500">

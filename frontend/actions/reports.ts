@@ -105,7 +105,7 @@ export async function fetchReportData(
     if (reportType === "monthly" || reportType === "balance_sheet") {
       const title =
         reportType === "balance_sheet" ? "Balance Report" : "Monthly Settlement Report";
-      const membersWithDue = summary.members.filter((m) => m.due > 0).length;
+      const membersWithDue = summary.members.filter((m: any) => m.due > 0).length;
 
       const [monthExpenses, bazaarTasks] = await Promise.all([
         db.expense.findMany({
@@ -131,7 +131,7 @@ export async function fetchReportData(
         }),
       ]);
 
-      const expenseBreakdown = Object.entries(summary.billsByCategory).map(([cat, amt]) => ({
+      const expenseBreakdown = Object.entries(summary.billsByCategory).map(([cat, amt]: [string, any]) => ({
         label: getBillCategoryLabel(cat as Parameters<typeof getBillCategoryLabel>[0]),
         amount: amt,
       }));
@@ -146,7 +146,7 @@ export async function fetchReportData(
         (cat.INTERNET ?? 0);
 
       const totalBazaarCost = bazaarTasks.reduce(
-        (sum, task) => sum + (task.submission?.actualCost ?? task.expectedBudget),
+        (sum: number, task: any) => sum + (task.submission?.actualCost ?? task.expectedBudget),
         0
       );
 
@@ -174,7 +174,7 @@ export async function fetchReportData(
         select: { breakfast: true, lunch: true, dinner: true },
       });
       const mealBreakdown = mealEntries.reduce(
-        (acc, e) => ({
+        (acc: any, e: any) => ({
           breakfast: acc.breakfast + e.breakfast,
           lunch: acc.lunch + e.lunch,
           dinner: acc.dinner + e.dinner,
@@ -202,7 +202,7 @@ export async function fetchReportData(
             { key: "balance", label: "Balance", format: "currency", align: "right", allowNegative: true },
             { key: "status", label: "Status", align: "left" },
           ],
-          rows: summary.members.map((m) => ({
+          rows: summary.members.map((m: any) => ({
             name: m.fullName ?? "Unnamed",
             mealCount: m.mealCount,
             deposit: m.totalDeposit,
@@ -227,7 +227,7 @@ export async function fetchReportData(
                 { key: "balance", label: "Balance", format: "currency", align: "right", allowNegative: true },
                 { key: "status", label: "Status", align: "left" },
               ],
-              summary.members.map((m) => ({
+              summary.members.map((m: any) => ({
                 name: m.fullName ?? "Unnamed",
                 mealCount: m.mealCount,
                 deposit: m.totalDeposit,
@@ -273,7 +273,7 @@ export async function fetchReportData(
                 { key: "amount", label: "Amount", format: "currency", align: "right" },
                 { key: "status", label: "Status", align: "left" },
               ],
-              bazaarTasks.map((task) => ({
+              bazaarTasks.map((task: any) => ({
                 date: formatDateStr(task.shoppingDate),
                 member: task.assignment?.member.fullName ?? "—",
                 itemCount: task.items.length,
@@ -292,7 +292,7 @@ export async function fetchReportData(
                 { key: "amount", label: "Amount", format: "currency", align: "right" },
                 { key: "addedBy", label: "Added By", align: "left" },
               ],
-              monthExpenses.map((expense) => ({
+              monthExpenses.map((expense: any) => ({
                 date: formatDateStr(expense.date),
                 category: expense.category.name,
                 description: expense.description ?? "—",
@@ -310,12 +310,12 @@ export async function fetchReportData(
               membersWithDue,
               totalDue: summary.totalDue,
               highest:
-                summary.members.sort((a, b) => b.due - a.due)[0]?.fullName ?? undefined,
+                summary.members.sort((a: any, b: any) => b.due - a.due)[0]?.fullName ?? undefined,
             },
             depositStats: {
               total: summary.totalDeposits,
               highest:
-                summary.members.sort((a, b) => b.totalDeposit - a.totalDeposit)[0]?.fullName ??
+                summary.members.sort((a: any, b: any) => b.totalDeposit - a.totalDeposit)[0]?.fullName ??
                 undefined,
             },
           },
@@ -342,7 +342,7 @@ export async function fetchReportData(
             { key: "due", label: "Due", format: "currency", align: "right" },
             { key: "advance", label: "Advance", format: "currency", align: "right" },
           ],
-          rows: summary.members.map((m) => ({
+          rows: summary.members.map((m: any) => ({
             name: m.fullName ?? "Unnamed",
             phone: m.phone ?? "—",
             meals: m.mealCount,
@@ -382,7 +382,7 @@ export async function fetchReportData(
             { key: "dinner", label: "Dinner", format: "portion", align: "center" },
             { key: "total", label: "Total", format: "number", align: "right" },
           ],
-          rows: entries.map((e) => ({
+          rows: entries.map((e: any) => ({
             date: formatDateStr(e.meal.date),
             member: e.member.fullName ?? "Unnamed",
             breakfast: formatMealPortion(e.breakfast),
@@ -415,7 +415,7 @@ export async function fetchReportData(
             { key: "description", label: "Description", align: "left" },
             { key: "amount", label: "Amount", format: "currency", align: "right" },
           ],
-          rows: expenses.map((e) => ({
+          rows: expenses.map((e: any) => ({
             date: formatDateStr(e.date),
             category: e.category.name,
             description: e.description ?? "—",
@@ -448,7 +448,7 @@ export async function fetchReportData(
             { key: "type", label: "Type", align: "left" },
             { key: "notes", label: "Notes", align: "left" },
           ],
-          rows: deposits.map((d) => ({
+          rows: deposits.map((d: any) => ({
             date: formatDateStr(d.createdAt),
             member: d.member.fullName ?? "Unnamed",
             amount: d.amount,
@@ -500,23 +500,23 @@ export async function fetchReportData(
         }),
       ]);
 
-      const dayMeals = mealEntries.reduce((s, e) => s + countMeals(e), 0);
-      const dayExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-      const dayDeposits = deposits.reduce((s, d) => s + d.amount, 0);
+      const dayMeals = mealEntries.reduce((s: number, e: any) => s + countMeals(e), 0);
+      const dayExpenses = expenses.reduce((s: number, e: any) => s + e.amount, 0);
+      const dayDeposits = deposits.reduce((s: number, d: any) => s + d.amount, 0);
       const dateLabel = formatDateStr(targetDate);
 
       const rows: Record<string, string | number>[] = [
-        ...mealEntries.map((e) => ({
+        ...mealEntries.map((e: any) => ({
           type: "Meal",
           detail: `${e.member.fullName ?? "Unnamed"} — B:${formatMealPortion(e.breakfast)} L:${formatMealPortion(e.lunch)} D:${formatMealPortion(e.dinner)}`,
           amount: countMeals(e),
         })),
-        ...expenses.map((e) => ({
+        ...expenses.map((e: any) => ({
           type: "Expense",
           detail: `${e.category.name}${e.description ? ` — ${e.description}` : ""}`,
           amount: e.amount,
         })),
-        ...deposits.map((d) => ({
+        ...deposits.map((d: any) => ({
           type: "Deposit",
           detail: `${d.member.fullName ?? "Unnamed"} (${d.method})`,
           amount: d.amount,
@@ -580,9 +580,9 @@ export async function fetchReportData(
         }),
       ]);
 
-      const weekMeals = mealEntries.reduce((s, e) => s + countMeals(e), 0);
-      const weekExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-      const weekDeposits = deposits.reduce((s, d) => s + d.amount, 0);
+      const weekMeals = mealEntries.reduce((s: number, e: any) => s + countMeals(e), 0);
+      const weekExpenses = expenses.reduce((s: number, e: any) => s + e.amount, 0);
+      const weekDeposits = deposits.reduce((s: number, d: any) => s + d.amount, 0);
 
       return {
         success: true,
@@ -617,7 +617,7 @@ export async function fetchReportData(
 
     if (reportType === "rent" || reportType === "utility" || reportType === "shared_expense") {
       const { getBillCategoryLabel: getCat } = await import("@/lib/bills/categories");
-      const filtered = summary.bills.filter((b) => {
+      const filtered = summary.bills.filter((b: any) => {
         if (reportType === "rent") return b.category === "HOUSE_RENT";
         if (reportType === "utility")
           return ["ELECTRICITY", "WATER", "GAS", "INTERNET", "GENERATOR"].includes(b.category);
@@ -640,7 +640,7 @@ export async function fetchReportData(
           meta: { ...baseMeta, reportTitle: title, periodLabel: month.label },
           summary: [
             { label: "Bill Count", value: String(filtered.length) },
-            { label: "Total Amount", value: formatBdt(filtered.reduce((s, b) => s + b.amount, 0)) },
+            { label: "Total Amount", value: formatBdt(filtered.reduce((s: number, b: any) => s + b.amount, 0)) },
           ],
           columns: [
             { key: "category", label: "Category", align: "left" },
@@ -649,7 +649,7 @@ export async function fetchReportData(
             { key: "dueDate", label: "Due Date", align: "left" },
             { key: "description", label: "Description", align: "left" },
           ],
-          rows: filtered.map((b) => ({
+          rows: filtered.map((b: any) => ({
             category: getCat(b.category),
             amount: b.amount,
             status: b.status,
@@ -677,7 +677,7 @@ export async function fetchReportData(
             { key: "deposit", label: "Deposit", format: "currency", align: "right" },
             { key: "due", label: "Due", format: "currency", align: "right" },
           ],
-          rows: summary.members.map((m) => ({
+          rows: summary.members.map((m: any) => ({
             name: m.fullName ?? "Unnamed",
             billShare: m.totalBillShare,
             mealCost: m.mealCost,
@@ -690,7 +690,7 @@ export async function fetchReportData(
     }
 
     if (reportType === "due") {
-      const dueMembers = summary.members.filter((m) => m.due > 0).sort((a, b) => b.due - a.due);
+      const dueMembers = summary.members.filter((m: any) => m.due > 0).sort((a: any, b: any) => b.due - a.due);
       return {
         success: true,
         data: {
@@ -713,7 +713,7 @@ export async function fetchReportData(
             { key: "deposit", label: "Deposit", format: "currency", align: "right" },
             { key: "due", label: "Due", format: "currency", align: "right" },
           ],
-          rows: dueMembers.map((m) => ({
+          rows: dueMembers.map((m: any) => ({
             name: m.fullName ?? "Unnamed",
             totalCost: m.totalCost,
             deposit: m.totalDeposit,
@@ -744,7 +744,7 @@ export async function fetchReportData(
         },
         orderBy: { shoppingDate: "desc" },
       });
-      const total = bazaars.reduce((s, b) => s + (b.submission?.actualCost ?? b.expectedBudget), 0);
+      const total = bazaars.reduce((s: number, b: any) => s + (b.submission?.actualCost ?? b.expectedBudget), 0);
       return {
         success: true,
         data: {
@@ -760,10 +760,10 @@ export async function fetchReportData(
             { key: "amount", label: "Amount", format: "currency", align: "right" },
             { key: "status", label: "Status", align: "left" },
           ],
-          rows: bazaars.map((b) => ({
+          rows: bazaars.map((b: any) => ({
             date: formatDateStr(b.shoppingDate),
             member: b.assignment?.member.fullName ?? "—",
-            items: b.items.map((item) => item.name).join(", ") || "—",
+            items: b.items.map((item: any) => item.name).join(", ") || "—",
             amount: b.submission?.actualCost ?? b.expectedBudget,
             status: b.status,
           })),
@@ -790,13 +790,13 @@ export async function fetchReportData(
             {
               label: "Total Credit",
               value: formatBdt(
-                transactions.filter((t) => t.type === "CREDIT").reduce((s, t) => s + t.amount, 0)
+                transactions.filter((t: any) => t.type === "CREDIT").reduce((s: number, t: any) => s + t.amount, 0)
               ),
             },
             {
               label: "Total Debit",
               value: formatBdt(
-                transactions.filter((t) => t.type === "DEBIT").reduce((s, t) => s + t.amount, 0)
+                transactions.filter((t: any) => t.type === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0)
               ),
             },
           ],
@@ -807,7 +807,7 @@ export async function fetchReportData(
             { key: "amount", label: "Amount", format: "currency", align: "right" },
             { key: "description", label: "Description", align: "left" },
           ],
-          rows: transactions.map((t) => ({
+          rows: transactions.map((t: any) => ({
             date: formatDateStr(t.createdAt),
             member: t.member?.fullName ?? "—",
             type: t.type,

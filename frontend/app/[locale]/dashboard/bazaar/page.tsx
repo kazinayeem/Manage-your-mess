@@ -23,7 +23,7 @@ export default async function BazaarPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Bazaar Management</h1>
       <div className="space-y-4">
-        {entries.map((entry) => (
+        {entries.map((entry: any) => (
           <Card key={entry.id}>
             <CardHeader className="pb-2">
               <div className="flex justify-between">

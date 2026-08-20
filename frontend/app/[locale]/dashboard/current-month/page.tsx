@@ -54,7 +54,7 @@ export default async function CurrentMonthPage() {
         </Card>
       </div>
       <CurrentMonthReportTable
-        members={summary.members.map((m) => ({
+        members={summary.members.map((m: any) => ({
           id: m.id,
           fullName: m.fullName,
           phone: m.phone,
