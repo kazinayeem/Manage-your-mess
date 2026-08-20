@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
 import '../../core/localization/l10n.dart';
 import '../../core/providers/global_providers.dart';
-import '../../core/widgets/empty_view.dart';
-import '../../core/widgets/error_view.dart';
+import '../../core/widgets/app_badge.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_empty_state.dart';
+import '../../core/widgets/app_error_state.dart';
+import '../../core/widgets/app_loading_state.dart';
 import '../../core/widgets/app_text_field.dart';
 
 final depositsListProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -27,73 +32,88 @@ class DepositScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return Padding(
               padding: EdgeInsets.only(
-                top: 24,
-                left: 24,
-                right: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Submit Deposit',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Submit Deposit',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Amount (৳)',
+                      hint: '5000',
+                      keyboardType: TextInputType.number,
+                      controller: amountController,
+                      required: true,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Payment Method',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      value: selectedMethod,
+                      isExpanded: true,
+                      decoration: const InputDecoration(),
+                      items: const [
+                        DropdownMenuItem(value: 'BKASH', child: Text('bKash')),
+                        DropdownMenuItem(value: 'NAGAD', child: Text('Nagad')),
+                        DropdownMenuItem(value: 'ROCKET', child: Text('Rocket')),
+                        DropdownMenuItem(
+                          value: 'BANK_TRANSFER',
+                          child: Text('Bank Transfer'),
                         ),
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Amount (৳)',
-                    hint: '5000',
-                    keyboardType: TextInputType.number,
-                    controller: amountController,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedMethod,
-                    decoration: const InputDecoration(labelText: 'Payment Method'),
-                    items: const [
-                      DropdownMenuItem(value: 'BKASH', child: Text('bKash')),
-                      DropdownMenuItem(value: 'NAGAD', child: Text('Nagad')),
-                      DropdownMenuItem(value: 'ROCKET', child: Text('Rocket')),
-                      DropdownMenuItem(value: 'BANK_TRANSFER', child: Text('Bank Transfer')),
-                      DropdownMenuItem(value: 'CASH', child: Text('Cash')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => selectedMethod = val);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Transaction ID / Reference',
-                    hint: 'TRX9827162',
-                    controller: referenceController,
-                  ),
-                  const SizedBox(height: 24),
-                  AppButton(
-                    text: 'Submit Deposit',
-                    onPressed: () async {
-                      if (amountController.text.isEmpty) return;
-                      final dio = ref.read(dioClientProvider).dio;
-                      await dio.post('/deposits', data: {
-                        'amount': double.parse(amountController.text),
-                        'method': selectedMethod,
-                        'reference': referenceController.text,
-                      });
-                      Navigator.pop(context);
-                      ref.invalidate(depositsListProvider);
-                    },
-                  ),
-                ],
+                        DropdownMenuItem(value: 'CASH', child: Text('Cash')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => selectedMethod = val);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Transaction ID / Reference',
+                      hint: 'TRX9827162',
+                      controller: referenceController,
+                    ),
+                    const SizedBox(height: 20),
+                    AppButton(
+                      text: 'Submit Deposit',
+                      onPressed: () async {
+                        if (amountController.text.isEmpty) return;
+                        final dio = ref.read(dioClientProvider).dio;
+                        await dio.post('/deposits', data: {
+                          'amount': double.parse(amountController.text),
+                          'method': selectedMethod,
+                          'reference': referenceController.text,
+                        });
+                        if (context.mounted) Navigator.pop(context);
+                        ref.invalidate(depositsListProvider);
+                      },
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -106,29 +126,43 @@ class DepositScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
     final depositsAsync = ref.watch(depositsListProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 16,
         title: Text(l10n.get('deposits')),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.borderDark
+                : AppColors.borderLight,
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddDepositModal(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Deposit'),
-        backgroundColor: const Color(0xFF10B981),
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: const Text(
+          'Add Deposit',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 1,
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(depositsListProvider),
         child: depositsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => ErrorView(
+          loading: () => const AppLoadingState(useList: true),
+          error: (err, stack) => AppErrorState(
             message: err.toString(),
             onRetry: () => ref.invalidate(depositsListProvider),
           ),
           data: (deposits) {
             if (deposits.isEmpty) {
-              return const EmptyView(
+              return const AppEmptyState(
                 title: 'No Deposits Found',
                 subtitle: 'Tap + Add Deposit to submit your payment',
                 icon: Icons.account_balance_wallet_outlined,
@@ -145,22 +179,80 @@ class DepositScreen extends ConsumerWidget {
                 final amount = item['amount'] ?? 0;
                 final method = item['method'] ?? 'CASH';
                 final status = item['status'] ?? 'APPROVED';
+                final isApproved = status == 'APPROVED';
+                final isPending = status == 'PENDING';
 
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.green.withOpacity(0.12),
-                      child: const Icon(Icons.check_circle_outline, color: Colors.green),
-                    ),
-                    title: Text(memberName, style: theme.textTheme.titleSmall),
-                    subtitle: Text('Method: $method • Status: $status'),
-                    trailing: Text(
-                      '৳ $amount',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                final badgeVariant = isApproved
+                    ? AppBadgeVariant.success
+                    : isPending
+                        ? AppBadgeVariant.warning
+                        : AppBadgeVariant.destructive;
+
+                return AppCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: isApproved
+                              ? AppColors.successSoft
+                              : AppColors.warningSoft,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Icon(
+                          isApproved
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.hourglass_top_rounded,
+                          size: 18,
+                          color: isApproved
+                              ? AppColors.successText
+                              : AppColors.warningText,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              memberName,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimaryLight,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Method: $method',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '৳ $amount',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.successText,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          AppBadge(text: status, variant: badgeVariant),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },

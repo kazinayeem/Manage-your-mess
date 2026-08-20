@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getActiveMessContext } from "@/lib/mess-context";
-import { getAllMonths } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -11,7 +11,8 @@ export default async function AllMonthsPage() {
   const ctx = await getActiveMessContext();
   if (!ctx) redirect("/login");
 
-  const months = await getAllMonths(ctx.messId);
+  const res = await apiGet(`/reports/months?messId=${ctx.messId}`);
+  const months = res?.data || [];
 
   return (
     <div className="space-y-6">
@@ -23,7 +24,7 @@ export default async function AllMonthsPage() {
               <div>
                 <p className="font-semibold">{m.label}</p>
                 <p className="text-sm text-zinc-500">
-                  Meals: {m.totalMeals} · Rate: {formatCurrency(m.mealRate)}
+                  Meals: {m.totalMeals || 0} · Rate: {formatCurrency(m.mealRate || 0)}
                 </p>
                 {m.closedAt && (
                   <p className="text-xs text-zinc-400">Closed {formatDate(m.closedAt)}</p>

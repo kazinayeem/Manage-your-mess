@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { useUpdateMemberMutation, useAddMemberMutation } from "@/lib/store/api/mess-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,6 +87,7 @@ export function EditMemberForm({
 }) {
   const t = useTranslations("messMembers");
   const router = useRouter();
+  const [updateMember] = useUpdateMemberMutation();
   const [loading, setLoading] = useState(false);
 
   const labels = {
@@ -102,16 +104,27 @@ export function EditMemberForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const { updateMember } = await import("@/actions/mess");
-    const result = await updateMember(messId, memberId, new FormData(e.currentTarget));
-    if (!result.success) {
-      toast.error("error" in result ? result.error : t("saveFailed"));
+    const fd = new FormData(e.currentTarget);
+    const body = {
+      fullName: String(fd.get("fullName") || ""),
+      phone: String(fd.get("phone") || ""),
+      nid: String(fd.get("nid") || ""),
+      bloodGroup: String(fd.get("bloodGroup") || ""),
+      address: String(fd.get("address") || ""),
+      occupation: String(fd.get("occupation") || ""),
+      university: String(fd.get("university") || ""),
+      monthlyDeposit: Number(fd.get("monthlyDeposit") || 0),
+    };
+
+    try {
+      await updateMember({ messId, memberId, body }).unwrap();
+      toast.success(t("saveSuccess"));
+      router.push(messPath(messId, `/members/${memberId}`));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || t("saveFailed"));
       setLoading(false);
-      return;
     }
-    toast.success(t("saveSuccess"));
-    router.push(messPath(messId, `/members/${memberId}`));
-    router.refresh();
   }
 
   return (
@@ -139,6 +152,7 @@ export function EditMemberForm({
 export function AddMemberFormClient({ messId }: { messId: string }) {
   const t = useTranslations("messMembers");
   const router = useRouter();
+  const [addMember] = useAddMemberMutation();
   const [loading, setLoading] = useState(false);
 
   const labels = {
@@ -155,16 +169,27 @@ export function AddMemberFormClient({ messId }: { messId: string }) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const { addMember } = await import("@/actions/mess");
-    const result = await addMember(messId, new FormData(e.currentTarget));
-    if (!result.success) {
-      toast.error("error" in result ? result.error : t("saveFailed"));
+    const fd = new FormData(e.currentTarget);
+    const body = {
+      fullName: String(fd.get("fullName") || ""),
+      phone: String(fd.get("phone") || ""),
+      nid: String(fd.get("nid") || ""),
+      bloodGroup: String(fd.get("bloodGroup") || ""),
+      address: String(fd.get("address") || ""),
+      occupation: String(fd.get("occupation") || ""),
+      university: String(fd.get("university") || ""),
+      monthlyDeposit: Number(fd.get("monthlyDeposit") || 0),
+    };
+
+    try {
+      await addMember({ messId, body }).unwrap();
+      toast.success(t("addSuccess"));
+      router.push(messPath(messId, "/members"));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || t("saveFailed"));
       setLoading(false);
-      return;
     }
-    toast.success(t("addSuccess"));
-    router.push(messPath(messId, "/members"));
-    router.refresh();
   }
 
   return (
@@ -183,3 +208,4 @@ export function AddMemberFormClient({ messId }: { messId: string }) {
     </Card>
   );
 }
+

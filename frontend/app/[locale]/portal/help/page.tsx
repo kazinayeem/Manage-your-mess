@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createSupportTicket } from "@/actions/super-admin";
+import { useCreateSupportTicketMutation } from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,19 +12,22 @@ import { Link } from "@/i18n/navigation";
 
 export default function PortalHelpPage() {
   const [loading, setLoading] = useState(false);
+  const [createTicket] = useCreateSupportTicketMutation();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    const r = await createSupportTicket(
-      String(fd.get("subject")),
-      String(fd.get("description"))
-    );
-    if (r.success) {
+    const subject = String(fd.get("subject"));
+    const description = String(fd.get("description"));
+
+    try {
+      await createTicket({ subject, description }).unwrap();
       toast.success("Support ticket submitted");
       e.currentTarget.reset();
-    } else toast.error(r.error);
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to submit ticket");
+    }
     setLoading(false);
   }
 

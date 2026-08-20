@@ -98,11 +98,11 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   }
 }
 
-export async function apiGet(path: string, options: RequestInit = {}) {
+export async function apiGet<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   return apiFetch(path, { ...options, method: "GET" });
 }
 
-export async function apiPost(path: string, body?: any, options: RequestInit = {}) {
+export async function apiPost<T = any>(path: string, body?: any, options: RequestInit = {}): Promise<T> {
   return apiFetch(path, {
     ...options,
     method: "POST",
@@ -110,7 +110,7 @@ export async function apiPost(path: string, body?: any, options: RequestInit = {
   });
 }
 
-export async function apiPatch(path: string, body?: any, options: RequestInit = {}) {
+export async function apiPatch<T = any>(path: string, body?: any, options: RequestInit = {}): Promise<T> {
   return apiFetch(path, {
     ...options,
     method: "PATCH",
@@ -118,7 +118,7 @@ export async function apiPatch(path: string, body?: any, options: RequestInit = 
   });
 }
 
-export async function apiPut(path: string, body?: any, options: RequestInit = {}) {
+export async function apiPut<T = any>(path: string, body?: any, options: RequestInit = {}): Promise<T> {
   return apiFetch(path, {
     ...options,
     method: "PUT",
@@ -126,6 +126,6 @@ export async function apiPut(path: string, body?: any, options: RequestInit = {}
   });
 }
 
-export async function apiDelete(path: string, options: RequestInit = {}) {
+export async function apiDelete<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   return apiFetch(path, { ...options, method: "DELETE" });
 }

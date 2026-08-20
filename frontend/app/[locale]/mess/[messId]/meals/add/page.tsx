@@ -1,6 +1,6 @@
 import { requireMessPage } from "@/lib/require-mess-page";
 import { AddMealForm } from "@/components/mess/add-meal-form";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 
 export default async function MessAddMealPage({
   params,
@@ -10,10 +10,11 @@ export default async function MessAddMealPage({
   const { messId } = await params;
   const ctx = await requireMessPage(messId, { capability: "canAddMeals" });
 
-  const members = await db.member.findMany({
-    where: { messId: ctx.messId, status: "ACTIVE", deletedAt: null },
-    select: { id: true, fullName: true },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const members = (res?.data?.members || []).map((m: any) => ({
+    id: m.id,
+    fullName: m.fullName,
+  }));
 
   const today = new Date().toISOString().split("T")[0];
 

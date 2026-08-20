@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "@/i18n/navigation";
-import { switchActiveMess } from "@/actions/mess";
+import { useSwitchActiveMessMutation } from "@/lib/store/api/mess-api";
 import { useMessStore } from "@/stores";
 import { toast } from "sonner";
 import { Building2, ChevronDown } from "lucide-react";
@@ -24,19 +24,20 @@ export function MessSwitcher({
 }) {
   const router = useRouter();
   const setActiveMessId = useMessStore((s) => s.setActiveMessId);
+  const [switchMess] = useSwitchActiveMessMutation();
   const active = messes.find((m) => m.messId === activeMessId) ?? messes[0];
 
   if (!messes.length) return null;
 
   async function handleChange(messId: string) {
     if (messId === activeMessId) return;
-    const result = await switchActiveMess(messId);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Could not switch mess");
-      return;
+    try {
+      await switchMess({ messId }).unwrap();
+      setActiveMessId(messId);
+      router.refresh();
+    } catch {
+      toast.error("Could not switch mess");
     }
-    setActiveMessId(messId);
-    router.refresh();
   }
 
   if (messes.length === 1) {

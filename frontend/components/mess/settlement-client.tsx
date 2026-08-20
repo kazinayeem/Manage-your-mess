@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { settleMonth } from "@/actions/monthly";
+import { apiPost } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -11,9 +11,13 @@ export function SettlementClient({ messId, monthId }: { messId: string; monthId:
 
   async function handleSettle() {
     setLoading(true);
-    const result = await settleMonth(messId, monthId);
-    if (!result.success) toast.error(result.error);
-    else toast.success("Month settled and balances recalculated");
+    try {
+      const result = await apiPost(`/messes/${messId}/settle`, { monthId });
+      if (!result.success) toast.error(result.message || "Settlement failed");
+      else toast.success("Month settled and balances recalculated");
+    } catch {
+      toast.error("Settlement failed");
+    }
     setLoading(false);
   }
 

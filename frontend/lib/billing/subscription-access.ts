@@ -1,29 +1,6 @@
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { planHasFeature, toParsedPlan, type ParsedPlan } from "@/lib/billing/plan-utils";
 import { PLAN_FEATURES } from "@/lib/billing/constants";
-
-const LEGACY_PLAN_SELECT = {
-  id: true,
-  slug: true,
-  tier: true,
-  name: true,
-  description: true,
-  price: true,
-  currency: true,
-  durationType: true,
-  durationValue: true,
-  customExpiryDate: true,
-  maxMembers: true,
-  limits: true,
-  features: true,
-  featureToggles: true,
-  isActive: true,
-  isDefault: true,
-  isPopular: true,
-  sortOrder: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
 
 export type SubscriptionAccessState = {
   canView: boolean;
@@ -62,17 +39,8 @@ function daysUntil(end: Date): number {
   return Math.max(0, Math.ceil((end.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
 }
 
-/** Mark subscriptions past end date as EXPIRED. */
 export async function syncExpiredSubscriptions(subscriptionId?: string) {
-  const now = new Date();
-  await db.subscription.updateMany({
-    where: {
-      ...(subscriptionId ? { id: subscriptionId } : {}),
-      status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] },
-      currentPeriodEnd: { lt: now },
-    },
-    data: { status: "EXPIRED" },
-  });
+  // Syncing is handled by backend Express server
 }
 
 export function resolveSubscriptionAccess(opts: {
@@ -117,7 +85,8 @@ export function resolveSubscriptionAccess(opts: {
 
   const plan = subscription.plan ? toParsedPlan(subscription.plan as never) : null;
   const now = new Date();
-  const pastEnd = subscription.currentPeriodEnd <= now;
+  const periodEnd = new Date(subscription.currentPeriodEnd);
+  const pastEnd = periodEnd <= now;
   let status = subscription.status;
 
   if (pastEnd && (status === "ACTIVE" || status === "TRIALING" || status === "PAST_DUE")) {
@@ -154,7 +123,7 @@ export function resolveSubscriptionAccess(opts: {
       : isSuspended
         ? reason
         : isTrial
-          ? `Your trial expires in ${daysUntil(subscription.trialEndsAt ?? subscription.currentPeriodEnd)} days`
+          ? `Your trial expires in ${daysUntil(subscription.trialEndsAt ? new Date(subscription.trialEndsAt) : periodEnd)} days`
           : null;
 
   return {
@@ -167,7 +136,7 @@ export function resolveSubscriptionAccess(opts: {
     status,
     plan,
     reason,
-    daysRemaining: daysUntil(subscription.currentPeriodEnd),
+    daysRemaining: daysUntil(periodEnd),
     lockedMessage,
     allowedRoutePrefixes: isExpired
       ? ["/portal/subscription", "/pricing"]
@@ -178,89 +147,13 @@ export function resolveSubscriptionAccess(opts: {
 }
 
 export async function getSubscriptionAccessForMess(messId: string, userId: string) {
-  const [mess, user] = await Promise.all([
-    db.mess.findFirst({
-      where: { id: messId, deletedAt: null },
-      include: {
-        subscription: {
-          select: {
-            id: true,
-            userId: true,
-            planId: true,
-            status: true,
-            currentPeriodStart: true,
-            currentPeriodEnd: true,
-            cancelAtPeriodEnd: true,
-            suspendedAt: true,
-            suspendReason: true,
-            stripeCustomerId: true,
-            stripeSubId: true,
-            createdAt: true,
-            updatedAt: true,
-            plan: { select: LEGACY_PLAN_SELECT },
-          },
-        },
-        owner: { select: { id: true, isActive: true } },
-      },
-    }),
-    db.user.findUnique({ where: { id: userId }, select: { isActive: true } }),
-  ]);
-
-  if (!mess || !user) {
-    return resolveSubscriptionAccess({ userActive: false, subscription: null });
+  const res = await apiGet(`/billing/subscription?messId=${messId}`);
+  if (!res.success || !res.data) {
+    return resolveSubscriptionAccess({ userActive: true, subscription: null });
   }
-
-  let subscription = mess.subscription;
-  if (!subscription) {
-    subscription = await db.subscription.findFirst({
-      where: { userId: mess.ownerId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        userId: true,
-        planId: true,
-        status: true,
-        currentPeriodStart: true,
-        currentPeriodEnd: true,
-        cancelAtPeriodEnd: true,
-        suspendedAt: true,
-        suspendReason: true,
-        stripeCustomerId: true,
-        stripeSubId: true,
-        createdAt: true,
-        updatedAt: true,
-        plan: { select: LEGACY_PLAN_SELECT },
-      },
-    });
-  }
-
-  if (subscription) {
-    await syncExpiredSubscriptions(subscription.id);
-    subscription =
-      (await db.subscription.findUnique({
-        where: { id: subscription.id },
-        select: {
-          id: true,
-          userId: true,
-          planId: true,
-          status: true,
-          currentPeriodStart: true,
-          currentPeriodEnd: true,
-          cancelAtPeriodEnd: true,
-          suspendedAt: true,
-          suspendReason: true,
-          stripeCustomerId: true,
-          stripeSubId: true,
-          createdAt: true,
-          updatedAt: true,
-          plan: { select: LEGACY_PLAN_SELECT },
-        },
-      })) ?? subscription;
-  }
-
   return resolveSubscriptionAccess({
-    userActive: user.isActive && mess.owner.isActive,
-    subscription,
+    userActive: true,
+    subscription: res.data,
   });
 }
 
@@ -310,30 +203,9 @@ export function getFeatureAvailability(access: SubscriptionAccessState) {
 }
 
 export async function getUserSubscriptionAccess(userId: string) {
-  await syncExpiredSubscriptions();
-  const user = await db.user.findUnique({ where: { id: userId }, select: { isActive: true } });
-  const subscription = await db.subscription.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      userId: true,
-      planId: true,
-      status: true,
-      currentPeriodStart: true,
-      currentPeriodEnd: true,
-      cancelAtPeriodEnd: true,
-      suspendedAt: true,
-      suspendReason: true,
-      stripeCustomerId: true,
-      stripeSubId: true,
-      createdAt: true,
-      updatedAt: true,
-      plan: { select: LEGACY_PLAN_SELECT },
-    },
-  });
+  const res = await apiGet("/billing/subscription");
   return resolveSubscriptionAccess({
-    userActive: user?.isActive ?? false,
-    subscription,
+    userActive: true,
+    subscription: res?.data || null,
   });
 }

@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { submitSubscriptionRequest } from "@/actions/billing";
+import { useSubmitSubscriptionRequestMutation } from "@/lib/store/api/billing-api";
 import { formatPlanDuration, type ParsedPlan } from "@/lib/billing/plan-utils";
 import { formatCurrency } from "@/lib/utils";
 type PaymentMethod = any;
@@ -35,6 +35,7 @@ export function SubscriptionRequestForm({
   const [submitted, setSubmitted] = useState(false);
   const [paymentMethodId, setPaymentMethodId] = useState(paymentMethods[0]?.id ?? "");
   const [messId, setMessId] = useState(messes[0]?.id ?? "");
+  const [submitRequest] = useSubmitSubscriptionRequestMutation();
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId);
 
   if (submitted) {
@@ -56,16 +57,25 @@ export function SubscriptionRequestForm({
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    formData.set("planId", plan.id);
-    formData.set("paymentMethodId", paymentMethodId);
-    if (messId) formData.set("messId", messId);
+    const transactionId = String(formData.get("transactionId") || "");
+    const senderNumber = String(formData.get("senderNumber") || "");
+    const amount = Number(formData.get("amount") || 0);
+    const note = String(formData.get("note") || "");
 
     startTransition(async () => {
-      const result = await submitSubscriptionRequest(formData);
-      if (result.success) {
+      try {
+        await submitRequest({
+          planId: plan.id,
+          paymentMethodId,
+          messId: messId || undefined,
+          transactionId,
+          senderNumber,
+          amount,
+          note,
+        }).unwrap();
         setSubmitted(true);
-      } else {
-        toast.error(result.error);
+      } catch (err: any) {
+        toast.error(err?.data?.message || "Failed to submit request");
       }
     });
   }

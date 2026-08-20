@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { addMealEntry } from "@/actions/mess";
+import { useAddMealEntryMutation } from "@/lib/store/api/mess-api";
 import { messPath } from "@/lib/mess-routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,7 @@ export function AddMealForm({
 }) {
   const t = useTranslations("messMeal");
   const router = useRouter();
+  const [addMealEntry] = useAddMealEntryMutation();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [portions, setPortions] = useState<Record<string, MemberPortions>>({});
@@ -176,17 +177,20 @@ export function AddMealForm({
 
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    formData.set("entries", JSON.stringify(entries));
+    const date = String(formData.get("date") || defaultDate);
 
-    const result = await addMealEntry(messId, formData);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      const res = await addMealEntry({
+        messId,
+        body: { date, entries },
+      }).unwrap();
+      toast.success(t("success", { count: res?.count ?? selected.size }));
+      router.push(messPath(messId));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to add meal entry");
       setLoading(false);
-      return;
     }
-    toast.success(t("success", { count: result.data?.count ?? selected.size }));
-    router.push(messPath(messId));
-    router.refresh();
   }
 
   return (

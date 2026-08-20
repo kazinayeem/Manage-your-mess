@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useGetAdminCouponsQuery } from "@/lib/store/api/super-admin-api";
-import { saveCoupon, deleteCoupon } from "@/actions/super-admin";
+import {
+  useGetAdminCouponsQuery,
+  useSaveCouponMutation,
+  useDeleteCouponMutation,
+} from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +15,9 @@ import { toast } from "sonner";
 
 export function CouponsManager() {
   const { data, isLoading, error } = useGetAdminCouponsQuery();
+  const [saveCoupon] = useSaveCouponMutation();
+  const [deleteCoupon] = useDeleteCouponMutation();
+
   const [code, setCode] = useState("");
   const [discountPercent, setDiscountPercent] = useState("10");
   const [loading, setLoading] = useState(false);
@@ -21,15 +27,17 @@ export function CouponsManager() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const fd = new FormData();
-    fd.set("code", code);
-    fd.set("discountPercent", discountPercent);
-    fd.set("isActive", "true");
-    const r = await saveCoupon(fd);
-    if (r.success) {
+    try {
+      await saveCoupon({
+        code,
+        discountPercent: Number(discountPercent),
+        isActive: true,
+      }).unwrap();
       toast.success("Coupon created");
       setCode("");
-    } else toast.error(r.error);
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to create coupon");
+    }
     setLoading(false);
   }
 
@@ -87,10 +95,12 @@ export function CouponsManager() {
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    const r = await deleteCoupon(c.id);
-                    if (r.success) {
+                    try {
+                      await deleteCoupon(c.id).unwrap();
                       toast.success("Coupon deactivated");
-                    } else toast.error(r.error);
+                    } catch (err: any) {
+                      toast.error(err?.data?.message || "Failed to deactivate");
+                    }
                   }}
                 >
                   Deactivate

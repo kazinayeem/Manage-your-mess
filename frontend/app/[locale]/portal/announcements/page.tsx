@@ -1,8 +1,9 @@
-import { getUserAnnouncements } from "@/actions/announcements";
+import { apiGet } from "@/lib/api-client";
 import { AnnouncementsHistory } from "@/components/portal/announcements-history";
 
 export default async function PortalAnnouncementsPage() {
-  const announcements = await getUserAnnouncements();
+  const res = await apiGet("/announcements/user");
+  const announcements = res?.data || res || [];
 
   return (
     <div className="space-y-6">
@@ -12,7 +13,7 @@ export default async function PortalAnnouncementsPage() {
           Read global platform announcements, maintenance updates, and critical alerts.
         </p>
       </div>
-      <AnnouncementsHistory announcements={announcements} />
+      <AnnouncementsHistory announcements={Array.isArray(announcements) ? announcements : []} />
     </div>
   );
 }

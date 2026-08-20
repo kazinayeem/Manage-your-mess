@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { CreateBazaarForm } from "@/components/bazaar/create-bazaar-form";
 
 export default async function NewBazaarPage({
@@ -14,11 +14,11 @@ export default async function NewBazaarPage({
   if (!ctx.capabilities.canManageBazaar) notFound();
 
   const t = await getTranslations("bazaar");
-  const members = await db.member.findMany({
-    where: { messId: ctx.messId, status: "ACTIVE", deletedAt: null },
-    select: { id: true, fullName: true },
-    orderBy: { fullName: "asc" },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const members = (res?.data?.members || []).map((m: any) => ({
+    id: m.id,
+    fullName: m.fullName,
+  }));
 
   const today = new Date().toISOString().split("T")[0];
 

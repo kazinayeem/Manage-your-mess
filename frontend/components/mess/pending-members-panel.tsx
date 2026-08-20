@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { approveMember, rejectMember } from "@/actions/mess";
+import { useApproveMemberMutation, useRejectMemberMutation } from "@/lib/store/api/mess-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,30 +25,32 @@ export function PendingMembersPanel({
 }) {
   const router = useRouter();
   const t = useTranslations("pendingMembers");
+  const [approveMember] = useApproveMemberMutation();
+  const [rejectMember] = useRejectMemberMutation();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   if (!members.length) return null;
 
   async function handleApprove(memberId: string) {
     setLoadingId(memberId);
-    const result = await approveMember(messId, memberId);
-    if (result.success) {
+    try {
+      await approveMember({ messId, memberId }).unwrap();
       toast.success(t("approveSuccess"));
       router.refresh();
-    } else {
-      toast.error(result.error);
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Approval failed");
     }
     setLoadingId(null);
   }
 
   async function handleReject(memberId: string) {
     setLoadingId(memberId);
-    const result = await rejectMember(messId, memberId);
-    if (result.success) {
+    try {
+      await rejectMember({ messId, memberId }).unwrap();
       toast.success(t("rejectSuccess"));
       router.refresh();
-    } else {
-      toast.error(result.error);
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Rejection failed");
     }
     setLoadingId(null);
   }

@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
 import { requireMessPage } from "@/lib/require-mess-page";
+import { apiGet } from "@/lib/api-client";
 import { AddDepositForm } from "@/components/mess/add-deposit-form";
 
 export default async function MessAddDepositPage({
@@ -11,10 +10,11 @@ export default async function MessAddDepositPage({
   const { messId } = await params;
   const ctx = await requireMessPage(messId, { capability: "canAddDeposits" });
 
-  const members = await db.member.findMany({
-    where: { messId: ctx.messId, status: "ACTIVE", deletedAt: null },
-    select: { id: true, fullName: true },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const members = (res?.data?.members || []).map((m: any) => ({
+    id: m.id,
+    fullName: m.fullName,
+  }));
 
   return (
     <div className="space-y-6">

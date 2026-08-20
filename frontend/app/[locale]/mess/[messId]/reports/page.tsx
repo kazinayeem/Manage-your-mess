@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { Link } from "@/i18n/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
 import { ensureCurrentMonth } from "@/lib/mess-context";
-import { getMessMonthsForReports } from "@/actions/reports";
+import { apiGet } from "@/lib/api-client";
 import { ReportsHub } from "@/components/mess/reports-hub";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,10 @@ export default async function MessReportsPage({
 
   const session = await auth();
   const month = ctx.currentMonth ?? (await ensureCurrentMonth(ctx.messId));
-  const months = await getMessMonthsForReports(ctx.messId);
+  const monthsRes = await apiGet(`/reports/months?messId=${ctx.messId}`);
+  const months = monthsRes?.data || [];
   const today = new Date().toISOString().split("T")[0];
-  const planTier = ctx.mess.subscription?.plan.tier ?? "FREE";
+  const planTier = ctx.mess.subscription?.plan?.tier ?? "FREE";
 
   return (
     <div className="space-y-6">

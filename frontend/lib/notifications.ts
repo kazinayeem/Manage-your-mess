@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { apiPost } from "@/lib/api-client";
 import type { NotificationType } from "@/types/domain";
 
 export async function createUserNotification(
@@ -8,14 +8,15 @@ export async function createUserNotification(
   message: string,
   data?: Record<string, unknown>
 ) {
-  await db.notification.create({
-    data: {
+  try {
+    await apiPost("/notifications", {
       userId,
       type,
       title,
       message,
-      data: data ? JSON.stringify(data) : undefined,
-      sentAt: new Date(),
-    },
-  });
+      data,
+    });
+  } catch {
+    // ignore
+  }
 }

@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { approveDeposit } from "@/actions/mess";
+import { useApproveDepositMutation } from "@/lib/store/api/mess-api";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ type Deposit = {
 };
 
 export function DepositsTable({ deposits, messId }: { deposits: Deposit[]; messId: string }) {
+  const [approveDeposit] = useApproveDepositMutation();
+
   const columns: ColumnDef<Deposit>[] = [
     { accessorKey: "createdAt", header: "Date", cell: ({ row }) => formatDate(row.original.createdAt) },
     { accessorKey: "member.fullName", header: "Member", cell: ({ row }) => row.original.member.fullName ?? "—" },
@@ -42,9 +44,12 @@ export function DepositsTable({ deposits, messId }: { deposits: Deposit[]; messI
           <Button
             size="sm"
             onClick={async () => {
-              const r = await approveDeposit(messId, row.original.id);
-              if (r.success) toast.success("Deposit approved");
-              else toast.error(r.error);
+              try {
+                await approveDeposit({ messId, depositId: row.original.id }).unwrap();
+                toast.success("Deposit approved");
+              } catch (err: any) {
+                toast.error(err?.data?.message || "Approval failed");
+              }
             }}
           >
             Approve

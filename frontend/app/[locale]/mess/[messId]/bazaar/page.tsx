@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { requireMessPage } from "@/lib/require-mess-page";
 import { canViewBazaarAdmin } from "@/lib/bazaar-access";
-import { getBazaarTasks } from "@/actions/bazaar";
+import { apiGet } from "@/lib/api-client";
 import { BazaarTaskList } from "@/components/bazaar/bazaar-task-list";
 import { Button } from "@/components/ui/button";
 import { messPath } from "@/lib/mess-routes";
@@ -28,7 +28,8 @@ export default async function BazaarListPage({
     redirect(messPath(messId, "/bazaar/my"));
   }
 
-  const tasks = await getBazaarTasks(messId, "all");
+  const res = await apiGet(`/bazaar/tasks?messId=${messId}`);
+  const tasks = res?.data || res || [];
   const canManage = ctx.capabilities.canManageBazaar;
 
   return (
@@ -47,7 +48,7 @@ export default async function BazaarListPage({
           </Button>
         )}
       </div>
-      <BazaarTaskList messId={messId} tasks={tasks} />
+      <BazaarTaskList messId={messId} tasks={Array.isArray(tasks) ? tasks : []} />
     </div>
   );
 }

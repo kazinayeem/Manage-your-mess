@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { changeManager } from "@/actions/mess";
+import { useChangeManagerMutation } from "@/lib/store/api/mess-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -15,17 +15,19 @@ export function ChangeManagerForm({
   members: { id: string; fullName: string | null; role: string }[];
 }) {
   const router = useRouter();
+  const [changeManager] = useChangeManagerMutation();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState("");
 
   async function handleSubmit() {
     if (!selected) return;
     setLoading(true);
-    const result = await changeManager(messId, selected);
-    if (!result.success) toast.error(result.error);
-    else {
+    try {
+      await changeManager({ messId, memberId: selected }).unwrap();
       toast.success("Manager updated. Previous manager now has view-only access.");
       router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Manager change failed");
     }
     setLoading(false);
   }

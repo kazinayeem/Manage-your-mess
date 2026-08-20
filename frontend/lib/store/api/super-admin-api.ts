@@ -61,10 +61,11 @@ export const superAdminApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Mess", "Dashboard"],
     }),
-    suspendMess: builder.mutation<any, string>({
-      query: (messId) => ({
+    suspendMess: builder.mutation<any, { messId: string; reason?: string }>({
+      query: ({ messId, reason }) => ({
         url: `/super-admin/messes/${messId}/suspend`,
         method: "PATCH",
+        body: { reason },
       }),
       invalidatesTags: ["Mess", "Dashboard"],
     }),
@@ -72,6 +73,14 @@ export const superAdminApi = baseApi.injectEndpoints({
       query: (messId) => ({
         url: `/super-admin/messes/${messId}/activate`,
         method: "PATCH",
+      }),
+      invalidatesTags: ["Mess", "Dashboard"],
+    }),
+    deleteMessAdmin: builder.mutation<any, { messId: string }>({
+      query: ({ messId }) => ({
+        url: `/super-admin/messes/${messId}/reject`,
+        method: "PATCH",
+        body: { reason: "Admin deleted mess" },
       }),
       invalidatesTags: ["Mess", "Dashboard"],
     }),
@@ -84,6 +93,14 @@ export const superAdminApi = baseApi.injectEndpoints({
         return `/super-admin/payments?${params.toString()}`;
       },
       providesTags: ["Payment"],
+    }),
+    reviewPaymentRequest: builder.mutation<any, { requestId: string; action: string; reason?: string }>({
+      query: (body) => ({
+        url: "/super-admin/payments/review",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Payment", "Subscription", "Dashboard"],
     }),
     approvePayment: builder.mutation<any, string>({
       query: (paymentId) => ({
@@ -102,6 +119,22 @@ export const superAdminApi = baseApi.injectEndpoints({
     }),
     getPaymentMethods: builder.query<any, void>({
       query: () => "/super-admin/payment-methods",
+      providesTags: ["Payment"],
+    }),
+    savePaymentMethod: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/payment-methods",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Payment"],
+    }),
+    deletePaymentMethod: builder.mutation<any, string>({
+      query: (id) => ({
+        url: `/super-admin/payment-methods/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Payment"],
     }),
     getAdminSubscriptions: builder.query<any, { page?: number; status?: string } | void>({
       query: (arg) => {
@@ -113,12 +146,79 @@ export const superAdminApi = baseApi.injectEndpoints({
       },
       providesTags: ["Subscription"],
     }),
+    assignSubscriptionPlan: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/subscriptions/assign",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Subscription", "User"],
+    }),
+    extendSubscription: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/subscriptions/extend",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Subscription"],
+    }),
+    updateSubscriptionStatus: builder.mutation<any, { subscriptionId: string; status: string; reason?: string }>({
+      query: ({ subscriptionId, status, reason }) => ({
+        url: `/super-admin/subscriptions/${subscriptionId}/status`,
+        method: "PATCH",
+        body: { status, reason },
+      }),
+      invalidatesTags: ["Subscription"],
+    }),
     getAdminPlans: builder.query<any, void>({
       query: () => "/super-admin/plans",
       providesTags: ["Subscription"],
     }),
+    savePlan: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/plans",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Subscription"],
+    }),
+    duplicatePlan: builder.mutation<any, string>({
+      query: (planId) => ({
+        url: `/super-admin/plans/${planId}/duplicate`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Subscription"],
+    }),
+    updatePlanLifecycle: builder.mutation<any, { planId: string; action: string }>({
+      query: ({ planId, action }) => ({
+        url: `/super-admin/plans/${planId}/lifecycle`,
+        method: "PATCH",
+        body: { action },
+      }),
+      invalidatesTags: ["Subscription"],
+    }),
+    deletePlan: builder.mutation<any, string>({
+      query: (planId) => ({
+        url: `/super-admin/plans/${planId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Subscription"],
+    }),
     getAdminCoupons: builder.query<any, void>({
       query: () => "/super-admin/coupons",
+    }),
+    saveCoupon: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/coupons",
+        method: "POST",
+        body,
+      }),
+    }),
+    deleteCoupon: builder.mutation<any, string>({
+      query: (id) => ({
+        url: `/super-admin/coupons/${id}`,
+        method: "DELETE",
+      }),
     }),
     getAdminReferrals: builder.query<any, void>({
       query: () => "/super-admin/referrals",
@@ -127,8 +227,33 @@ export const superAdminApi = baseApi.injectEndpoints({
       query: () => "/super-admin/support",
       providesTags: ["Support"],
     }),
+    createSupportTicket: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/support",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Support"],
+    }),
+    updateSupportTicket: builder.mutation<any, { ticketId: string; data: any }>({
+      query: ({ ticketId, data }) => ({
+        url: `/super-admin/support/${ticketId}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["Support"],
+    }),
+    broadcastNotification: builder.mutation<any, { title: string; message: string }>({
+      query: (body) => ({
+        url: "/super-admin/broadcast",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Notification"],
+    }),
     getAdminAnnouncements: builder.query<any, void>({
       query: () => "/super-admin/announcements",
+      providesTags: ["Announcements"],
     }),
     getAdminAnalytics: builder.query<any, { period?: string } | void>({
       query: (arg) => `/super-admin/analytics?period=${arg?.period || "month"}`,
@@ -140,6 +265,16 @@ export const superAdminApi = baseApi.injectEndpoints({
     }),
     getSystemSettings: builder.query<any, void>({
       query: () => "/super-admin/settings",
+    }),
+    getBillingSettings: builder.query<any, void>({
+      query: () => "/super-admin/billing-settings",
+    }),
+    saveBillingSettings: builder.mutation<any, any>({
+      query: (body) => ({
+        url: "/super-admin/billing-settings",
+        method: "POST",
+        body,
+      }),
     }),
     getDatabaseStats: builder.query<any, void>({
       query: () => "/super-admin/database",
@@ -175,19 +310,37 @@ export const {
   useRejectMessMutation,
   useSuspendMessMutation,
   useActivateMessMutation,
+  useDeleteMessAdminMutation,
   useGetAdminPaymentsQuery,
+  useReviewPaymentRequestMutation,
   useApprovePaymentMutation,
   useRejectPaymentMutation,
   useGetPaymentMethodsQuery,
+  useSavePaymentMethodMutation,
+  useDeletePaymentMethodMutation,
   useGetAdminSubscriptionsQuery,
+  useAssignSubscriptionPlanMutation,
+  useExtendSubscriptionMutation,
+  useUpdateSubscriptionStatusMutation,
   useGetAdminPlansQuery,
+  useSavePlanMutation,
+  useDuplicatePlanMutation,
+  useUpdatePlanLifecycleMutation,
+  useDeletePlanMutation,
   useGetAdminCouponsQuery,
+  useSaveCouponMutation,
+  useDeleteCouponMutation,
   useGetAdminReferralsQuery,
   useGetAdminSupportTicketsQuery,
+  useCreateSupportTicketMutation,
+  useUpdateSupportTicketMutation,
+  useBroadcastNotificationMutation,
   useGetAdminAnnouncementsQuery,
   useGetAdminAnalyticsQuery,
   useGetAdminAuditLogsQuery,
   useGetSystemSettingsQuery,
+  useGetBillingSettingsQuery,
+  useSaveBillingSettingsMutation,
   useGetDatabaseStatsQuery,
   useGetFeatureFlagsQuery,
   useGetBackupStatusQuery,

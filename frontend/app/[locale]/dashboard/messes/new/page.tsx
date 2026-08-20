@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { createMess } from "@/actions/mess";
+import { useCreateMessMutation } from "@/lib/store/api/mess-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,20 +11,29 @@ import { toast } from "sonner";
 
 export default function NewMessPage() {
   const router = useRouter();
+  const [createMess] = useCreateMessMutation();
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const result = await createMess(formData);
-    if (!result.success) {
-      toast.error(result.error);
+    const name = String(formData.get("name") || "");
+    const address = String(formData.get("address") || "");
+    const description = String(formData.get("description") || "");
+
+    try {
+      await createMess({
+        name,
+        address: address || undefined,
+        description: description || undefined,
+      }).unwrap();
+      toast.success("Mess created successfully!");
+      router.push("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to create mess");
       setLoading(false);
-      return;
     }
-    toast.success("Mess created successfully!");
-    router.push("/dashboard");
   }
 
   return (

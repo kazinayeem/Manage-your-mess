@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { approveExpense } from "@/actions/mess";
+import { useApproveExpenseMutation } from "@/lib/store/api/mess-api";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ type Expense = {
 };
 
 export function ExpensesTable({ expenses, messId }: { expenses: Expense[]; messId: string }) {
+  const [approveExpense] = useApproveExpenseMutation();
+
   const columns: ColumnDef<Expense>[] = [
     { accessorKey: "date", header: "Date", cell: ({ row }) => formatDate(row.original.date) },
     { accessorKey: "category.name", header: "Category", cell: ({ row }) => row.original.category.name },
@@ -46,9 +48,12 @@ export function ExpensesTable({ expenses, messId }: { expenses: Expense[]; messI
             size="sm"
             variant="outline"
             onClick={async () => {
-              const r = await approveExpense(messId, row.original.id);
-              if (r.success) toast.success("Expense approved");
-              else toast.error(r.error);
+              try {
+                await approveExpense({ messId, expenseId: row.original.id }).unwrap();
+                toast.success("Expense approved");
+              } catch (err: any) {
+                toast.error(err?.data?.message || "Approval failed");
+              }
             }}
           >
             Approve

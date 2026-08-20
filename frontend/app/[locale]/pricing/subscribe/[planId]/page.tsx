@@ -1,8 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { getPaymentMethods } from "@/actions/billing";
+import { apiGet } from "@/lib/api-client";
 import { toParsedPlan } from "@/lib/billing/plan-utils";
 import { SubscriptionRequestForm } from "@/components/billing/subscription-request-form";
 import { MarketingHeader } from "@/components/marketing/header";
@@ -19,18 +18,23 @@ export default async function SubscribePage({
   const session = await auth();
   if (!session?.user) redirect(`/login?callbackUrl=/pricing/subscribe/${planId}`);
 
-  const planRecord = await db.plan.findUnique({ where: { id: planId, isActive: true } });
-  if (!planRecord) notFound();
-
-  const [paymentMethods, messes] = await Promise.all([
-    getPaymentMethods(true),
-    db.mess.findMany({
-      where: { ownerId: session.user.id, deletedAt: null },
-      select: { id: true, name: true },
-    }),
+  const [plansRes, methodsRes, messesRes] = await Promise.all([
+    apiGet("/billing/plans"),
+    apiGet("/billing/payment-methods"),
+    apiGet("/messes"),
   ]);
 
-  if (paymentMethods.length === 0) {
+  const plans = plansRes?.data || plansRes || [];
+  const planRecord = Array.isArray(plans) ? plans.find((p: any) => p.id === planId) : null;
+  if (!planRecord) notFound();
+
+  const paymentMethods = methodsRes?.data || methodsRes || [];
+  const messes = (messesRes?.data || messesRes || []).map((m: any) => ({
+    id: m.id || m.messId,
+    name: m.name,
+  }));
+
+  if (!Array.isArray(paymentMethods) || paymentMethods.length === 0) {
     return (
       <div className="flex min-h-full flex-col">
         <MarketingHeader />

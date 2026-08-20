@@ -1,7 +1,9 @@
 "use client";
 
-import { useGetAdminSupportTicketsQuery } from "@/lib/store/api/super-admin-api";
-import { updateSupportTicket } from "@/actions/super-admin";
+import {
+  useGetAdminSupportTicketsQuery,
+  useUpdateSupportTicketMutation,
+} from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +12,7 @@ import type { TicketStatus } from "@/types/domain";
 
 export function SupportTicketsManager() {
   const { data, isLoading, error } = useGetAdminSupportTicketsQuery();
+  const [updateTicket] = useUpdateSupportTicketMutation();
   const tickets = data?.data || data || [];
 
   if (isLoading) {
@@ -43,10 +46,12 @@ export function SupportTicketsManager() {
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    const r = await updateSupportTicket(t.id, { status: s });
-                    if (r.success) {
+                    try {
+                      await updateTicket({ ticketId: t.id, data: { status: s } }).unwrap();
                       toast.success(`Marked ${s}`);
-                    } else toast.error(r.error);
+                    } catch (err: any) {
+                      toast.error(err?.data?.message || "Update failed");
+                    }
                   }}
                 >
                   {s.replace("_", " ")}

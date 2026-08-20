@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { apiPost } from "@/lib/server-api";
-import { db } from "@/lib/db";
 
 export default async function DebugAuthPage() {
   const session = await auth();
@@ -16,12 +15,6 @@ export default async function DebugAuthPage() {
     });
   } catch (e) {
     out.direct = `ERROR ${e instanceof Error ? e.message : String(e)}`;
-  }
-  try {
-    const u = await db.user.findUnique({ where: { id: session.user.id } });
-    out.proxy = u ? { id: u.id, email: u.email } : null;
-  } catch (e) {
-    out.proxy = `ERROR ${e instanceof Error ? e.message : String(e)}`;
   }
   return (
     <pre>

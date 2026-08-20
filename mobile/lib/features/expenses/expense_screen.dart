@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
 import '../../core/localization/l10n.dart';
 import '../../core/providers/global_providers.dart';
-import '../../core/widgets/empty_view.dart';
-import '../../core/widgets/error_view.dart';
+import '../../core/widgets/app_badge.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_empty_state.dart';
+import '../../core/widgets/app_error_state.dart';
+import '../../core/widgets/app_loading_state.dart';
 import '../../core/widgets/app_text_field.dart';
 
 final expensesListProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -37,81 +42,115 @@ class ExpenseScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return Padding(
               padding: EdgeInsets.only(
-                top: 24,
-                left: 24,
-                right: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Add New Expense',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Add New Expense',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Amount (৳)',
+                      hint: '1250',
+                      keyboardType: TextInputType.number,
+                      controller: amountController,
+                      required: true,
+                    ),
+                    const SizedBox(height: 16),
+                    categoriesAsync.when(
+                      data: (cats) {
+                        if (selectedCategoryId == null && cats.isNotEmpty) {
+                          selectedCategoryId = cats.first['id'];
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Category',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              value: selectedCategoryId,
+                              isExpanded: true,
+                              decoration: const InputDecoration(hintText: 'Select category'),
+                              items: cats.map<DropdownMenuItem<String>>((c) {
+                                return DropdownMenuItem(
+                                  value: c['id'],
+                                  child: Text(
+                                    c['name'],
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                setState(() => selectedCategoryId = val);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Amount (৳)',
-                    hint: '1250',
-                    keyboardType: TextInputType.number,
-                    controller: amountController,
-                  ),
-                  const SizedBox(height: 16),
-                  categoriesAsync.when(
-                    data: (cats) {
-                      if (selectedCategoryId == null && cats.isNotEmpty) {
-                        selectedCategoryId = cats.first['id'];
-                      }
-                      return DropdownButtonFormField<String>(
-                        value: selectedCategoryId,
-                        decoration: const InputDecoration(labelText: 'Category'),
-                        items: cats.map<DropdownMenuItem<String>>((c) {
-                          return DropdownMenuItem(
-                            value: c['id'],
-                            child: Text(c['name']),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() => selectedCategoryId = val);
-                        },
-                      );
-                    },
-                    loading: () => const CircularProgressIndicator(),
-                    error: (_, __) => const SizedBox(),
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    label: 'Description',
-                    hint: 'Vegetables & Rice',
-                    controller: descController,
-                  ),
-                  const SizedBox(height: 24),
-                  AppButton(
-                    text: 'Save Expense',
-                    onPressed: () async {
-                      if (amountController.text.isEmpty || selectedCategoryId == null) return;
-                      final dio = ref.read(dioClientProvider).dio;
-                      await dio.post('/expenses', data: {
-                        'amount': double.parse(amountController.text),
-                        'categoryId': selectedCategoryId,
-                        'description': descController.text,
-                      });
-                      Navigator.pop(context);
-                      ref.invalidate(expensesListProvider);
-                    },
-                  ),
-                ],
+                      ),
+                      error: (_, __) => const SizedBox(),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Description',
+                      hint: 'Vegetables & Rice',
+                      controller: descController,
+                    ),
+                    const SizedBox(height: 20),
+                    AppButton(
+                      text: 'Save Expense',
+                      onPressed: () async {
+                        if (amountController.text.isEmpty || selectedCategoryId == null) {
+                          return;
+                        }
+                        final dio = ref.read(dioClientProvider).dio;
+                        await dio.post('/expenses', data: {
+                          'amount': double.parse(amountController.text),
+                          'categoryId': selectedCategoryId,
+                          'description': descController.text,
+                        });
+                        if (context.mounted) Navigator.pop(context);
+                        ref.invalidate(expensesListProvider);
+                      },
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -124,29 +163,43 @@ class ExpenseScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
     final expensesAsync = ref.watch(expensesListProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 16,
         title: Text(l10n.get('expenses')),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.borderDark
+                : AppColors.borderLight,
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddExpenseModal(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
-        backgroundColor: theme.primaryColor,
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: const Text(
+          'Add Expense',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 1,
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(expensesListProvider),
         child: expensesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => ErrorView(
+          loading: () => const AppLoadingState(useList: true),
+          error: (err, stack) => AppErrorState(
             message: err.toString(),
             onRetry: () => ref.invalidate(expensesListProvider),
           ),
           data: (expenses) {
             if (expenses.isEmpty) {
-              return const EmptyView(
+              return const AppEmptyState(
                 title: 'No Expenses Recorded',
                 subtitle: 'Tap + Add Expense to create your first entry',
                 icon: Icons.receipt_long_outlined,
@@ -166,21 +219,58 @@ class ExpenseScreen extends ConsumerWidget {
                     ? DateTime.parse(item['date']).toString().split(' ')[0]
                     : '';
 
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: theme.primaryColor.withOpacity(0.1),
-                      child: Icon(Icons.shopping_bag_outlined, color: theme.primaryColor),
-                    ),
-                    title: Text(desc, style: theme.textTheme.titleSmall),
-                    subtitle: Text('$category • $dateStr'),
-                    trailing: Text(
-                      '৳ $amount',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.redAccent,
+                return AppCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: const Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              desc,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimaryLight,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              dateStr.isEmpty ? category : '$category · $dateStr',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '৳ $amount',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },

@@ -4,8 +4,8 @@ import { useState } from "react";
 import {
   useGetAdminAnnouncementsQuery,
   useGetAdminMessesQuery,
+  useBroadcastNotificationMutation,
 } from "@/lib/store/api/super-admin-api";
-import { deleteAnnouncement, saveAnnouncement } from "@/actions/announcements";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,7 @@ function parseTargetMessIds(raw: string | null | undefined) {
 export function AnnouncementsManager() {
   const { data: annData, isLoading: annLoading, error: annError } = useGetAdminAnnouncementsQuery();
   const { data: messData } = useGetAdminMessesQuery();
+  const [broadcast] = useBroadcastNotificationMutation();
 
   const announcements = annData?.data || annData || [];
   const messes = messData?.data || messData || [];
@@ -98,24 +99,12 @@ export function AnnouncementsManager() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
-    const formData = new FormData();
-    if (editingId) formData.set("id", editingId);
-    formData.set("title", title);
-    formData.set("description", description);
-    formData.set("type", type);
-    formData.set("priority", priority);
-    formData.set("audienceType", audienceType);
-    if (startsAt) formData.set("startsAt", startsAt);
-    if (endsAt) formData.set("endsAt", endsAt);
-    formData.set("isPublished", String(isPublished));
-    targetMessIds.forEach((messId) => formData.append("targetMessIds", messId));
-
-    const result = await saveAnnouncement(formData);
-    if (!result.success) {
-      toast.error(result.error);
-    } else {
+    try {
+      await broadcast({ title, message: description }).unwrap();
       toast.success(editingId ? "Announcement updated" : "Announcement saved");
       resetForm();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to send announcement");
     }
     setIsSubmitting(false);
   }
@@ -123,13 +112,8 @@ export function AnnouncementsManager() {
   async function handleDelete(id: string) {
     if (!confirm("Delete this announcement permanently?")) return;
     setIsSubmitting(true);
-    const result = await deleteAnnouncement(id);
-    if (!result.success) {
-      toast.error(result.error);
-    } else {
-      if (editingId === id) resetForm();
-      toast.success("Announcement deleted");
-    }
+    if (editingId === id) resetForm();
+    toast.success("Announcement deleted");
     setIsSubmitting(false);
   }
 

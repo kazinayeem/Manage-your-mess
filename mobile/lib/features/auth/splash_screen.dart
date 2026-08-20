@@ -19,7 +19,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _checkRedirect() async {
-    await Future.delayed(const Duration(milliseconds: 1200));
+    await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
 
     final authState = ref.read(authProvider);
@@ -48,49 +48,58 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       }
     });
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                shape: BoxShape.circle,
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.roofing_rounded,
-                size: 72,
-                color: Colors.white,
+              child: const Center(
+                child: Text(
+                  'BM',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             const Text(
               'BornoMess Manager',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 0.5,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimaryLight,
+                letterSpacing: -0.3,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Smart Mess Management Solution',
+            const SizedBox(height: 6),
+            const Text(
+              'by BornoSoft',
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.8),
+                fontSize: 13,
+                color: AppColors.textSecondaryLight,
               ),
             ),
             const SizedBox(height: 48),
             const SizedBox(
-              width: 28,
-              height: 28,
+              width: 24,
+              height: 24,
               child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 2.5,
+                color: AppColors.primary,
               ),
             ),
           ],

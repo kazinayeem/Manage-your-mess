@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createBazaarTask } from "@/actions/bazaar";
+import { useCreateBazaarTaskMutation } from "@/lib/store/api/bazaar-api";
 import { toast } from "sonner";
 import { messPath } from "@/lib/mess-routes";
 import { bazaarTaskPath } from "@/lib/bazaar-routes";
@@ -37,6 +37,7 @@ export function CreateBazaarForm({
 }) {
   const t = useTranslations("bazaar");
   const router = useRouter();
+  const [createTask] = useCreateBazaarTaskMutation();
   const [loading, setLoading] = useState(false);
   const [priority, setPriority] = useState("MEDIUM");
   const [memberId, setMemberId] = useState("");
@@ -79,16 +80,15 @@ export function CreateBazaarForm({
     form.set("items", JSON.stringify(parsedItems));
     form.set("priority", priority);
     form.set("memberId", memberId);
-    const result = await createBazaarTask(messId, form);
 
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      const res = await createTask({ messId, formData: form }).unwrap();
+      toast.success(t("taskCreated"));
+      router.push(bazaarTaskPath(messId, res?.data?.taskId || res?.taskId || ""));
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to create bazaar task");
       setLoading(false);
-      return;
     }
-
-    toast.success(t("taskCreated"));
-    router.push(bazaarTaskPath(messId, result.data?.taskId ?? ""));
   }
 
   return (

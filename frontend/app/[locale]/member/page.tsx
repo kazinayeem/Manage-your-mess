@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getActiveMessContext, ensureCurrentMonth } from "@/lib/mess-context";
-import { getMonthSummary } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +14,12 @@ export default async function MemberOverviewPage() {
   if (!ctx) redirect("/welcome");
 
   const month = ctx.currentMonth ?? (await ensureCurrentMonth(ctx.messId));
-  const summary = await getMonthSummary(ctx.messId, month.id);
-  if (!summary) redirect("/welcome");
+  const res = await apiGet(`/reports/data?messId=${ctx.messId}&monthId=${month.id}`);
+  const reportData = res?.data;
+  if (!reportData) redirect("/welcome");
 
-  const myStats = summary.members.find((m) => m.id === ctx.member.id);
+  const rows = reportData?.rows || [];
+  const myStats = rows.find((m: any) => m.id === ctx.member.id || m.name === ctx.member.fullName);
 
   return (
     <div className="space-y-6">
@@ -26,7 +28,7 @@ export default async function MemberOverviewPage() {
           <h1 className="text-2xl font-bold">{ctx.mess.name}</h1>
           <Badge variant="secondary">Member</Badge>
         </div>
-        <p className="text-zinc-500">{summary.month.label}</p>
+        <p className="text-zinc-500">{month.label}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -43,7 +45,7 @@ export default async function MemberOverviewPage() {
             <CardTitle className="text-sm font-medium text-zinc-500">My Deposits</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(myStats?.totalDeposit ?? 0)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(myStats?.deposit ?? 0)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -60,7 +62,7 @@ export default async function MemberOverviewPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-rose-600">
-              {formatCurrency(myStats?.due ?? 0)}
+              {formatCurrency(myStats?.status === "Due" ? Math.abs(myStats.balance || 0) : 0)}
             </p>
           </CardContent>
         </Card>
@@ -71,9 +73,6 @@ export default async function MemberOverviewPage() {
           <CardTitle>Current month summary</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-          <p>Meal rate: {formatCurrency(summary.mealRate)}</p>
-          <p>Total mess expenses: {formatCurrency(summary.totalExpenses)}</p>
-          <p>Your advance: {formatCurrency(myStats?.advance ?? 0)}</p>
           <p>Status: {ctx.member.status}</p>
         </CardContent>
       </Card>

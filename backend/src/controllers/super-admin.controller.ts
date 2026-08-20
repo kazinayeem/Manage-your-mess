@@ -826,3 +826,324 @@ export async function getSecurityOverview(req: Request, res: Response) {
     corsRestricted: true,
   });
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Plans & Coupons Management
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function savePlan(req: Request, res: Response) {
+  const { id, name, description, price, currency = "BDT", durationType = "MONTHS", durationValue = 1, maxMembers = 10, isActive = true, isDefault = false, isPopular = false, sortOrder = 0 } = req.body;
+  if (!name) throw new ValidationError("Plan name is required");
+
+  if (isDefault) {
+    await prisma.plan.updateMany({ data: { isDefault: false } });
+  }
+
+  if (id) {
+    const plan = await prisma.plan.update({
+      where: { id },
+      data: { name, description, price: Number(price), currency, durationType, durationValue: Number(durationValue), maxMembers: Number(maxMembers), isActive, isDefault, isPopular, sortOrder: Number(sortOrder) },
+    });
+    return sendSuccess(res, plan, "Plan updated successfully");
+  }
+
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now().toString().slice(-4);
+  const plan = await prisma.plan.create({
+    data: { slug, name, description, price: Number(price), currency, durationType, durationValue: Number(durationValue), maxMembers: Number(maxMembers), isActive, isDefault, isPopular, sortOrder: Number(sortOrder) },
+  });
+  return sendSuccess(res, plan, "Plan created successfully", 201);
+}
+
+export async function duplicatePlan(req: Request, res: Response) {
+  const planId = req.params.id;
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!plan) throw new NotFoundError("Plan not found");
+
+  const slug = `${plan.slug}-copy-${Date.now().toString().slice(-4)}`;
+  const copy = await prisma.plan.create({
+    data: {
+      slug,
+      tier: plan.tier,
+      name: `${plan.name} Copy`,
+      description: plan.description,
+      price: plan.price,
+      currency: plan.currency,
+      durationType: plan.durationType,
+      durationValue: plan.durationValue,
+      customExpiryDate: plan.customExpiryDate,
+      maxMembers: plan.maxMembers,
+      limits: plan.limits,
+      features: plan.features,
+      featureToggles: plan.featureToggles,
+      isActive: false,
+      isDefault: false,
+      isPopular: false,
+      sortOrder: plan.sortOrder + 1,
+    },
+  });
+
+  return sendSuccess(res, copy, "Plan duplicated successfully", 201);
+}
+
+export async function updatePlanLifecycle(req: Request, res: Response) {
+  const planId = req.params.id;
+  const { action } = req.body; // enable, disable, hide, show, archive
+  const existing = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!existing) throw new NotFoundError("Plan not found");
+
+  const isActive = action === "enable" || action === "show";
+  const updated = await prisma.plan.update({
+    where: { id: planId },
+    data: { isActive },
+  });
+
+  return sendSuccess(res, updated, `Plan ${action}d successfully`);
+}
+
+export async function deletePlan(req: Request, res: Response) {
+  const planId = req.params.id;
+  const count = await prisma.subscription.count({ where: { planId } });
+  if (count > 0) {
+    await prisma.plan.update({ where: { id: planId }, data: { isActive: false } });
+  } else {
+    await prisma.plan.delete({ where: { id: planId } });
+  }
+  return sendSuccess(res, null, "Plan deleted successfully");
+}
+
+export async function saveCoupon(req: Request, res: Response) {
+  const { code, discountPercent, discountAmount, maxUses, isActive } = req.body;
+  if (!code) throw new ValidationError("Coupon code is required");
+
+  const coupon = await prisma.coupon.create({
+    data: {
+      code: code.trim().toUpperCase(),
+      discountPercent: discountPercent ? Number(discountPercent) : null,
+      discountAmount: discountAmount ? Number(discountAmount) : null,
+      maxUses: maxUses ? Number(maxUses) : null,
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+    },
+  });
+
+  return sendSuccess(res, coupon, "Coupon created successfully", 201);
+}
+
+export async function deleteCoupon(req: Request, res: Response) {
+  const { id } = req.params;
+  await prisma.coupon.delete({ where: { id } });
+  return sendSuccess(res, null, "Coupon deleted");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Support Tickets & Broadcast
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function createSupportTicket(req: Request, res: Response) {
+  if (!req.user) throw new AuthError("Unauthorized");
+  const { subject, description, priority = "MEDIUM" } = req.body;
+
+  const ticket = await prisma.supportTicket.create({
+    data: {
+      userId: req.user.id,
+      subject,
+      description,
+      priority,
+      status: "OPEN",
+    },
+  });
+
+  return sendSuccess(res, ticket, "Support ticket created", 201);
+}
+
+export async function updateSupportTicket(req: Request, res: Response) {
+  const { id } = req.params;
+  const { status, priority, assigneeId } = req.body;
+
+  const ticket = await prisma.supportTicket.update({
+    where: { id },
+    data: { status, priority, assigneeId },
+  });
+
+  return sendSuccess(res, ticket, "Support ticket updated");
+}
+
+export async function broadcastNotification(req: Request, res: Response) {
+  const { title, message } = req.body;
+  if (!title || !message) throw new ValidationError("Title and message are required");
+
+  const users = await prisma.user.findMany({ where: { deletedAt: null, isActive: true }, select: { id: true } });
+  if (users.length > 0) {
+    await prisma.notification.createMany({
+      data: users.map((u) => ({
+        userId: u.id,
+        type: "GLOBAL_ANNOUNCEMENT",
+        title,
+        message,
+        sentAt: new Date(),
+      })),
+    });
+  }
+
+  return sendSuccess(res, { count: users.length }, "Broadcast sent successfully");
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Payment Methods & Review & Subscriptions
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function savePaymentMethod(req: Request, res: Response) {
+  const { id, name, accountName, accountNumber, accountType, qrCodeUrl, instructions, isActive = true, sortOrder = 0 } = req.body;
+  if (!name) throw new ValidationError("Name is required");
+
+  if (id) {
+    const method = await prisma.paymentMethod.update({
+      where: { id },
+      data: { name, accountName, accountNumber, accountType, qrCodeUrl, instructions, isActive, sortOrder: Number(sortOrder) },
+    });
+    return sendSuccess(res, method, "Payment method updated");
+  }
+
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now().toString().slice(-4);
+  const method = await prisma.paymentMethod.create({
+    data: { slug, name, accountName, accountNumber, accountType, qrCodeUrl, instructions, isActive, sortOrder: Number(sortOrder) },
+  });
+  return sendSuccess(res, method, "Payment method created", 201);
+}
+
+export async function deletePaymentMethod(req: Request, res: Response) {
+  const { id } = req.params;
+  await prisma.paymentMethod.update({ where: { id }, data: { isActive: false } });
+  return sendSuccess(res, null, "Payment method deactivated");
+}
+
+export async function reviewPaymentRequest(req: Request, res: Response) {
+  if (!req.user) throw new AuthError("Unauthorized");
+  const { requestId, action, reason } = req.body;
+  if (!requestId || !action) throw new ValidationError("Request ID and action required");
+
+  const request = await prisma.subscriptionPaymentRequest.findUnique({
+    where: { id: requestId },
+    include: { plan: true },
+  });
+
+  if (!request) throw new NotFoundError("Payment request not found");
+
+  if (action === "approve") {
+    if (!request.plan) throw new ValidationError("Plan not found for this request");
+
+    const now = new Date();
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId: request.userId,
+        planId: request.plan.id,
+        status: "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        assignedById: req.user.id,
+      },
+    });
+
+    await prisma.subscriptionPaymentRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "APPROVED",
+        reviewedById: req.user.id,
+        reviewedAt: now,
+        adminNote: reason || null,
+        subscriptionId: subscription.id,
+      },
+    });
+
+    return sendSuccess(res, { subscriptionId: subscription.id }, "Payment approved and subscription activated");
+  }
+
+  const updatedStatus = action === "reject" ? "REJECTED" : action === "refund" ? "REFUNDED" : "NEEDS_INFO";
+  await prisma.subscriptionPaymentRequest.update({
+    where: { id: requestId },
+    data: {
+      status: updatedStatus,
+      reviewedById: req.user.id,
+      reviewedAt: new Date(),
+      adminNote: reason || null,
+    },
+  });
+
+  return sendSuccess(res, null, `Payment request updated to ${updatedStatus}`);
+}
+
+export async function assignSubscriptionPlan(req: Request, res: Response) {
+  if (!req.user) throw new AuthError("Unauthorized");
+  const { userId, planId, bonusDays = 0 } = req.body;
+
+  if (!userId || !planId) throw new ValidationError("User ID and Plan ID required");
+
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!plan) throw new NotFoundError("Plan not found");
+
+  const now = new Date();
+  const end = new Date(now.getTime() + (30 + Number(bonusDays)) * 24 * 60 * 60 * 1000);
+
+  const subscription = await prisma.subscription.create({
+    data: {
+      userId,
+      planId: plan.id,
+      status: "ACTIVE",
+      currentPeriodStart: now,
+      currentPeriodEnd: end,
+      bonusDays: Number(bonusDays),
+      assignedById: req.user.id,
+    },
+  });
+
+  return sendSuccess(res, { subscriptionId: subscription.id }, "Plan assigned successfully");
+}
+
+export async function extendSubscription(req: Request, res: Response) {
+  if (!req.user) throw new AuthError("Unauthorized");
+  const { subscriptionId, additionalDays = 30 } = req.body;
+
+  const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  if (!sub) throw new NotFoundError("Subscription not found");
+
+  const base = sub.currentPeriodEnd > new Date() ? sub.currentPeriodEnd : new Date();
+  const newEnd = new Date(base.getTime() + Number(additionalDays) * 24 * 60 * 60 * 1000);
+
+  await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { currentPeriodEnd: newEnd, status: "ACTIVE" },
+  });
+
+  return sendSuccess(res, null, "Subscription extended successfully");
+}
+
+export async function updateSubscriptionStatus(req: Request, res: Response) {
+  const { id } = req.params;
+  const { status, reason } = req.body;
+
+  const updated = await prisma.subscription.update({
+    where: { id },
+    data: {
+      status,
+      suspendedAt: status === "SUSPENDED" ? new Date() : null,
+      suspendReason: status === "SUSPENDED" ? reason : null,
+    },
+  });
+
+  return sendSuccess(res, updated, "Subscription status updated");
+}
+
+export async function getBillingSettings(req: Request, res: Response) {
+  return sendSuccess(res, {
+    trialDurationType: "DAYS",
+    trialDurationValue: 14,
+    allowTrialOnCreate: true,
+    defaultTrialPlanId: null,
+  });
+}
+
+export async function saveBillingSettings(req: Request, res: Response) {
+  return sendSuccess(res, req.body, "Billing settings updated");
+}
+

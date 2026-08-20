@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getActiveMessContext, ensureCurrentMonth } from "@/lib/mess-context";
-import { getMonthSummary } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { MonthStats } from "@/components/mess/month-stats";
 import { QuickActions } from "@/components/mess/quick-actions";
 import { MemberCardGrid } from "@/components/mess/member-card";
@@ -32,14 +32,22 @@ export default async function DashboardPage() {
   }
 
   const month = ctx.currentMonth ?? (await ensureCurrentMonth(ctx.messId));
-  const summary = await getMonthSummary(ctx.messId, month.id);
-  if (!summary) redirect("/dashboard/messes/new");
+  const res = await apiGet(`/reports/data?messId=${ctx.messId}&monthId=${month.id}`);
+  const reportData = res?.data;
 
   const roleLabel = ctx.isOwner
     ? "Owner"
     : ctx.member.role === "MESS_MANAGER"
       ? "Manager"
       : "Member";
+
+  const rows = reportData?.rows || [];
+  const summaryList = reportData?.summary || [];
+
+  const getSummaryVal = (label: string) => {
+    const item = summaryList.find((s: any) => s.label === label);
+    return item?.value ?? "0";
+  };
 
   return (
     <div className="space-y-8">
@@ -50,7 +58,7 @@ export default async function DashboardPage() {
             <Badge variant="secondary">{roleLabel}</Badge>
           </div>
           <p className="text-zinc-500">
-            {summary.month.label}
+            {month.label}
             {ctx.allMesses.length > 1 && ` · ${ctx.allMesses.length} messes on your account`}
           </p>
         </div>
@@ -67,29 +75,29 @@ export default async function DashboardPage() {
 
       <MonthStats
         stats={{
-          monthLabel: summary.month.label,
-          totalMembers: summary.memberCount,
-          totalMeals: summary.totalMeals,
-          totalExpenses: summary.totalExpenses,
-          totalDeposits: summary.totalDeposits,
-          mealRate: summary.mealRate,
-          totalDue: summary.totalDue,
+          monthLabel: month.label,
+          totalMembers: Number(getSummaryVal("Total Members")),
+          totalMeals: Number(getSummaryVal("Total Meals")),
+          totalExpenses: getSummaryVal("Total Expenses"),
+          totalDeposits: getSummaryVal("Total Deposits"),
+          mealRate: getSummaryVal("Meal Rate"),
+          totalDue: getSummaryVal("Total Due"),
         }}
       />
 
       <div>
         <h2 className="mb-4 text-lg font-semibold">Members</h2>
         <MemberCardGrid
-          members={summary.members.map((m: any) => ({
-            id: m.id,
-            fullName: m.fullName,
-            phone: m.phone,
-            mealCount: m.mealCount,
-            mealCost: m.mealCost,
-            totalDeposit: m.totalDeposit,
-            due: m.due,
-            advance: m.advance,
-            balance: m.balance,
+          members={rows.map((m: any, idx: number) => ({
+            id: m.id || String(idx),
+            fullName: m.name,
+            phone: m.phone || "",
+            mealCount: m.mealCount || 0,
+            mealCost: m.mealCost || 0,
+            totalDeposit: m.deposit || 0,
+            due: m.status === "Due" ? Math.abs(m.balance || 0) : 0,
+            advance: m.status === "Advance" ? m.balance || 0 : 0,
+            balance: m.balance || 0,
           }))}
         />
       </div>

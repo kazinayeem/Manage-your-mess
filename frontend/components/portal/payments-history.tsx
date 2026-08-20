@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-type PaymentRow = Awaited<ReturnType<typeof import("@/actions/billing").getMyPaymentRequests>>[number];
+type PaymentRow = any;
 
 const badgeTone: Record<string, "secondary" | "default" | "destructive"> = {
   PENDING: "secondary",

@@ -1,5 +1,5 @@
 import { requireMessPage } from "@/lib/require-mess-page";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { ChangeManagerForm } from "@/components/mess/change-manager-form";
 
 export default async function MessChangeManagerPage({
@@ -10,16 +10,15 @@ export default async function MessChangeManagerPage({
   const { messId } = await params;
   const ctx = await requireMessPage(messId, { capability: "canChangeManager" });
 
-  const members = await db.member.findMany({
-    where: {
-      messId: ctx.messId,
-      deletedAt: null,
-      status: "ACTIVE",
-      userId: { not: ctx.mess.managerId ?? "" },
-    },
-    select: { id: true, fullName: true, role: true },
-    orderBy: { fullName: "asc" },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const mess = res?.data;
+  const members = (mess?.members || [])
+    .filter((m: any) => m.userId !== mess.managerId)
+    .map((m: any) => ({
+      id: m.id,
+      fullName: m.fullName,
+      role: m.role,
+    }));
 
   return (
     <div className="space-y-6">

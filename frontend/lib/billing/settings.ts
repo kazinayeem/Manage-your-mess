@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { calculatePeriodEnd } from "@/lib/billing/plan-utils";
 import type { PlanDurationType } from "@/types/domain";
 type Plan = any;
@@ -15,8 +15,6 @@ export type ResolvedBillingSetting = {
   defaultTrialPlan: Plan | null;
 };
 
-let billingSettingTableExistsCache: boolean | null = null;
-
 function getFallbackBillingSetting(): ResolvedBillingSetting {
   return {
     id: "fallback-billing-setting",
@@ -31,52 +29,14 @@ function getFallbackBillingSetting(): ResolvedBillingSetting {
   };
 }
 
-export async function hasBillingSettingTable() {
-  if (billingSettingTableExistsCache !== null) return billingSettingTableExistsCache;
-
-  try {
-    const rows = await db.$queryRawUnsafe<Array<{ exists: string | null }>>(
-      `select to_regclass('public."BillingSetting"')::text as exists`
-    );
-    billingSettingTableExistsCache = Boolean(rows[0]?.exists);
-  } catch {
-    billingSettingTableExistsCache = false;
-  }
-
-  return billingSettingTableExistsCache;
-}
-
 export async function getBillingSetting(): Promise<ResolvedBillingSetting> {
-  if (!(await hasBillingSettingTable())) {
-    return getFallbackBillingSetting();
-  }
-
-  let existing: ResolvedBillingSetting | null = null;
   try {
-    existing = await db.billingSetting.findFirst({
-      include: { defaultTrialPlan: true },
-      orderBy: { createdAt: "asc" },
-    });
+    const res = await apiGet("/super-admin/billing-settings");
+    if (res.success && res.data) return res.data;
   } catch {
-    return getFallbackBillingSetting();
+    // fallback
   }
-
-  if (existing) return existing;
-
-  try {
-    const created = await db.billingSetting.create({
-      data: {
-        trialDurationType: "DAYS",
-        trialDurationValue: 3,
-        allowTrialOnCreate: true,
-      },
-      include: { defaultTrialPlan: true },
-    });
-
-    return created;
-  } catch {
-    return getFallbackBillingSetting();
-  }
+  return getFallbackBillingSetting();
 }
 
 export function resolveTrialEndDate(setting: {

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { registerUser } from "@/actions/mess";
+import { useRegisterUserMutation } from "@/lib/store/api/user-api";
 import { toast } from "sonner";
 import { useRouter } from "@/i18n/navigation";
 import { setTokens } from "@/lib/token-storage";
@@ -18,17 +18,20 @@ export function RegisterForm() {
   const t = useTranslations("auth");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [registerUser] = useRegisterUserMutation();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
+    const name = String(formData.get("name") ?? "");
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
 
-    const result = await registerUser(formData);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await registerUser({ name, email, password }).unwrap();
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Registration failed");
       setLoading(false);
       return;
     }

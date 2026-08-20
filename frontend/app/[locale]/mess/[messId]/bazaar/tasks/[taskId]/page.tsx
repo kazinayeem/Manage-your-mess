@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { getBazaarTask } from "@/actions/bazaar";
+import { apiGet } from "@/lib/api-client";
 import { SubmitBazaarForm } from "@/components/bazaar/submit-bazaar-form";
 import { ReviewBazaarForm } from "@/components/bazaar/review-bazaar-form";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,8 @@ export default async function BazaarTaskDetailPage({
 }) {
   const { messId, taskId } = await params;
   const ctx = await requireMessPage(messId);
-  const task = await getBazaarTask(messId, taskId);
+  const res = await apiGet(`/bazaar/tasks/${taskId}?messId=${messId}`);
+  const task = res?.data;
   if (!task) notFound();
 
   const isAssignee = ctx.member?.id === task.assignment?.memberId;
@@ -55,13 +56,13 @@ export default async function BazaarTaskDetailPage({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">{t("assignedMember")}</p>
-            <p className="text-lg font-semibold">{task.assignment?.member.fullName ?? "—"}</p>
+            <p className="text-lg font-semibold">{task.assignment?.member?.fullName ?? "—"}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">{t("manager")}</p>
-            <p className="text-lg font-semibold">{task.assignment?.assignedBy.name ?? task.createdBy.name ?? "—"}</p>
+            <p className="text-lg font-semibold">{task.assignment?.assignedBy?.name ?? task.createdBy?.name ?? "—"}</p>
           </CardContent>
         </Card>
         <Card>
@@ -98,7 +99,7 @@ export default async function BazaarTaskDetailPage({
         </CardHeader>
         <CardContent>
           <ul className="divide-y dark:divide-zinc-800">
-            {task.items.map((item) => (
+            {(task.items || []).map((item: any) => (
               <li key={item.id} className="flex items-center justify-between py-2 text-sm">
                 <span>
                   {item.name} — {item.quantity} {item.unit}
@@ -132,9 +133,9 @@ export default async function BazaarTaskDetailPage({
                 {t("missingItems")}: {task.submission.missingItems}
               </p>
             )}
-            {task.submission.receipts.length > 0 && (
+            {(task.submission.receipts || []).length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {task.submission.receipts.map((r) => (
+                {task.submission.receipts.map((r: any) => (
                   <a
                     key={r.id}
                     href={r.fileUrl}
@@ -159,7 +160,7 @@ export default async function BazaarTaskDetailPage({
         <SubmitBazaarForm
           messId={messId}
           taskId={taskId}
-          items={task.items}
+          items={task.items || []}
           expectedBudget={task.expectedBudget}
           canSubmit={canSubmit}
         />

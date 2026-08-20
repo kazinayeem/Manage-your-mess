@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { addBill } from "@/actions/bills";
+import { useAddBillMutation } from "@/lib/store/api/bills-api";
 import { messPath } from "@/lib/mess-routes";
 import { BILL_CATEGORIES } from "@/lib/bills/categories";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export function AddBillForm({
   defaultBillingMonth: string;
 }) {
   const router = useRouter();
+  const [addBill] = useAddBillMutation();
   const [loading, setLoading] = useState(false);
   const [splitMethod, setSplitMethod] = useState<BillSplitMethod>("EQUAL");
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
@@ -33,29 +34,48 @@ export function AddBillForm({
     setLoading(true);
     const form = e.currentTarget;
     const fd = new FormData(form);
-    fd.set("splitMethod", splitMethod);
+    const category = String(fd.get("category") || "");
+    const amount = Number(fd.get("amount") || 0);
+    const billingMonth = String(fd.get("billingMonth") || "");
+    const dueDate = String(fd.get("dueDate") || "");
+    const paidDate = String(fd.get("paidDate") || "");
+    const status = String(fd.get("status") || "PENDING");
+    const paidByMemberId = String(fd.get("paidByMemberId") || "");
+    const description = String(fd.get("description") || "");
 
-    if (splitMethod === "CUSTOM") {
-      const splits = members
-        .map((m) => ({
-          memberId: m.id,
-          amount: parseFloat(customSplits[m.id] || "0"),
-        }))
-        .filter((s) => s.amount > 0);
-      fd.set("customSplits", JSON.stringify(splits));
+    const customSplitsList = splitMethod === "CUSTOM"
+      ? members
+          .map((m) => ({
+            memberId: m.id,
+            amount: parseFloat(customSplits[m.id] || "0"),
+          }))
+          .filter((s) => s.amount > 0)
+      : undefined;
+
+    try {
+      await addBill({
+        messId,
+        body: {
+          category,
+          amount,
+          billingMonth,
+          dueDate: dueDate || undefined,
+          paidDate: paidDate || undefined,
+          status,
+          paidByMemberId: paidByMemberId || undefined,
+          splitMethod,
+          customSplits: customSplitsList,
+          description: description || undefined,
+        },
+      }).unwrap();
+
+      toast.success("Bill saved and split among members");
+      router.push(messPath(messId, "/bills"));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to save bill");
     }
-
-    const result = await addBill(messId, fd);
     setLoading(false);
-
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Failed to save bill");
-      return;
-    }
-
-    toast.success("Bill saved and split among members");
-    router.push(messPath(messId, "/bills"));
-    router.refresh();
   }
 
   return (

@@ -1,8 +1,7 @@
-import { formatMealPortion } from "@/lib/calculations";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getActiveMessContext, ensureCurrentMonth } from "@/lib/mess-context";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function MemberMealsPage() {
@@ -13,13 +12,10 @@ export default async function MemberMealsPage() {
   if (!ctx) redirect("/welcome");
 
   const month = ctx.currentMonth ?? (await ensureCurrentMonth(ctx.messId));
-
-  const entries = await db.mealEntry.findMany({
-    where: { memberId: ctx.member.id, meal: { monthId: month.id } },
-    include: { meal: { select: { date: true } } },
-    orderBy: { meal: { date: "desc" } },
-    take: 60,
-  });
+  const res = await apiGet(`/reports/data?messId=${ctx.messId}&monthId=${month.id}`);
+  const reportData = res?.data;
+  const rows = reportData?.rows || [];
+  const myMember = rows.find((r: any) => r.id === ctx.member.id || r.name === ctx.member.fullName);
 
   return (
     <div className="space-y-6">
@@ -29,21 +25,9 @@ export default async function MemberMealsPage() {
           <CardTitle>{month.label}</CardTitle>
         </CardHeader>
         <CardContent>
-          {entries.length === 0 ? (
-            <p className="text-sm text-zinc-500">No meal entries yet.</p>
-          ) : (
-            <ul className="divide-y text-sm">
-              {entries.map((e) => (
-                <li key={e.id} className="flex justify-between py-2">
-                  <span>{e.meal.date.toLocaleDateString()}</span>
-                  <span>
-                    B:{formatMealPortion(e.breakfast)} L:{formatMealPortion(e.lunch)} D:
-                    {formatMealPortion(e.dinner)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <p className="text-sm text-zinc-600">
+            Total Meals: {myMember?.mealCount ?? 0}
+          </p>
         </CardContent>
       </Card>
     </div>

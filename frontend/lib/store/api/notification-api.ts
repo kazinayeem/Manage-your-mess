@@ -1,16 +1,35 @@
 import { baseApi } from "./base-api";
-import { getUserNotifications } from "@/actions/notifications";
 
 export const notificationApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    notifications: builder.query<
-      Awaited<ReturnType<typeof getUserNotifications>>,
-      { limit?: number }
-    >({
-      query: ({ limit = 20 } = {}) => `/notifications?limit=${limit}`,
+    getUserNotifications: builder.query<any[], void>({
+      query: () => "/notifications",
       providesTags: ["Notification"],
+    }),
+    getUnreadNotificationCount: builder.query<{ count: number }, void>({
+      query: () => "/notifications/unread-count",
+      providesTags: ["Notification"],
+    }),
+    markNotificationRead: builder.mutation<any, { id: string }>({
+      query: ({ id }) => ({
+        url: `/notifications/${id}/read`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Notification"],
+    }),
+    markAllNotificationsRead: builder.mutation<any, void>({
+      query: () => ({
+        url: "/notifications/read-all",
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Notification"],
     }),
   }),
 });
 
-export const { useNotificationsQuery } = notificationApi;
+export const {
+  useGetUserNotificationsQuery,
+  useGetUnreadNotificationCountQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} = notificationApi;

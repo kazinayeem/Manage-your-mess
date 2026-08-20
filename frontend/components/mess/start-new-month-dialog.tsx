@@ -3,7 +3,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { getNewMonthPreview, startNewMonth } from "@/actions/monthly";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { messPath } from "@/lib/mess-routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,15 +39,15 @@ export function StartNewMonthDialog({ messId, children, onOpenChange }: StartNew
     if (!open) return;
 
     setFetching(true);
-    getNewMonthPreview(messId)
-      .then((preview) => {
-        if (!preview) {
+    apiGet<{ currentLabel: string; suggestedLabel: string }>(`/messes/${messId}/month-preview`)
+      .then((res) => {
+        if (!res.data) {
           toast.error(t("noActiveMonth"));
           setOpen(false);
           return;
         }
-        setCurrentLabel(preview.currentLabel);
-        setMonthName(preview.suggestedLabel);
+        setCurrentLabel(res.data.currentLabel);
+        setMonthName(res.data.suggestedLabel);
       })
       .catch(() => toast.error(t("loadFailed")))
       .finally(() => setFetching(false));
@@ -71,18 +71,23 @@ export function StartNewMonthDialog({ messId, children, onOpenChange }: StartNew
     }
 
     setLoading(true);
-    const result = await startNewMonth(messId, trimmed);
-    setLoading(false);
+    try {
+      const result = await apiPost(`/messes/${messId}/start-month`, { name: trimmed });
+      setLoading(false);
 
-    if (!result.success) {
-      toast.error(result.error);
-      return;
+      if (!result.success) {
+        toast.error(result.message || "Failed to start new month");
+        return;
+      }
+
+      toast.success(t("success"));
+      handleOpenChange(false);
+      router.push(messPath(messId));
+      router.refresh();
+    } catch {
+      setLoading(false);
+      toast.error("Failed to start new month");
     }
-
-    toast.success(t("success"));
-    handleOpenChange(false);
-    router.push(messPath(messId));
-    router.refresh();
   }
 
   return (

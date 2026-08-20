@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { joinMess } from "@/actions/mess";
+import { useJoinMessMutation } from "@/lib/store/api/mess-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { messPath } from "@/lib/mess-routes";
 export function JoinMessForm({ redirectTo = "/portal" }: { redirectTo?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [joinMess] = useJoinMessMutation();
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState("");
 
@@ -26,14 +27,15 @@ export function JoinMessForm({ redirectTo = "/portal" }: { redirectTo?: string }
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const result = await joinMess(code.trim());
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      const res = await joinMess({ inviteCode: code.trim() }).unwrap();
+      toast.success("Join request sent! Waiting for manager approval.");
+      const messId = res?.data?.messId || res?.messId;
+      router.push(messId ? messPath(messId) : redirectTo);
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Join request failed");
       setLoading(false);
-      return;
     }
-    toast.success("Join request sent! Waiting for manager approval.");
-    router.push(result.data?.messId ? messPath(result.data.messId) : redirectTo);
   }
 
   return (

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { addMealCost } from "@/actions/mess";
+import { useAddMealCostMutation } from "@/lib/store/api/mess-api";
 import { messPath } from "@/lib/mess-routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,27 +22,42 @@ export function AddMealCostForm({
 }) {
   const t = useTranslations("messCost");
   const router = useRouter();
+  const [addMealCost] = useAddMealCostMutation();
   const [loading, setLoading] = useState(false);
   const [creditShopper, setCreditShopper] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    if (creditShopper) {
-      formData.set("creditShopper", "on");
-    }
-    const result = await addMealCost(messId, formData);
-    if (!result.success) {
-      toast.error(result.error);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const date = String(fd.get("date") || defaultDate);
+    const amount = Number(fd.get("amount") || 0);
+    const bazarList = String(fd.get("bazarList") || "");
+    const shopperSelect = form.querySelector<HTMLSelectElement>("#shopperIds");
+    const shopperIds = shopperSelect
+      ? Array.from(shopperSelect.selectedOptions).map((opt) => opt.value)
+      : [];
+
+    try {
+      await addMealCost({
+        messId,
+        body: {
+          date,
+          amount,
+          bazarList,
+          shopperIds,
+          creditShopper,
+        },
+      }).unwrap();
+
+      toast.success(creditShopper ? t("successWithDeposit") : t("success"));
+      router.push(messPath(messId));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to add meal cost");
       setLoading(false);
-      return;
     }
-    toast.success(
-      creditShopper ? t("successWithDeposit") : t("success")
-    );
-    router.push(messPath(messId));
-    router.refresh();
   }
 
   return (

@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { addRecurringBill, generateRecurringBills } from "@/actions/bills";
+import {
+  useAddRecurringBillMutation,
+  useGenerateRecurringBillsMutation,
+} from "@/lib/store/api/bills-api";
 import { BILL_CATEGORIES } from "@/lib/bills/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,29 +24,41 @@ export function RecurringBillsClient({
   recurring: RecurringBill[];
 }) {
   const router = useRouter();
+  const [addRecurring] = useAddRecurringBillMutation();
+  const [generateRecurring] = useGenerateRecurringBillsMutation();
   const [loading, setLoading] = useState(false);
 
   async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const result = await addRecurringBill(messId, new FormData(e.currentTarget));
-    setLoading(false);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Failed");
-      return;
+    const fd = new FormData(e.currentTarget);
+    const category = String(fd.get("category") || "");
+    const amount = Number(fd.get("amount") || 0);
+    const dayOfMonth = Number(fd.get("dayOfMonth") || 1);
+    const reminderDays = Number(fd.get("reminderDays") || 3);
+    const description = String(fd.get("description") || "");
+
+    try {
+      await addRecurring({
+        messId,
+        body: { category, amount, dayOfMonth, reminderDays, description: description || undefined },
+      }).unwrap();
+      toast.success("Recurring bill added");
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to add recurring bill");
     }
-    toast.success("Recurring bill added");
-    router.refresh();
+    setLoading(false);
   }
 
   async function handleGenerate() {
-    const result = await generateRecurringBills(messId);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Failed");
-      return;
+    try {
+      const res = await generateRecurring({ messId }).unwrap();
+      toast.success(`Generated ${res?.count ?? res?.data?.count ?? 0} bill(s)`);
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to generate bills");
     }
-    toast.success(`Generated ${result.data?.count ?? 0} bill(s)`);
-    router.refresh();
   }
 
   return (

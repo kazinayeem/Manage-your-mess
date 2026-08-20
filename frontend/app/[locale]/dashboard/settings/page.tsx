@@ -76,7 +76,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader><CardTitle>All your messes</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {ctx?.allMesses.map((m) => (
+            {ctx?.allMesses.map((m: any) => (
               <div key={m.messId} className="flex justify-between rounded-lg border p-2 dark:border-zinc-800">
                 <span>{m.name}</span>
                 <span className="text-zinc-500">{m.isOwner ? "Owner" : m.role}</span>

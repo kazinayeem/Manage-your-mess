@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnalyticsRange } from "@/actions/analytics";
+import type { AnalyticsRange } from "@/lib/store/api/analytics-api";
 import { useFilterStore } from "@/stores";
 import { cn } from "@/lib/utils";
 

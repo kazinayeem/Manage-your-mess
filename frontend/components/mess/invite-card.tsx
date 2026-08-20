@@ -5,7 +5,7 @@ import { Copy, Check, RefreshCw, Share2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { regenerateInviteCode } from "@/actions/mess";
+import { useRegenerateInviteCodeMutation } from "@/lib/store/api/mess-api";
 
 interface InviteCardProps {
   messId: string;
@@ -18,6 +18,7 @@ export function InviteCard({ messId, messName, inviteCode, canManage = true }: I
   const [code, setCode] = useState(inviteCode);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [regenerateCode] = useRegenerateInviteCodeMutation();
 
   const joinPath = `/portal/join-mess?code=${encodeURIComponent(code)}`;
   const joinUrl =
@@ -48,19 +49,16 @@ export function InviteCard({ messId, messName, inviteCode, canManage = true }: I
   async function handleRegenerate() {
     if (!canManage) return;
     setRegenerating(true);
-    const result = await regenerateInviteCode(messId);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Failed to regenerate code");
-      setRegenerating(false);
-      return;
+    try {
+      const res = await regenerateCode({ messId }).unwrap();
+      const newCode = res?.data?.inviteCode || res?.inviteCode;
+      if (newCode) {
+        setCode(newCode);
+        toast.success("New invite code generated");
+      }
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to regenerate code");
     }
-    if (!result.data?.inviteCode) {
-      toast.error("Failed to regenerate code");
-      setRegenerating(false);
-      return;
-    }
-    setCode(result.data.inviteCode);
-    toast.success("New invite code generated");
     setRegenerating(false);
   }
 

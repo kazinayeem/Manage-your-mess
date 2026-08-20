@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
 import '../../core/localization/l10n.dart';
 import '../../core/providers/global_providers.dart';
-import '../../core/widgets/empty_view.dart';
-import '../../core/widgets/error_view.dart';
+import '../../core/widgets/app_badge.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_empty_state.dart';
+import '../../core/widgets/app_error_state.dart';
+import '../../core/widgets/app_loading_state.dart';
 
 final membersListProvider = FutureProvider<List<dynamic>>((ref) async {
   final dio = ref.read(dioClientProvider).dio;
@@ -21,23 +26,27 @@ class MemberListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
     final membersAsync = ref.watch(membersListProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Text(l10n.get('members')),
+        leading: BackButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          color: AppColors.textPrimaryLight,
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(membersListProvider),
         child: membersAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => ErrorView(
+          loading: () => const AppLoadingState(useList: true),
+          error: (err, stack) => AppErrorState(
             message: err.toString(),
             onRetry: () => ref.invalidate(membersListProvider),
           ),
           data: (members) {
             if (members.isEmpty) {
-              return const EmptyView(
+              return const AppEmptyState(
                 title: 'No Members Registered',
                 subtitle: 'Invite members using your Mess invite code',
                 icon: Icons.people_outline,
@@ -55,37 +64,60 @@ class MemberListScreen extends ConsumerWidget {
                 final role = item['role'] ?? 'MEMBER';
                 final status = item['status'] ?? 'ACTIVE';
 
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: theme.primaryColor.withOpacity(0.12),
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: theme.primaryColor,
+                final badgeVariant = status == 'ACTIVE'
+                    ? AppBadgeVariant.success
+                    : AppBadgeVariant.warning;
+
+                return AppCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                        ),
+                        child: Center(
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'M',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    title: Text(name, style: theme.textTheme.titleSmall),
-                    subtitle: Text('$email • Role: $role'),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: status == 'ACTIVE'
-                            ? Colors.green.withOpacity(0.12)
-                            : Colors.orange.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        status,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: status == 'ACTIVE' ? Colors.green : Colors.orange,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimaryLight,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              email.isEmpty ? role.replaceAll('_', ' ') : '$email · ${role.replaceAll('_', ' ')}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                      AppBadge(text: status, variant: badgeVariant),
+                    ],
                   ),
                 );
               },

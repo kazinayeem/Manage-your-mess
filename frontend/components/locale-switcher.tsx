@@ -6,7 +6,7 @@ import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { updateUserLocale } from "@/actions/profile";
+import { useUpdateUserLocaleMutation } from "@/lib/store/api/user-api";
 
 export function LocaleSwitcher({ className }: { className?: string }) {
   const locale = useLocale();
@@ -14,6 +14,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
   const router = useRouter();
   const { data: session } = useSession();
   const [pending, startTransition] = useTransition();
+  const [updateLocale] = useUpdateUserLocaleMutation();
 
   function toggle() {
     if (pending) return;
@@ -21,7 +22,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
 
     startTransition(async () => {
       if (session?.user) {
-        await updateUserLocale(next);
+        await updateLocale({ locale: next }).unwrap();
       }
       router.replace(pathname, { locale: next });
       router.refresh();

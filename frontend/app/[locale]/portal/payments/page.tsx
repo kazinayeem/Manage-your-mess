@@ -1,8 +1,9 @@
-import { getMyPaymentRequests } from "@/actions/billing";
+import { apiGet } from "@/lib/api-client";
 import { PaymentsHistory } from "@/components/portal/payments-history";
 
 export default async function PortalPaymentsPage() {
-  const payments = await getMyPaymentRequests();
+  const res = await apiGet("/billing/payments/my");
+  const payments = res?.data || res || [];
 
   return (
     <div className="space-y-6">
@@ -12,7 +13,7 @@ export default async function PortalPaymentsPage() {
           Track every submitted payment request, approval decision, and subscription activation.
         </p>
       </div>
-      <PaymentsHistory payments={payments} />
+      <PaymentsHistory payments={Array.isArray(payments) ? payments : []} />
     </div>
   );
 }

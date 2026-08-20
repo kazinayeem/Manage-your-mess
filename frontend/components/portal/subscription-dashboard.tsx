@@ -13,7 +13,7 @@ import {
 } from "@/lib/billing/plan-utils";
 import type { SubscriptionAccessState } from "@/lib/billing/subscription-access";
 import { formatCurrency } from "@/lib/utils";
-type SubWithRelations = Awaited<ReturnType<typeof import("@/actions/billing").getUserSubscription>>;
+type SubWithRelations = any;
 
 export function SubscriptionDashboard({
   subscription,

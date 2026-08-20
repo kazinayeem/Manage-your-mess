@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getUserMesses } from "@/lib/queries";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
@@ -9,14 +8,13 @@ export default async function MealsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const messes = await getUserMesses(session.user.id);
+  const res = await apiGet("/messes");
+  const messes = res?.data || res || [];
   if (messes.length === 0) redirect("/dashboard/messes/new");
 
-  const messId = messes[0].messId;
-  const [mess, recentMeals] = await Promise.all([
-    db.mess.findUnique({ where: { id: messId } }),
-    db.meal.findMany({ where: { messId }, orderBy: { date: "desc" }, take: 30 }),
-  ]);
+  const messId = messes[0].id || messes[0].messId;
+  const messRes = await apiGet(`/messes/${messId}`);
+  const mess = messRes?.data;
 
   return (
     <div className="space-y-6">
@@ -37,19 +35,7 @@ export default async function MealsPage() {
       <Card>
         <CardHeader><CardTitle>Meal Calendar</CardTitle></CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {recentMeals.map((meal: any) => (
-              <div key={meal.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-                <span>{new Date(meal.date).toLocaleDateString()}</span>
-                <div className="flex gap-4 text-zinc-500">
-                  <span>B: {meal.breakfast}</span>
-                  <span>L: {meal.lunch}</span>
-                  <span>D: {meal.dinner}</span>
-                </div>
-              </div>
-            ))}
-            {recentMeals.length === 0 && <p className="text-center text-zinc-500 py-8">No meal entries yet</p>}
-          </div>
+          <p className="text-center text-zinc-500 py-8">Manage meals using the active month tools.</p>
         </CardContent>
       </Card>
     </div>

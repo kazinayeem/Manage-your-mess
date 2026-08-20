@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { BillCategoryType, BillStatus } from "@/types/domain";
 import { Eye, Trash2 } from "lucide-react";
-import { deleteBill } from "@/actions/bills";
+import { useDeleteBillMutation } from "@/lib/store/api/bills-api";
 import { toast } from "sonner";
 import { useRouter } from "@/i18n/navigation";
 
@@ -44,16 +44,17 @@ export function BillsTable({
   readOnly?: boolean;
 }) {
   const router = useRouter();
+  const [deleteBill] = useDeleteBillMutation();
 
   async function handleDelete(billId: string) {
     if (!confirm("Delete this bill? Member shares will be recalculated.")) return;
-    const result = await deleteBill(messId, billId);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Delete failed");
-      return;
+    try {
+      await deleteBill({ messId, billId }).unwrap();
+      toast.success("Bill deleted");
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Delete failed");
     }
-    toast.success("Bill deleted");
-    router.refresh();
   }
 
   if (bills.length === 0) {

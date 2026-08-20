@@ -3,14 +3,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { markAnnouncementRead } from "@/actions/announcements";
+import { useMarkAnnouncementReadMutation } from "@/lib/store/api/announcement-api";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 
-type AnnouncementRow = Awaited<ReturnType<typeof import("@/actions/announcements").getUserAnnouncements>>[number];
+type AnnouncementRow = any;
 
 export function AnnouncementsHistory({ announcements }: { announcements: AnnouncementRow[] }) {
   const router = useRouter();
+  const [markRead] = useMarkAnnouncementReadMutation();
 
   if (!announcements.length) {
     return <p className="text-sm text-zinc-500">No announcements available yet.</p>;
@@ -42,9 +43,12 @@ export function AnnouncementsHistory({ announcements }: { announcements: Announc
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    const result = await markAnnouncementRead(announcement.id);
-                    if (!result.success) return toast.error(result.error);
-                    router.refresh();
+                    try {
+                      await markRead({ announcementId: announcement.id }).unwrap();
+                      router.refresh();
+                    } catch {
+                      toast.error("Failed to mark as read");
+                    }
                   }}
                 >
                   Mark as Read

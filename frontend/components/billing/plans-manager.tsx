@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useGetAdminPlansQuery } from "@/lib/store/api/super-admin-api";
+import {
+  useGetAdminPlansQuery,
+  useSavePlanMutation,
+  useDuplicatePlanMutation,
+  useUpdatePlanLifecycleMutation,
+  useDeletePlanMutation,
+} from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,13 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import {
-  deletePlan,
-  duplicatePlan,
-  saveBillingSettings,
-  savePlan,
-  updatePlanLifecycle,
-} from "@/actions/billing";
 import {
   DURATION_PRESETS,
   PLAN_FEATURES,
@@ -86,6 +85,11 @@ const EMPTY_FORM: PlanForm = {
 
 export function PlansManager() {
   const { data, isLoading, error } = useGetAdminPlansQuery();
+  const [savePlan] = useSavePlanMutation();
+  const [duplicatePlan] = useDuplicatePlanMutation();
+  const [updateLifecycle] = useUpdatePlanLifecycleMutation();
+  const [deletePlan] = useDeletePlanMutation();
+
   const [editing, setEditing] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,50 +143,41 @@ export function PlansManager() {
   async function submitPlan(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
-    const fd = new FormData();
-    if (editing) fd.set("id", editing.id);
-    Object.entries(form).forEach(([key, value]) => {
-      if (key === "features" || key === "limits") return;
-      fd.set(key, String(value));
-    });
-    form.features.forEach((feature) => fd.append("features", feature));
-
-    const limits: Record<string, number> = {};
-    for (const key of PLAN_LIMIT_KEYS) {
-      const value = form.limits[key];
-      if (value !== undefined && value !== "") limits[key] = Number(value);
-    }
-    limits.members = Number(form.maxMembers);
-    fd.set("limits", JSON.stringify(limits));
-
-    const result = await savePlan(fd);
-    if (!result.success) {
-      toast.error(result.error);
-    } else {
+    try {
+      await savePlan({
+        ...(editing ? { id: editing.id } : {}),
+        ...form,
+        price: Number(form.price),
+        durationValue: Number(form.durationValue),
+        maxMembers: Number(form.maxMembers),
+        sortOrder: Number(form.sortOrder),
+      }).unwrap();
       toast.success(editing ? "Plan updated" : "Plan created");
       setShowForm(false);
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Failed to save plan");
     }
     setIsSubmitting(false);
   }
 
   async function handleLifecycle(planId: string, action: "enable" | "disable" | "hide" | "show" | "archive") {
     setIsSubmitting(true);
-    const result = await updatePlanLifecycle(planId, action);
-    if (!result.success) {
-      toast.error(result.error);
-    } else {
+    try {
+      await updateLifecycle({ planId, action }).unwrap();
       toast.success("Plan updated");
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Failed to update plan");
     }
     setIsSubmitting(false);
   }
 
   async function handleDuplicate(planId: string) {
     setIsSubmitting(true);
-    const result = await duplicatePlan(planId);
-    if (!result.success) {
-      toast.error(result.error);
-    } else {
+    try {
+      await duplicatePlan(planId).unwrap();
       toast.success("Plan duplicated");
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Failed to duplicate plan");
     }
     setIsSubmitting(false);
   }
@@ -190,11 +185,11 @@ export function PlansManager() {
   async function handleDelete(planId: string) {
     if (!confirm("Delete or archive this plan?")) return;
     setIsSubmitting(true);
-    const result = await deletePlan(planId);
-    if (!result.success) {
-      toast.error(result.error);
-    } else {
+    try {
+      await deletePlan(planId).unwrap();
       toast.success("Plan removed");
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Failed to remove plan");
     }
     setIsSubmitting(false);
   }

@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useGetPaymentMethodsQuery } from "@/lib/store/api/super-admin-api";
+import {
+  useGetPaymentMethodsQuery,
+  useSavePaymentMethodMutation,
+  useDeletePaymentMethodMutation,
+} from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,11 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { savePaymentMethod, deletePaymentMethod } from "@/actions/billing";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 export function PaymentMethodsManager() {
   const { data, isLoading, error } = useGetPaymentMethodsQuery();
+  const [saveMethod] = useSavePaymentMethodMutation();
+  const [deleteMethod] = useDeletePaymentMethodMutation();
+
   const [editing, setEditing] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,14 +61,17 @@ export function PaymentMethodsManager() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
-    const fd = new FormData();
-    if (editing) fd.set("id", editing.id);
-    Object.entries(form).forEach(([k, v]) => fd.set(k, String(v)));
-    const result = await savePaymentMethod(fd);
-    if (result.success) {
+    try {
+      await saveMethod({
+        ...(editing ? { id: editing.id } : {}),
+        ...form,
+        sortOrder: Number(form.sortOrder),
+      }).unwrap();
       toast.success(editing ? "Updated" : "Created");
       setShowForm(false);
-    } else toast.error(result.error);
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to save payment method");
+    }
     setIsSubmitting(false);
   }
 
@@ -115,7 +124,7 @@ export function PaymentMethodsManager() {
               </CardTitle>
               <div className="flex gap-1">
                 <Button size="icon" variant="ghost" onClick={() => openEdit(m)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" onClick={async () => { await deletePaymentMethod(m.id); toast.success("Deleted"); }}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={async () => { try { await deleteMethod(m.id).unwrap(); toast.success("Deleted"); } catch { toast.error("Delete failed"); } }}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-1 text-sm text-zinc-600">

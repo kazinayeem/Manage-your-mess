@@ -141,7 +141,7 @@ export function SuperAdminAnalyticsView({ locale }: { locale: string }) {
           </CardHeader>
           <CardContent>
             <BarChartBlock
-              data={data.tickets.map((t) => ({ name: t.status, value: t.count }))}
+              data={data.tickets.map((t: any) => ({ name: t.status, value: t.count }))}
               xKey="name"
               yKey="value"
             />

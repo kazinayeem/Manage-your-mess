@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { getBazaarTasks } from "@/actions/bazaar";
+import { apiGet } from "@/lib/api-client";
 import { BazaarTaskList } from "@/components/bazaar/bazaar-task-list";
 
 export default async function AssignedBazaarPage({
@@ -14,7 +14,8 @@ export default async function AssignedBazaarPage({
   if (!ctx.capabilities.canManageBazaar) notFound();
 
   const t = await getTranslations("bazaar");
-  const tasks = await getBazaarTasks(messId, "assigned");
+  const res = await apiGet(`/bazaar/tasks?messId=${messId}&status=assigned`);
+  const tasks = res?.data || res || [];
 
   return (
     <div className="space-y-6">
@@ -22,7 +23,7 @@ export default async function AssignedBazaarPage({
         <h1 className="text-2xl font-bold">{t("assignedBazaar")}</h1>
         <p className="text-sm text-zinc-500">{t("assignedBazaarDesc")}</p>
       </div>
-      <BazaarTaskList messId={messId} tasks={tasks} />
+      <BazaarTaskList messId={messId} tasks={Array.isArray(tasks) ? tasks : []} />
     </div>
   );
 }

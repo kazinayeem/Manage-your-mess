@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
 import { formatMessDisplayRole } from "@/lib/mess-permissions";
 import type { UserRole } from "@/types/domain";
-import { switchActiveMess } from "@/actions/mess";
+import { useSwitchActiveMessMutation } from "@/lib/store/api/mess-api";
 import { toast } from "sonner";
 
 export type NavbarMessOption = {
@@ -28,6 +28,7 @@ export function PortalMessSwitcher({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [switchMess] = useSwitchActiveMessMutation();
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; width: number } | null>(
     null
   );
@@ -64,13 +65,13 @@ export function PortalMessSwitcher({
   async function openMess(messId: string) {
     setOpen(false);
     if (messId === activeMessId) return;
-    const result = await switchActiveMess(messId);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Could not switch mess");
-      return;
+    try {
+      await switchMess({ messId }).unwrap();
+      router.push(messPath(messId));
+      router.refresh();
+    } catch {
+      toast.error("Could not switch mess");
     }
-    router.push(messPath(messId));
-    router.refresh();
   }
 
   const menu =

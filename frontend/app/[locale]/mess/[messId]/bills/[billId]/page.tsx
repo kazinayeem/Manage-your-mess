@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { getBill } from "@/actions/bills";
+import { apiGet } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 import { getBillCategoryLabel } from "@/lib/bills/categories";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +14,14 @@ export default async function BillDetailPage({
 }) {
   const { messId, billId } = await params;
   const ctx = await requireMessPage(messId);
-  const bill = await getBill(messId, billId);
+  const res = await apiGet(`/bills/${billId}?messId=${messId}`);
+  const bill = res?.data;
   if (!bill) notFound();
 
   const canPay = !ctx.capabilities.readOnly && ctx.capabilities.canManageBills;
-  const totalPaid = bill.payments.reduce((s, p) => s + p.amount, 0);
+  const payments = bill.payments || [];
+  const memberShares = bill.memberShares || [];
+  const totalPaid = payments.reduce((s: number, p: any) => s + p.amount, 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -59,7 +62,7 @@ export default async function BillDetailPage({
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">Split Method</span>
-            <span>{bill.splitMethod.replace("_", " ")}</span>
+            <span>{bill.splitMethod?.replace("_", " ")}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">Paid By</span>
@@ -81,15 +84,15 @@ export default async function BillDetailPage({
               </tr>
             </thead>
             <tbody>
-              {bill.memberShares.map((s) => (
+              {memberShares.map((s: any) => (
                 <tr key={s.id} className="border-t border-zinc-100 dark:border-zinc-800">
-                  <td className="px-3 py-2">{s.member.fullName ?? "Unnamed"}</td>
+                  <td className="px-3 py-2">{s.member?.fullName ?? "Unnamed"}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(s.amount)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-emerald-600">
-                    {formatCurrency(s.paidAmount)}
+                    {formatCurrency(s.paidAmount || 0)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-red-600">
-                    {formatCurrency(Math.max(0, s.amount - s.paidAmount))}
+                    {formatCurrency(Math.max(0, s.amount - (s.paidAmount || 0)))}
                   </td>
                 </tr>
               ))}
@@ -102,9 +105,9 @@ export default async function BillDetailPage({
         <BillPaymentForm
           messId={messId}
           billId={bill.id}
-          members={bill.memberShares.map((s) => ({
+          members={memberShares.map((s: any) => ({
             id: s.memberId,
-            fullName: s.member.fullName,
+            fullName: s.member?.fullName || null,
           }))}
         />
       )}

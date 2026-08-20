@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { submitBazaarTask, markBazaarInProgress } from "@/actions/bazaar";
+import {
+  useSubmitBazaarTaskMutation,
+  useMarkBazaarInProgressMutation,
+} from "@/lib/store/api/bazaar-api";
 import { toast } from "sonner";
 type BazaarItemStatus = any;
 
@@ -51,6 +54,8 @@ export function SubmitBazaarForm({
 }) {
   const t = useTranslations("bazaar");
   const router = useRouter();
+  const [submitTask] = useSubmitBazaarTaskMutation();
+  const [markInProgress] = useMarkBazaarInProgressMutation();
   const [loading, setLoading] = useState(false);
   const [previews, setPreviews] = useState<string[]>([]);
   const [itemStates, setItemStates] = useState(
@@ -71,9 +76,13 @@ export function SubmitBazaarForm({
   }
 
   async function handleStart() {
-    await markBazaarInProgress(messId, taskId);
-    toast.success(t("started"));
-    router.refresh();
+    try {
+      await markInProgress({ messId, taskId }).unwrap();
+      toast.success(t("started"));
+      router.refresh();
+    } catch {
+      toast.error("Failed to mark task in progress");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -87,14 +96,14 @@ export function SubmitBazaarForm({
       notes: s.notes || undefined,
     }));
     form.set("itemUpdates", JSON.stringify(updates));
-    const result = await submitBazaarTask(messId, taskId, form);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await submitTask({ messId, taskId, formData: form }).unwrap();
+      toast.success(t("submitted"));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to submit bazaar task");
       setLoading(false);
-      return;
     }
-    toast.success(t("submitted"));
-    router.refresh();
   }
 
   return (

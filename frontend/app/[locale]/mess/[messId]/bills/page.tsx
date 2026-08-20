@@ -1,11 +1,8 @@
-import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
 import { ensureCurrentMonth } from "@/lib/mess-context";
-import { getMessBills } from "@/actions/bills";
-import { getMonthSummary } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { BillsTable } from "@/components/mess/bills-table";
-import { BillKpiCards } from "@/components/mess/bill-kpi-cards";
 import { Button } from "@/components/ui/button";
 import { messPath } from "@/lib/mess-routes";
 import { PlusCircle, RefreshCw } from "lucide-react";
@@ -24,14 +21,9 @@ export default async function MessBillsPage({
   const t = await getTranslations("messBills");
 
   const month = ctx.currentMonth ?? (await ensureCurrentMonth(ctx.messId));
-  const summary = await getMonthSummary(ctx.messId, month.id);
-  if (!summary) notFound();
+  const billsRes = await apiGet(`/bills?messId=${messId}&monthId=${month.id}${year ? `&year=${year}` : ""}${category ? `&category=${category}` : ""}`);
 
-  const bills = await getMessBills(messId, {
-    monthId: month.id,
-    year: year ? parseInt(year, 10) : undefined,
-    category: category as Parameters<typeof getMessBills>[1] extends { category?: infer C } ? C : never,
-  });
+  const bills = billsRes?.data || billsRes || [];
 
   const readOnly = ctx.capabilities.readOnly;
 
@@ -62,9 +54,7 @@ export default async function MessBillsPage({
         </div>
       </div>
 
-      <BillKpiCards kpis={summary.billKpis} />
-
-      <BillsTable messId={messId} bills={bills} readOnly={readOnly || !ctx.capabilities.canManageBills} />
+      <BillsTable messId={messId} bills={Array.isArray(bills) ? bills : []} readOnly={readOnly || !ctx.capabilities.canManageBills} />
     </div>
   );
 }

@@ -114,7 +114,7 @@ export function MonthDetailsTabs({
               className="flex justify-between rounded-lg border border-zinc-100 px-3 py-2 text-sm dark:border-zinc-800"
             >
               <span>{getBillCategoryLabel(cat as BillCategoryType)}</span>
-              <span className="font-semibold tabular-nums">{formatCurrency(amt)}</span>
+              <span className="font-semibold tabular-nums">{formatCurrency(amt ?? 0)}</span>
             </div>
           ))}
         </div>

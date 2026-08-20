@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { DataTable } from "@/components/dashboard/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { approveMember, deleteMember } from "@/actions/mess";
+import { useApproveMemberMutation, useDeleteMemberMutation } from "@/lib/store/api/mess-api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
@@ -34,17 +34,19 @@ export function MembersTable({
 }) {
   const router = useRouter();
   const t = useTranslations("messMembers");
+  const [approveMember] = useApproveMemberMutation();
+  const [deleteMember] = useDeleteMemberMutation();
 
   async function handleDelete(member: Member) {
     const name = member.fullName ?? member.user.email;
     if (!window.confirm(t("deleteConfirm", { name }))) return;
 
-    const result = await deleteMember(messId, member.id);
-    if (result.success) {
+    try {
+      await deleteMember({ messId, memberId: member.id }).unwrap();
       toast.success(t("deleteSuccess"));
       router.refresh();
-    } else {
-      toast.error("error" in result ? result.error : t("deleteFailed"));
+    } catch (err: any) {
+      toast.error(err?.data?.message || t("deleteFailed"));
     }
   }
 
@@ -84,11 +86,13 @@ export function MembersTable({
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const r = await approveMember(messId, member.id);
-                      if (r.success) {
+                      try {
+                        await approveMember({ messId, memberId: member.id }).unwrap();
                         toast.success(t("approveSuccess"));
                         router.refresh();
-                      } else toast.error(r.error);
+                      } catch (err: any) {
+                        toast.error(err?.data?.message || "Approval failed");
+                      }
                     }}
                   >
                     {t("approve")}

@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { resolveMessMemberRole } from "@/lib/mess-role";
 import type { PlanTier } from "@/lib/plans";
 
@@ -17,57 +17,30 @@ export type PortalMessCard = {
 };
 
 export async function getPortalMesses(userId: string): Promise<PortalMessCard[]> {
-  const memberships = await db.member.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      status: { in: ["ACTIVE", "PENDING"] },
-    },
-    include: {
-      mess: {
-        include: {
-          currentMonth: true,
-          subscription: {
-            select: {
-              id: true,
-              status: true,
-              currentPeriodEnd: true,
-              plan: {
-                select: {
-                  id: true,
-                  name: true,
-                  tier: true,
-                },
-              },
-            },
-          },
-          _count: { select: { members: { where: { deletedAt: null, status: "ACTIVE" } } } },
-        },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const res = await apiGet("/messes");
+  if (!res.success || !res.data) return [];
 
-  return memberships.map((m) => {
+  const messes = res.data;
+  return messes.map((m: any) => {
     const effectiveRole = resolveMessMemberRole(
-      { userId: m.userId, role: m.role },
-      { ownerId: m.mess.ownerId, managerId: m.mess.managerId }
+      { userId, role: m.role || "MEMBER" },
+      { ownerId: m.ownerId, managerId: m.managerId }
     );
-    const isManager = Boolean(m.mess.managerId && m.userId === m.mess.managerId);
-    const isLegalOwner = m.mess.ownerId === m.userId;
+    const isManager = Boolean(m.managerId && userId === m.managerId);
+    const isLegalOwner = m.ownerId === userId;
 
     return {
-      messId: m.messId,
-      name: m.mess.name,
-      logo: m.mess.logo,
+      messId: m.id || m.messId,
+      name: m.name,
+      logo: m.logo || null,
       roleRaw: effectiveRole,
       isManager,
       isLegalOwner: isLegalOwner && !isManager,
-      memberCount: m.mess._count.members,
-      currentMonth: m.mess.currentMonth?.label ?? null,
-      plan: (m.mess.subscription?.plan.tier ?? "FREE") as PlanTier,
+      memberCount: m.memberCount || 0,
+      currentMonth: m.currentMonth?.label ?? null,
+      plan: (m.subscription?.plan?.tier ?? "FREE") as PlanTier,
       status: m.status === "ACTIVE" ? "ACTIVE" : "PENDING",
-      lastActivity: m.mess.updatedAt,
+      lastActivity: new Date(m.updatedAt || Date.now()),
     };
   });
 }

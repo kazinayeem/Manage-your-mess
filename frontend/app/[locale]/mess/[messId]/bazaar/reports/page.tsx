@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
 import { canViewBazaarAdmin } from "@/lib/bazaar-access";
-import { getBazaarAnalytics } from "@/actions/bazaar";
+import { apiGet } from "@/lib/api-client";
 import { BazaarAnalytics } from "@/components/bazaar/bazaar-analytics";
 
 export default async function BazaarReportsPage({
@@ -15,7 +15,15 @@ export default async function BazaarReportsPage({
   if (!canViewBazaarAdmin(ctx.capabilities, ctx.isOwner)) notFound();
 
   const t = await getTranslations("bazaar");
-  const analytics = await getBazaarAnalytics(messId);
+  const res = await apiGet(`/bazaar/analytics?messId=${messId}`);
+  const analytics = res?.data || {
+    totalSpent: 0,
+    totalTasks: 0,
+    pendingTasks: 0,
+    completedTasks: 0,
+    completionRate: 0,
+    averageCost: 0,
+  };
 
   return (
     <div className="space-y-6">

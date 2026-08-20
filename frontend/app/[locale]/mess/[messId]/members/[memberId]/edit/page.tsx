@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { EditMemberForm } from "@/components/mess/member-form";
 
 export default async function EditMemberPage({
@@ -13,9 +13,11 @@ export default async function EditMemberPage({
   const t = await getTranslations("messMembers");
   const ctx = await requireMessPage(messId, { requireManager: true, requireWrite: true });
 
-  const member = await db.member.findFirst({
-    where: { id: memberId, messId: ctx.messId, deletedAt: null },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const mess = res?.data;
+  if (!mess) notFound();
+
+  const member = mess.members?.find((m: any) => m.id === memberId || m.userId === memberId);
   if (!member) notFound();
 
   return (
@@ -32,7 +34,7 @@ export default async function EditMemberPage({
           address: member.address,
           occupation: member.occupation,
           university: member.university,
-          monthlyDeposit: member.monthlyDeposit,
+          monthlyDeposit: member.monthlyDeposit || 0,
         }}
       />
     </div>

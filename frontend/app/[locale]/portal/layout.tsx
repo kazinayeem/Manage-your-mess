@@ -3,8 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { canAccessSuperAdmin } from "@/lib/route-guard";
 import { getUserSubscriptionAccess } from "@/lib/billing/subscription-access";
-import { getActiveAnnouncementsForUser } from "@/actions/announcements";
-import { getUnreadNotificationCount } from "@/actions/notifications";
+import { apiGet } from "@/lib/api-client";
 import { PortalSidebar } from "@/components/portal/sidebar";
 import { PortalMobileBottomNav } from "@/components/mobile/mobile-bottom-nav";
 import { SubscriptionBanner } from "@/components/billing/subscription-banner";
@@ -26,18 +25,25 @@ export default async function PortalLayout({
   if (!session?.user) redirect("/login");
   if (canAccessSuperAdmin(session.user.role)) redirect("/super-admin");
 
-  const [subscriptionAccess, unreadNotifications, announcements] = await Promise.all([
+  const [subscriptionAccess, notificationsRes, announcementsRes] = await Promise.all([
     getUserSubscriptionAccess(session.user.id),
-    getUnreadNotificationCount(),
-    getActiveAnnouncementsForUser(),
+    apiGet("/notifications"),
+    apiGet("/announcements/user"),
   ]);
+
+  const notifications = notificationsRes?.data || notificationsRes || [];
+  const unreadNotifications = Array.isArray(notifications)
+    ? notifications.filter((n: any) => !n.isRead).length
+    : 0;
+
+  const announcements = announcementsRes?.data || announcementsRes || [];
 
   return (
     <div className={SHELL_BG}>
       <PortalSidebar unreadNotifications={unreadNotifications} />
       <main className={cn(MAIN_WITH_SIDEBAR)}>
         <SubscriptionBanner access={subscriptionAccess} />
-        <GlobalAnnouncementCenter announcements={announcements} />
+        <GlobalAnnouncementCenter announcements={Array.isArray(announcements) ? announcements : []} />
         <div className={cn(MAIN_CONTENT_PAD, MOBILE_BOTTOM_PAD, "min-h-0 flex-1")}>{children}</div>
       </main>
       <PortalMobileBottomNav unreadCount={unreadNotifications} />

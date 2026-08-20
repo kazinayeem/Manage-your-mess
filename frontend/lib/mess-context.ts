@@ -1,5 +1,5 @@
-import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { getActiveMessIdFromCookie } from "@/lib/active-mess";
 import { getMessCapabilities, type MessCapabilities } from "@/lib/mess-permissions";
 import { resolveMessMemberRole, isDesignatedManager } from "@/lib/mess-role";
@@ -59,54 +59,9 @@ function applySubscriptionToCapabilities(
 }
 
 export async function getUserMemberships(userId: string) {
-  return db.member.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      status: { in: ["ACTIVE", "PENDING"] },
-    },
-    include: {
-      mess: {
-        include: {
-          currentMonth: true,
-          subscription: {
-            select: {
-              id: true,
-              status: true,
-              currentPeriodEnd: true,
-              plan: {
-                select: {
-                  id: true,
-                  slug: true,
-                  tier: true,
-                  name: true,
-                  description: true,
-                  price: true,
-                  currency: true,
-                  durationType: true,
-                  durationValue: true,
-                  customExpiryDate: true,
-                  maxMembers: true,
-                  limits: true,
-                  features: true,
-                  featureToggles: true,
-                  isActive: true,
-                  isDefault: true,
-                  isPopular: true,
-                  sortOrder: true,
-                  createdAt: true,
-                  updatedAt: true,
-                },
-              },
-            },
-          },
-          owner: { select: { id: true, name: true, email: true } },
-          manager: { select: { id: true, name: true, email: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const res = await apiGet("/messes");
+  if (!res.success || !res.data) return [];
+  return res.data;
 }
 
 export type MessContext = NonNullable<Awaited<ReturnType<typeof getMessContextById>>>;
@@ -114,19 +69,23 @@ export type MessContext = NonNullable<Awaited<ReturnType<typeof getMessContextBy
 function buildMessContext(
   userId: string,
   platformRole: UserRole,
-  membership: Awaited<ReturnType<typeof getUserMemberships>>[number],
-  allMesses: Awaited<ReturnType<typeof getUserMemberships>>,
+  messDetails: any,
+  allMesses: any[],
   subscriptionAccess: SubscriptionAccessState
 ) {
-  const planTier = (membership.mess.subscription?.plan.tier ?? "FREE") as PlanTier;
-  const isOwner = membership.mess.ownerId === userId;
+  const planTier = (messDetails.subscription?.plan?.tier ?? "FREE") as PlanTier;
+  const isOwner = messDetails.ownerId === userId;
+  const userMember = messDetails.members?.find((m: any) => m.userId === userId) || {
+    userId,
+    role: messDetails.role || (isOwner ? "MESS_OWNER" : "MEMBER"),
+  };
   const effectiveRole = resolveMessMemberRole(
-    { userId: membership.userId, role: membership.role },
-    { ownerId: membership.mess.ownerId, managerId: membership.mess.managerId }
+    { userId, role: userMember.role },
+    { ownerId: messDetails.ownerId, managerId: messDetails.managerId }
   );
   const isManager = isDesignatedManager(
-    { userId: membership.userId, role: membership.role },
-    { ownerId: membership.mess.ownerId, managerId: membership.mess.managerId }
+    { userId, role: userMember.role },
+    { ownerId: messDetails.ownerId, managerId: messDetails.managerId }
   );
   const roleCapabilities = getMessCapabilities(effectiveRole);
   const capabilities = applySubscriptionToCapabilities(roleCapabilities, subscriptionAccess);
@@ -134,11 +93,11 @@ function buildMessContext(
   return {
     userId,
     userRole: platformRole,
-    member: membership,
-    mess: membership.mess,
-    messId: membership.messId,
+    member: userMember,
+    mess: messDetails,
+    messId: messDetails.id,
     planTier,
-    currentMonth: membership.mess.currentMonth,
+    currentMonth: messDetails.currentMonth,
     isOwner,
     isManager,
     effectiveRole,
@@ -146,16 +105,13 @@ function buildMessContext(
     subscriptionAccess,
     canManageInvite: isManager && subscriptionAccess.canWrite,
     allMesses: allMesses.map((m) => ({
-      messId: m.messId,
-      name: m.mess.name,
-      role: resolveMessMemberRole(
-        { userId: m.userId, role: m.role },
-        { ownerId: m.mess.ownerId, managerId: m.mess.managerId }
-      ),
-      status: m.status,
-      inviteCode: m.mess.inviteCode,
-      isOwner: m.mess.ownerId === userId,
-      isManager: m.mess.managerId === userId,
+      messId: m.id || m.messId,
+      name: m.name,
+      role: m.role || (m.ownerId === userId ? "MESS_OWNER" : "MEMBER"),
+      status: m.status || "ACTIVE",
+      inviteCode: m.inviteCode,
+      isOwner: m.ownerId === userId,
+      isManager: m.managerId === userId,
     })),
   };
 }
@@ -164,16 +120,21 @@ export async function getMessContextById(messId: string) {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const memberships = await getUserMemberships(session.user.id);
-  const membership = memberships.find((m) => m.messId === messId);
-  if (!membership) return null;
+  const [messesRes, messRes] = await Promise.all([
+    apiGet("/messes"),
+    apiGet(`/messes/${messId}`),
+  ]);
+
+  if (!messRes.success || !messRes.data) return null;
+  const allMesses = messesRes.data || [];
+  const messDetails = messRes.data;
 
   const subscriptionAccess = await getSubscriptionAccessForMess(messId, session.user.id);
   return buildMessContext(
     session.user.id,
     session.user.role,
-    membership,
-    memberships,
+    messDetails,
+    allMesses,
     subscriptionAccess
   );
 }
@@ -182,50 +143,35 @@ export async function getActiveMessContext() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const memberships = await getUserMemberships(session.user.id);
-  if (!memberships.length) return null;
+  const messesRes = await apiGet("/messes");
+  if (!messesRes.success || !messesRes.data || !messesRes.data.length) return null;
 
+  const allMesses = messesRes.data;
   const preferredId = await getActiveMessIdFromCookie();
-  const membership =
-    memberships.find((m) => m.messId === preferredId) ?? memberships[0];
+  const selectedMess = allMesses.find((m: any) => m.id === preferredId || m.messId === preferredId) || allMesses[0];
+  const messId = selectedMess.id || selectedMess.messId;
 
-  const subscriptionAccess = await getSubscriptionAccessForMess(
-    membership.messId,
-    session.user.id
-  );
+  const messRes = await apiGet(`/messes/${messId}`);
+  if (!messRes.success || !messRes.data) return null;
+
+  const subscriptionAccess = await getSubscriptionAccessForMess(messId, session.user.id);
   return buildMessContext(
     session.user.id,
     session.user.role,
-    membership,
-    memberships,
+    messRes.data,
+    allMesses,
     subscriptionAccess
   );
 }
 
 export async function ensureCurrentMonth(messId: string) {
-  const mess = await db.mess.findUnique({
-    where: { id: messId },
-    include: { currentMonth: true },
-  });
-  if (!mess) throw new Error("Mess not found");
-  if (mess.currentMonth) return mess.currentMonth;
+  const messRes = await apiGet(`/messes/${messId}`);
+  if (!messRes.success || !messRes.data) throw new Error("Mess not found");
+  if (messRes.data.currentMonth) return messRes.data.currentMonth;
 
-  const { formatMonthLabel, getCurrentYearMonth } = await import("@/lib/calculations");
-  const { year, month } = getCurrentYearMonth();
-  const monthRecord = await db.messMonth.create({
-    data: {
-      messId,
-      year,
-      month,
-      label: formatMonthLabel(year, month),
-      status: "ACTIVE",
-    },
-  });
+  const startRes = await apiPost(`/messes/${messId}/start-month`, { name: "Current Month" });
+  if (startRes.success && startRes.data) return startRes.data;
 
-  await db.mess.update({
-    where: { id: messId },
-    data: { currentMonthId: monthRecord.id },
-  });
-
-  return monthRecord;
+  const updatedMessRes = await apiGet(`/messes/${messId}`);
+  return updatedMessRes.data?.currentMonth;
 }

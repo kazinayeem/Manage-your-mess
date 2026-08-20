@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { routing } from "@/i18n/routing";
-import { updateUserLocale } from "@/actions/profile";
+import { useUpdateUserLocaleMutation } from "@/lib/store/api/user-api";
 
 const LOCALE_OPTIONS = [
   { code: "en" as const, label: "English", native: "English" },
@@ -21,19 +21,20 @@ export function PortalSettingsView() {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [updateLocale] = useUpdateUserLocaleMutation();
 
   function changeLanguage(next: "en" | "bn") {
     if (next === locale || pending) return;
 
     startTransition(async () => {
-      const result = await updateUserLocale(next);
-      if (!result.success) {
-        toast.error("error" in result ? result.error : t("saveFailed"));
-        return;
+      try {
+        await updateLocale({ locale: next }).unwrap();
+        router.replace(pathname, { locale: next });
+        router.refresh();
+        toast.success(t("languageSaved"));
+      } catch {
+        toast.error(t("saveFailed"));
       }
-      router.replace(pathname, { locale: next });
-      router.refresh();
-      toast.success(t("languageSaved"));
     });
   }
 

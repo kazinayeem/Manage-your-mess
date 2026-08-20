@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getActiveMessContext } from "@/lib/mess-context";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { ChangeManagerForm } from "@/components/mess/change-manager-form";
 
 export default async function ChangeManagerPage() {
@@ -19,16 +19,15 @@ export default async function ChangeManagerPage() {
     );
   }
 
-  const members = await db.member.findMany({
-    where: {
-      messId: ctx.messId,
-      deletedAt: null,
-      status: "ACTIVE",
-      userId: { not: ctx.mess.managerId ?? "" },
-    },
-    select: { id: true, fullName: true, role: true },
-    orderBy: { fullName: "asc" },
-  });
+  const res = await apiGet(`/messes/${ctx.messId}`);
+  const mess = res?.data;
+  const members = (mess?.members || [])
+    .filter((m: any) => m.userId !== mess.managerId)
+    .map((m: any) => ({
+      id: m.id,
+      fullName: m.fullName,
+      role: m.role,
+    }));
 
   return (
     <div className="space-y-6">

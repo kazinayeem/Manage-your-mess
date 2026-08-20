@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { reviewBazaarTask } from "@/actions/bazaar";
+import { useReviewBazaarTaskMutation } from "@/lib/store/api/bazaar-api";
 import { toast } from "sonner";
 
 export function ReviewBazaarForm({
@@ -31,6 +31,7 @@ export function ReviewBazaarForm({
 }) {
   const t = useTranslations("bazaar");
   const router = useRouter();
+  const [reviewTask] = useReviewBazaarTaskMutation();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"APPROVED" | "REJECTED" | "CORRECTION_REQUESTED">("APPROVED");
 
@@ -39,14 +40,14 @@ export function ReviewBazaarForm({
     setLoading(true);
     const form = new FormData(e.currentTarget);
     form.set("status", status);
-    const result = await reviewBazaarTask(messId, taskId, form);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await reviewTask({ messId, taskId, formData: form }).unwrap();
+      toast.success(t("reviewDone"));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Review failed");
       setLoading(false);
-      return;
     }
-    toast.success(t("reviewDone"));
-    router.refresh();
   }
 
   const diff = actualCost - expectedBudget;

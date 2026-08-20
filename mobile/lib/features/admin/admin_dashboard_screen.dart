@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../core/widgets/app_badge.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_error_state.dart';
+import '../../core/widgets/app_icon_button.dart';
+import '../../core/widgets/app_loading_state.dart';
 import '../../core/widgets/kpi_card.dart';
-import '../../core/widgets/shimmer_loader.dart';
-import '../../core/widgets/error_view.dart';
 import '../auth/auth_provider.dart';
 import 'admin_provider.dart';
 import 'widgets/admin_drawer.dart';
@@ -23,42 +27,56 @@ class AdminDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final dashAsync = ref.watch(adminDashboardProvider);
-    final theme = Theme.of(context);
     final userName = authState.user?['name'] ?? 'Super Admin';
 
     return Scaffold(
       drawer: const AdminDrawer(currentRoute: '/admin'),
       appBar: AppBar(
+        titleSpacing: 16,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_getGreeting()}, $userName 👋',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+              '${_getGreeting()}, $userName',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimaryLight,
               ),
             ),
-            Text(
+            const Text(
               'Super Admin Overview',
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: TextStyle(
+                fontSize: 12,
                 color: AppColors.textSecondaryLight,
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () => context.push('/admin/notifications'),
+          AppIconButton(
+            icon: Icons.notifications_none_rounded,
+            color: AppColors.textSecondaryLight,
+            onPressed: () {},
+            tooltip: 'Notifications',
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 16),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.borderDark
+                : AppColors.borderLight,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(adminDashboardProvider),
         child: dashAsync.when(
-          loading: () => const DashboardSkeleton(),
-          error: (err, _) => ErrorView(
+          loading: () => const AppLoadingState(),
+          error: (err, _) => AppErrorState(
             message: err.toString(),
             onRetry: () => ref.invalidate(adminDashboardProvider),
           ),
@@ -86,21 +104,21 @@ class AdminDashboardScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Section Title
-                  Text(
+                  const Text(
                     'Platform Metrics',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimaryLight,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // 13 Full KPI Cards in 2-column Grid
                   GridView.count(
                     crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.35,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.4,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
@@ -108,89 +126,93 @@ class AdminDashboardScreen extends ConsumerWidget {
                         title: 'Total Users',
                         value: '$totalUsers',
                         icon: Icons.people_rounded,
-                        color: const Color(0xFF4338CA),
+                        color: AppColors.primary,
                       ),
                       KPICard(
                         title: 'Active Users (30d)',
                         value: '$activeUsers',
                         icon: Icons.person_outline_rounded,
-                        color: const Color(0xFF0F766E),
+                        color: AppColors.success,
                       ),
                       KPICard(
                         title: 'Total Messes',
                         value: '$totalMesses',
                         icon: Icons.home_work_rounded,
-                        color: const Color(0xFF3B82F6),
+                        color: AppColors.info,
                       ),
                       KPICard(
                         title: 'Total Branches',
                         value: '$totalBranches',
                         icon: Icons.account_tree_rounded,
-                        color: const Color(0xFF8B5CF6),
+                        color: AppColors.warning,
                       ),
                       KPICard(
                         title: 'Total Members',
                         value: '$totalMembers',
                         icon: Icons.groups_rounded,
-                        color: const Color(0xFF0284C7),
+                        color: AppColors.primaryDark,
                       ),
                       KPICard(
                         title: 'Monthly Revenue',
                         value: '৳ ${_formatNumber(monthlyRevenue)}',
                         icon: Icons.monetization_on_rounded,
-                        color: const Color(0xFF10B981),
+                        color: AppColors.success,
                       ),
                       KPICard(
                         title: 'Annual Revenue',
                         value: '৳ ${_formatNumber(annualRevenue)}',
                         icon: Icons.attach_money_rounded,
-                        color: const Color(0xFF059669),
+                        color: AppColors.primary,
                       ),
                       KPICard(
                         title: 'Active Subs',
                         value: '$activeSubscriptions',
                         icon: Icons.card_membership_rounded,
-                        color: const Color(0xFF6366F1),
+                        color: AppColors.info,
                       ),
                       KPICard(
                         title: 'Expired Subs',
                         value: '$expiredSubscriptions',
                         icon: Icons.timer_off_rounded,
-                        color: const Color(0xFF64748B),
+                        color: AppColors.textSecondaryLight,
                       ),
                       KPICard(
                         title: 'Trial Accounts',
                         value: '$trialAccounts',
                         icon: Icons.hourglass_top_rounded,
-                        color: const Color(0xFFEC4899),
+                        color: AppColors.warning,
                       ),
                       KPICard(
                         title: 'Pending Payments',
                         value: '$pendingPayments',
                         icon: Icons.pending_actions_rounded,
-                        color: pendingPayments > 0 ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
+                        color: pendingPayments > 0
+                            ? AppColors.warning
+                            : AppColors.textSecondaryLight,
                       ),
                       KPICard(
                         title: 'Approved Payments',
                         value: '$approvedPayments',
                         icon: Icons.check_circle_rounded,
-                        color: const Color(0xFF10B981),
+                        color: AppColors.success,
                       ),
                       KPICard(
                         title: 'Rejected Payments',
                         value: '$rejectedPayments',
                         icon: Icons.cancel_rounded,
-                        color: const Color(0xFFEF4444),
+                        color: AppColors.error,
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Quick Action Links
-                  Text(
+                  const Text(
                     'Quick Links',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimaryLight,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -200,99 +222,184 @@ class AdminDashboardScreen extends ConsumerWidget {
                       _AdminQuickAction(
                         icon: Icons.people_alt_rounded,
                         label: 'Users',
-                        color: const Color(0xFF4338CA),
+                        color: AppColors.primary,
                         onTap: () => context.go('/admin/users'),
                       ),
                       _AdminQuickAction(
                         icon: Icons.home_work_rounded,
                         label: 'Messes',
-                        color: const Color(0xFF0F766E),
+                        color: AppColors.success,
                         onTap: () => context.go('/admin/messes'),
                       ),
                       _AdminQuickAction(
                         icon: Icons.payment_rounded,
                         label: 'Payments',
-                        color: const Color(0xFF10B981),
+                        color: AppColors.info,
                         badge: pendingPayments > 0 ? '$pendingPayments' : null,
                         onTap: () => context.go('/admin/payments'),
                       ),
                       _AdminQuickAction(
                         icon: Icons.analytics_rounded,
                         label: 'Analytics',
-                        color: const Color(0xFF3B82F6),
+                        color: AppColors.warning,
                         onTap: () => context.go('/admin/analytics'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Recent Users Section
                   if (recentUsers.isNotEmpty) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           'Recent Users',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimaryLight,
+                            letterSpacing: -0.2,
                           ),
                         ),
                         TextButton(
                           onPressed: () => context.go('/admin/users'),
-                          child: const Text('View All'),
+                          child: const Text(
+                            'View All',
+                            style: TextStyle(fontSize: 13, color: AppColors.primary),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...recentUsers.take(3).map((user) => Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: AppColors.primary.withOpacity(0.12),
-                              child: Text(
-                                (user['name'] ?? 'U').toString().substring(0, 1).toUpperCase(),
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
+                    ...recentUsers.take(3).map((user) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: AppCard(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      (user['name'] ?? 'U')
+                                          .toString()
+                                          .substring(0, 1)
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user['name'] ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textPrimaryLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        user['email'] ?? '',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondaryLight,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _RoleBadge(role: user['role'] ?? 'MEMBER'),
+                              ],
                             ),
-                            title: Text(user['name'] ?? 'Unknown', style: theme.textTheme.titleSmall),
-                            subtitle: Text(user['email'] ?? ''),
-                            trailing: _RoleBadge(role: user['role'] ?? 'MEMBER'),
                           ),
                         )),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                   ],
 
-                  // Recent Messes Section
                   if (recentMesses.isNotEmpty) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           'Recent Messes',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimaryLight,
+                            letterSpacing: -0.2,
                           ),
                         ),
                         TextButton(
                           onPressed: () => context.go('/admin/messes'),
-                          child: const Text('View All'),
+                          child: const Text(
+                            'View All',
+                            style: TextStyle(fontSize: 13, color: AppColors.primary),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...recentMesses.take(3).map((mess) => Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: const Color(0xFF0F766E).withOpacity(0.12),
-                              child: const Icon(Icons.home_work_outlined, color: Color(0xFF0F766E), size: 20),
+                    ...recentMesses.take(3).map((mess) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: AppCard(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                  child: const Icon(
+                                    Icons.home_work_outlined,
+                                    color: AppColors.primary,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        mess['name'] ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textPrimaryLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Owner: ${mess['owner']?['name'] ?? '-'} · Members: ${mess['_count']?['members'] ?? 0}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondaryLight,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _StatusBadge(status: mess['status'] ?? 'ACTIVE'),
+                              ],
                             ),
-                            title: Text(mess['name'] ?? 'Unknown', style: theme.textTheme.titleSmall),
-                            subtitle: Text(
-                              'Owner: ${mess['owner']?['name'] ?? '-'} • Members: ${mess['_count']?['members'] ?? 0}',
-                            ),
-                            trailing: _StatusBadge(status: mess['status'] ?? 'ACTIVE'),
                           ),
                         )),
                   ],
@@ -344,13 +451,13 @@ class _AdminQuickAction extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 54,
+                height: 54,
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
                 ),
-                child: Icon(icon, color: color, size: 26),
+                child: Icon(icon, color: color, size: 24),
               ),
               if (badge != null)
                 Positioned(
@@ -367,7 +474,7 @@ class _AdminQuickAction extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -377,7 +484,11 @@ class _AdminQuickAction extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimaryLight,
+            ),
           ),
         ],
       ),
@@ -391,40 +502,13 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color badgeColor;
-    switch (role) {
-      case 'SUPER_ADMIN':
-        badgeColor = const Color(0xFFEF4444);
-        break;
-      case 'ADMIN':
-        badgeColor = const Color(0xFFF59E0B);
-        break;
-      case 'MESS_OWNER':
-        badgeColor = const Color(0xFF4338CA);
-        break;
-      case 'MESS_MANAGER':
-        badgeColor = const Color(0xFF0F766E);
-        break;
-      default:
-        badgeColor = const Color(0xFF64748B);
-    }
-    final display = role.replaceAll('_', ' ');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        display,
-        style: TextStyle(
-          color: badgeColor,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+    final (AppBadgeVariant variant, String text) = switch (role) {
+      'SUPER_ADMIN' => (AppBadgeVariant.destructive, role.replaceAll('_', ' ')),
+      'MESS_OWNER' => (AppBadgeVariant.info, 'Owner'),
+      'MESS_MANAGER' => (AppBadgeVariant.success, 'Manager'),
+      _ => (AppBadgeVariant.secondary, role.replaceAll('_', ' ')),
+    };
+    return AppBadge(text: text, variant: variant);
   }
 }
 
@@ -434,38 +518,12 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color badgeColor;
-    switch (status) {
-      case 'ACTIVE':
-        badgeColor = const Color(0xFF10B981);
-        break;
-      case 'PENDING':
-        badgeColor = const Color(0xFFF59E0B);
-        break;
-      case 'SUSPENDED':
-        badgeColor = const Color(0xFFEF4444);
-        break;
-      case 'REJECTED':
-        badgeColor = const Color(0xFF64748B);
-        break;
-      default:
-        badgeColor = const Color(0xFF94A3B8);
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: badgeColor,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+    final variant = switch (status) {
+      'ACTIVE' => AppBadgeVariant.success,
+      'PENDING' => AppBadgeVariant.warning,
+      'SUSPENDED' || 'REJECTED' => AppBadgeVariant.destructive,
+      _ => AppBadgeVariant.secondary,
+    };
+    return AppBadge(text: status, variant: variant);
   }
 }

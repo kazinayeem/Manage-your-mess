@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { markAnnouncementRead } from "@/actions/announcements";
+import { useMarkAnnouncementReadMutation } from "@/lib/store/api/announcement-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +32,7 @@ export function GlobalAnnouncementCenter({
 }) {
   const [pending, startTransition] = useTransition();
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [markAnnouncementRead] = useMarkAnnouncementReadMutation();
 
   const visible = announcements.filter((item) => !dismissed.includes(item.id));
   const critical = useMemo(
@@ -43,12 +44,12 @@ export function GlobalAnnouncementCenter({
 
   function markRead(id: string) {
     startTransition(async () => {
-      const result = await markAnnouncementRead(id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
+      try {
+        await markAnnouncementRead({ announcementId: id }).unwrap();
+        setDismissed((current) => [...current, id]);
+      } catch (e) {
+        toast.error("Failed to mark announcement as read");
       }
-      setDismissed((current) => [...current, id]);
     });
   }
 

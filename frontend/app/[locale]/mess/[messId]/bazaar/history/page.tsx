@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireMessPage } from "@/lib/require-mess-page";
 import { canViewBazaarAdmin } from "@/lib/bazaar-access";
-import { getBazaarHistory } from "@/actions/bazaar";
+import { apiGet } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,8 @@ export default async function BazaarHistoryPage({
   if (!canViewBazaarAdmin(ctx.capabilities, ctx.isOwner)) notFound();
 
   const t = await getTranslations("bazaar");
-  const history = await getBazaarHistory(messId);
+  const res = await apiGet(`/bazaar/history?messId=${messId}`);
+  const history = res?.data || res || [];
 
   return (
     <div className="space-y-6">
@@ -41,17 +42,17 @@ export default async function BazaarHistoryPage({
             </tr>
           </thead>
           <tbody>
-            {history.map((task) => {
+            {(Array.isArray(history) ? history : []).map((task: any) => {
               const budget = task.expectedBudget;
               const actual = task.submission?.actualCost ?? 0;
               const diff = actual - budget;
-              const approval = task.approvals[0];
+              const approval = task.approvals?.[0];
               const completedAt = approval?.createdAt ?? task.submission?.submittedAt ?? task.updatedAt;
               return (
                 <tr key={task.id} className="border-t dark:border-zinc-800">
                   <td className="px-4 py-3">{formatDate(completedAt)}</td>
                   <td className="px-4 py-3 font-medium">{task.title}</td>
-                  <td className="px-4 py-3">{task.assignment?.member.fullName ?? "—"}</td>
+                  <td className="px-4 py-3">{task.assignment?.member?.fullName ?? "—"}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(budget)}</td>
                   <td className="px-4 py-3 text-right">{actual ? formatCurrency(actual) : "—"}</td>
                   <td className={`px-4 py-3 text-right ${diff > 0 ? "text-red-600" : "text-emerald-600"}`}>
@@ -66,7 +67,7 @@ export default async function BazaarHistoryPage({
             })}
           </tbody>
         </table>
-        {history.length === 0 && (
+        {(!Array.isArray(history) || history.length === 0) && (
           <Card>
             <CardContent className="py-12 text-center text-zinc-500">{t("noHistory")}</CardContent>
           </Card>

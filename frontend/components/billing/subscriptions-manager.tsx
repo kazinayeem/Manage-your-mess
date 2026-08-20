@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useGetAdminSubscriptionsQuery, useGetAdminPlansQuery } from "@/lib/store/api/super-admin-api";
+import {
+  useGetAdminSubscriptionsQuery,
+  useGetAdminPlansQuery,
+  useExtendSubscriptionMutation,
+  useUpdateSubscriptionStatusMutation,
+  useAssignSubscriptionPlanMutation,
+} from "@/lib/store/api/super-admin-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { assignSubscriptionPlan, extendSubscription, updateSubscriptionStatus } from "@/actions/billing";
 import { EXTENSION_PRESETS } from "@/lib/billing/constants";
 import { daysRemaining, formatPlanDuration, toParsedPlan } from "@/lib/billing/plan-utils";
 import { formatCurrency } from "@/lib/utils";
@@ -25,6 +30,9 @@ import { CalendarPlus, Pause, Play } from "lucide-react";
 export function SubscriptionsManager() {
   const { data: subData, isLoading: subLoading, error: subError } = useGetAdminSubscriptionsQuery();
   const { data: planData, isLoading: planLoading } = useGetAdminPlansQuery();
+  const [extendSub] = useExtendSubscriptionMutation();
+  const [updateStatus] = useUpdateSubscriptionStatusMutation();
+  const [assignPlan] = useAssignSubscriptionPlanMutation();
 
   const subscriptions = subData?.data || subData || [];
   const plans = planData?.data || planData || [];
@@ -40,41 +48,47 @@ export function SubscriptionsManager() {
 
   async function handleExtend(id: string) {
     setIsSubmitting(true);
-    const result = await extendSubscription(
-      id,
-      Number(extraDays),
-      reason || undefined,
-      customEnd || undefined
-    );
-    if (result.success) {
+    try {
+      await extendSub({
+        subscriptionId: id,
+        additionalDays: Number(extraDays),
+        reason: reason || undefined,
+        customEndDate: customEnd || undefined,
+      }).unwrap();
       toast.success("Subscription extended");
       setExtendingId(null);
-    } else toast.error(result.error);
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Extension failed");
+    }
     setIsSubmitting(false);
   }
 
   async function handleStatus(id: string, status: "ACTIVE" | "SUSPENDED" | "EXPIRED" | "CANCELLED") {
     setIsSubmitting(true);
-    const result = await updateSubscriptionStatus(id, status, reason || undefined);
-    if (result.success) {
+    try {
+      await updateStatus({ subscriptionId: id, status, reason: reason || undefined }).unwrap();
       toast.success(`Status updated to ${status}`);
-    } else toast.error(result.error);
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Status update failed");
+    }
     setIsSubmitting(false);
   }
 
   async function handleAssign(subscription: any) {
     setIsSubmitting(true);
-    const result = await assignSubscriptionPlan({
-      userId: subscription.user.id,
-      planId: selectedPlanId || (plans[0]?.id ?? ""),
-      messId: subscription.messes?.[0]?.id ?? null,
-      customExpiryDate: customEnd || undefined,
-      bonusDays: Number(bonusDays || 0),
-    });
-    if (result.success) {
+    try {
+      await assignPlan({
+        userId: subscription.user.id,
+        planId: selectedPlanId || (plans[0]?.id ?? ""),
+        messId: subscription.messes?.[0]?.id ?? null,
+        customExpiryDate: customEnd || undefined,
+        bonusDays: Number(bonusDays || 0),
+      }).unwrap();
       toast.success("Plan assigned");
       setAssigningId(null);
-    } else toast.error(result.error);
+    } catch (e: any) {
+      toast.error(e?.data?.message || "Plan assignment failed");
+    }
     setIsSubmitting(false);
   }
 

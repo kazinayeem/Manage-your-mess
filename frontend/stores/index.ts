@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AnalyticsRange } from "@/actions/analytics";
+import type { AnalyticsRange } from "@/lib/store/api/analytics-api";
+
 
 interface MessStore {
   activeMessId: string | null;

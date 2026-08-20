@@ -143,3 +143,57 @@ export async function getMessDetails(req: Request, res: Response) {
   if (!mess || mess.deletedAt) throw new NotFoundError("Mess not found");
   return sendSuccess(res, mess);
 }
+
+export async function switchActiveMess(req: Request, res: Response) {
+  if (!req.user) throw new AuthError("Unauthorized");
+  const { messId } = req.body;
+  if (!messId) throw new ValidationError("Mess ID required");
+
+  const membership = await prisma.member.findUnique({
+    where: { messId_userId: { messId, userId: req.user.id } },
+  });
+  if (!membership || membership.deletedAt) {
+    throw new ValidationError("You are not a member of this mess");
+  }
+
+  setActiveMessCookie(res, messId);
+  return sendSuccess(res, { messId }, "Active mess switched");
+}
+
+export async function regenerateInviteCode(req: Request, res: Response) {
+  const messId = req.params.id || req.activeMessId;
+  if (!messId) throw new ValidationError("Mess ID required");
+
+  const inviteCode = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+  const mess = await prisma.mess.update({
+    where: { id: messId },
+    data: { inviteCode },
+  });
+
+  return sendSuccess(res, { inviteCode: mess.inviteCode }, "Invite code regenerated");
+}
+
+export async function changeManager(req: Request, res: Response) {
+  if (!req.user) throw new AuthError("Unauthorized");
+  const messId = req.params.id || req.activeMessId;
+  const { memberId } = req.body;
+  if (!messId || !memberId) throw new ValidationError("Mess ID and Member ID required");
+
+  const target = await prisma.member.findFirst({
+    where: { id: memberId, messId, deletedAt: null, status: "ACTIVE" },
+  });
+  if (!target) throw new NotFoundError("Member not found");
+
+  await prisma.mess.update({
+    where: { id: messId },
+    data: { managerId: target.userId },
+  });
+
+  await prisma.member.update({
+    where: { id: memberId },
+    data: { role: "MESS_MANAGER" },
+  });
+
+  return sendSuccess(res, null, "Manager changed successfully");
+}
+

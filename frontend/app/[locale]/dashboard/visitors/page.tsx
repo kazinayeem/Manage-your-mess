@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getUserMesses } from "@/lib/queries";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
@@ -10,20 +9,14 @@ export default async function VisitorsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const messes = await getUserMesses(session.user.id);
-  if (messes.length === 0) redirect("/dashboard/messes/new");
-
-  const visitors = await db.visitor.findMany({
-    where: { messId: messes[0].messId, deletedAt: null },
-    orderBy: { entryAt: "desc" },
-    take: 50,
-  });
+  const res = await apiGet("/visitors");
+  const visitors = res?.data || res || [];
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Visitor Management</h1>
       <div className="space-y-3">
-        {visitors.map((v) => (
+        {(Array.isArray(visitors) ? visitors : []).map((v: any) => (
           <Card key={v.id}>
             <CardContent className="flex items-center justify-between p-4">
               <div>
@@ -37,7 +30,7 @@ export default async function VisitorsPage() {
             </CardContent>
           </Card>
         ))}
-        {visitors.length === 0 && (
+        {(!Array.isArray(visitors) || visitors.length === 0) && (
           <Card><CardContent className="py-12 text-center text-zinc-500">No visitors logged</CardContent></Card>
         )}
       </div>

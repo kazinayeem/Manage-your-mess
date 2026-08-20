@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { canAccessSuperAdmin } from "@/lib/route-guard";
 import { getMessContextById } from "@/lib/mess-context";
-import { getActiveAnnouncementsForUser } from "@/actions/announcements";
+import { apiGet } from "@/lib/api-client";
 import { MessWorkspaceSidebar } from "@/components/mess/workspace-sidebar";
 import { PortalMessSwitcher } from "@/components/portal/mess-switcher";
 import { SubscriptionBanner } from "@/components/billing/subscription-banner";
@@ -40,7 +40,9 @@ export default async function MessLayout({
 
   const ctx = await getMessContextById(messId);
   if (!ctx) notFound();
-  const announcements = await getActiveAnnouncementsForUser();
+
+  const announcementsRes = await apiGet("/announcements/user");
+  const announcements = announcementsRes?.data || announcementsRes || [];
 
   const tRoles = await getTranslations("roles");
   const tWorkspace = await getTranslations("workspace");
@@ -65,7 +67,7 @@ export default async function MessLayout({
         <header className={STICKY_TOPBAR}>
           <div className={STICKY_TOPBAR_INNER}>
             <PortalMessSwitcher
-              messes={ctx.allMesses.map((m) => ({
+              messes={ctx.allMesses.map((m: any) => ({
                 messId: m.messId,
                 name: m.name,
                 role: m.role,
@@ -89,7 +91,7 @@ export default async function MessLayout({
         </header>
 
         <SubscriptionBanner access={ctx.subscriptionAccess} />
-        <GlobalAnnouncementCenter announcements={announcements} />
+        <GlobalAnnouncementCenter announcements={Array.isArray(announcements) ? announcements : []} />
 
         <main className={cn("min-h-0 min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8", MOBILE_BOTTOM_PAD)}>
           {readOnly && ctx.subscriptionAccess.isSuspended && (

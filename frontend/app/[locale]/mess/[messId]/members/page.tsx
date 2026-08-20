@@ -1,10 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { getMonthSummary } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { MembersTable } from "@/components/dashboard/members-table";
 import { PendingMembersPanel } from "@/components/mess/pending-members-panel";
-import { db } from "@/lib/db";
 import { messPath } from "@/lib/mess-routes";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
@@ -20,41 +19,23 @@ export default async function MessMembersPage({
     capability: "canViewMembers",
   });
 
-  const allMembers = await db.member.findMany({
-    where: {
-      messId: ctx.messId,
-      deletedAt: null,
-      status: { in: ["ACTIVE", "PENDING"] },
-    },
-    include: { user: { select: { email: true } } },
-    orderBy: [{ status: "asc" }, { fullName: "asc" }],
-  });
+  let members: any[] = [];
+  const pending: any[] = [];
 
-  const summary = ctx.currentMonth
-    ? await getMonthSummary(ctx.messId, ctx.currentMonth.id)
-    : null;
-
-  const members = allMembers.map((m) => {
-    const stats = summary?.members.find((s) => s.id === m.id);
-    return {
-      id: m.id,
-      fullName: m.fullName,
-      role: m.role,
-      status: m.status,
-      totalMeals: stats?.mealCount ?? 0,
-      totalDue: stats?.due ?? 0,
-      totalDeposit: stats?.totalDeposit ?? 0,
-      user: { email: m.user.email },
-    };
-  });
-
-  const pending = allMembers
-    .filter((m) => m.status === "PENDING")
-    .map((m) => ({
-      id: m.id,
-      fullName: m.fullName,
-      email: m.user.email,
+  if (ctx.currentMonth) {
+    const res = await apiGet(`/reports/data?messId=${ctx.messId}&monthId=${ctx.currentMonth.id}`);
+    const rows = res?.data?.rows || [];
+    members = rows.map((m: any, idx: number) => ({
+      id: m.id || String(idx),
+      fullName: m.name,
+      role: m.role || "MEMBER",
+      status: m.status || "ACTIVE",
+      totalMeals: m.mealCount || 0,
+      totalDue: m.due || 0,
+      totalDeposit: m.deposit || 0,
+      user: { email: m.email || "" },
     }));
+  }
 
   return (
     <div className="space-y-6">

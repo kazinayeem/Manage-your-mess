@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { recordBillPayment } from "@/actions/bills";
+import { useRecordBillPaymentMutation } from "@/lib/store/api/bills-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,21 +19,35 @@ export function BillPaymentForm({
   members: { id: string; fullName: string | null }[];
 }) {
   const router = useRouter();
+  const [recordPayment] = useRecordBillPaymentMutation();
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    fd.set("billId", billId);
-    const result = await recordBillPayment(messId, fd);
-    setLoading(false);
-    if (!result.success) {
-      toast.error("error" in result ? result.error : "Payment failed");
-      return;
+    const memberId = String(fd.get("memberId") || "");
+    const amount = Number(fd.get("amount") || 0);
+    const method = String(fd.get("method") || "");
+    const note = String(fd.get("note") || "");
+
+    try {
+      await recordPayment({
+        messId,
+        body: {
+          billId,
+          memberId: memberId || undefined,
+          amount,
+          method: method || undefined,
+          note: note || undefined,
+        },
+      }).unwrap();
+      toast.success("Payment recorded");
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Payment failed");
     }
-    toast.success("Payment recorded");
-    router.refresh();
+    setLoading(false);
   }
 
   return (

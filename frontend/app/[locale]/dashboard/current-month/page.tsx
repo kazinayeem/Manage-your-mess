@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getActiveMessContext, ensureCurrentMonth } from "@/lib/mess-context";
-import { getMonthSummary } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { MonthStats } from "@/components/mess/month-stats";
 import { CurrentMonthReportTable } from "@/components/mess/current-month-report-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,59 +12,66 @@ export default async function CurrentMonthPage() {
   if (!ctx) redirect("/login");
 
   const month = ctx.currentMonth ?? (await ensureCurrentMonth(ctx.messId));
-  const summary = await getMonthSummary(ctx.messId, month.id);
-  if (!summary) redirect("/portal");
+  const res = await apiGet(`/reports/data?messId=${ctx.messId}&monthId=${month.id}`);
+  const reportData = res?.data;
+  if (!reportData) redirect("/portal");
 
   const t = await getTranslations("messCurrentMonth");
-  const messBalance = summary.totalDeposits - summary.totalExpenses;
-  const totalMealCost = summary.totalMeals * summary.mealRate;
+
+  const summaryList = reportData?.summary || [];
+  const getSummaryVal = (label: string) => {
+    const item = summaryList.find((s: any) => s.label === label);
+    return item?.value ?? "0";
+  };
+
+  const rows = reportData?.rows || [];
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t("title")}</h1>
       <MonthStats
         stats={{
-          monthLabel: summary.month.label,
-          totalMembers: summary.memberCount,
-          totalMeals: summary.totalMeals,
-          totalExpenses: summary.totalExpenses,
-          totalDeposits: summary.totalDeposits,
-          mealRate: summary.mealRate,
-          totalDue: summary.totalDue,
+          monthLabel: month.label,
+          totalMembers: Number(getSummaryVal("Total Members")),
+          totalMeals: Number(getSummaryVal("Total Meals")),
+          totalExpenses: getSummaryVal("Total Expenses"),
+          totalDeposits: getSummaryVal("Total Deposits"),
+          mealRate: getSummaryVal("Meal Rate"),
+          totalDue: getSummaryVal("Total Due"),
         }}
       />
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">{t("messBalance")}</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(messBalance)}</p>
+            <p className="mt-1 text-xl font-bold">{getSummaryVal("Closing Balance")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">{t("totalMealCost")}</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(totalMealCost)}</p>
+            <p className="mt-1 text-xl font-bold">{getSummaryVal("Meal Cost") || formatCurrency(0)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">{t("sharedCost")}</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(summary.month.sharedCost)}</p>
+            <p className="mt-1 text-xl font-bold">{getSummaryVal("Total Shared Cost")}</p>
           </CardContent>
         </Card>
       </div>
       <CurrentMonthReportTable
-        members={summary.members.map((m: any) => ({
-          id: m.id,
-          fullName: m.fullName,
-          phone: m.phone,
-          mealCount: m.mealCount,
-          mealCost: m.mealCost,
-          totalDeposit: m.totalDeposit,
-          sharedCostShare: m.sharedCostShare,
-          due: m.due,
-          advance: m.advance,
-          balance: m.balance,
+        members={rows.map((m: any, idx: number) => ({
+          id: m.id || String(idx),
+          fullName: m.name,
+          phone: m.phone || "",
+          mealCount: m.mealCount || 0,
+          mealCost: m.mealCost || 0,
+          totalDeposit: m.deposit || 0,
+          sharedCostShare: m.billShare || 0,
+          due: m.status === "Due" ? Math.abs(m.balance || 0) : 0,
+          advance: m.status === "Advance" ? m.balance || 0 : 0,
+          balance: m.balance || 0,
         }))}
         labels={{
           memberReport: t("memberReport"),
@@ -74,7 +81,7 @@ export default async function CurrentMonthPage() {
           mealCost: t("mealCost"),
           deposit: t("deposit"),
           sharedCost: t("sharedCost"),
-          totalCost: t("totalCost"),
+ totalCost: t("totalCost"),
           due: t("due"),
           advance: t("advance"),
           balance: t("balance"),

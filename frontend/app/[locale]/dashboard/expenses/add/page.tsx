@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
 import { getActiveMessContext } from "@/lib/mess-context";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { AddMealCostForm } from "@/components/mess/add-cost-form";
 
 export default async function AddCostPage() {
   const ctx = await getActiveMessContext();
   if (!ctx) redirect("/login");
 
-  const members = await db.member.findMany({
-    where: { messId: ctx.messId, status: "ACTIVE", deletedAt: null },
-    select: { id: true, fullName: true },
-    orderBy: { fullName: "asc" },
-  });
+  const res = await apiGet(`/messes/${ctx.messId}`);
+  const members = (res?.data?.members || []).map((m: any) => ({
+    id: m.id,
+    fullName: m.fullName,
+  }));
 
   const today = new Date().toISOString().split("T")[0];
 

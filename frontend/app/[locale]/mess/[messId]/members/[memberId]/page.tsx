@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { db } from "@/lib/db";
-import { getMonthSummary } from "@/actions/monthly";
+import { apiGet } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { messPath } from "@/lib/mess-routes";
 import { Button } from "@/components/ui/button";
@@ -18,22 +17,18 @@ export default async function MemberDetailPage({
 }) {
   const { messId, memberId } = await params;
   const t = await getTranslations("messMembers");
-  const ctx = await requireMessPage(messId, { requireManager: true });
+  await requireMessPage(messId, { requireManager: true });
 
-  const member = await db.member.findFirst({
-    where: { id: memberId, messId: ctx.messId, deletedAt: null },
-    include: { user: { select: { email: true } } },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const mess = res?.data;
+  if (!mess) notFound();
+
+  const member = mess.members?.find((m: any) => m.id === memberId || m.userId === memberId);
   if (!member) notFound();
-
-  const summary = ctx.currentMonth
-    ? await getMonthSummary(ctx.messId, ctx.currentMonth.id)
-    : null;
-  const stats = summary?.members.find((s) => s.id === member.id);
 
   const fields = [
     { label: t("fullName"), value: member.fullName ?? "—" },
-    { label: t("email"), value: member.user.email },
+    { label: t("email"), value: member.user?.email ?? "—" },
     { label: t("phone"), value: member.phone ?? "—" },
     { label: t("nid"), value: member.nid ?? "—" },
     { label: t("bloodGroup"), value: member.bloodGroup ?? "—" },
@@ -42,11 +37,8 @@ export default async function MemberDetailPage({
     { label: t("university"), value: member.university ?? "—" },
     { label: t("role"), value: member.role },
     { label: t("status"), value: member.status },
-    { label: t("joiningDate"), value: formatDate(member.joiningDate) },
-    { label: t("monthlyDeposit"), value: formatCurrency(member.monthlyDeposit) },
-    { label: t("meals"), value: String(stats?.mealCount ?? member.totalMeals) },
-    { label: t("due"), value: formatCurrency(stats?.due ?? member.totalDue) },
-    { label: t("deposit"), value: formatCurrency(stats?.totalDeposit ?? member.totalDeposit) },
+    { label: t("joiningDate"), value: member.joiningDate ? formatDate(member.joiningDate) : "—" },
+    { label: t("monthlyDeposit"), value: formatCurrency(member.monthlyDeposit || 0) },
   ];
 
   return (
@@ -54,7 +46,7 @@ export default async function MemberDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{member.fullName ?? t("unnamed")}</h1>
-          <p className="text-sm text-zinc-500">{member.user.email}</p>
+          <p className="text-sm text-zinc-500">{member.user?.email}</p>
         </div>
         <div className="flex gap-2">
           <Badge variant={member.status === "ACTIVE" ? "success" : "secondary"}>{member.status}</Badge>
@@ -72,7 +64,7 @@ export default async function MemberDetailPage({
           <CardTitle>{t("detailsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
-          {fields.map((f) => (
+          {fields.map((f: any) => (
             <div key={f.label} className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{f.label}</p>
               <p className="mt-0.5 text-sm font-medium break-words">{f.value}</p>

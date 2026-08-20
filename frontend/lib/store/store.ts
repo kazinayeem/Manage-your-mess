@@ -5,6 +5,13 @@ import "./api/analytics-api";
 import "./api/notification-api";
 import "./api/mess-api";
 import "./api/super-admin-api";
+import "./api/dashboard-api";
+import "./api/bazaar-api";
+import "./api/bills-api";
+import "./api/billing-api";
+import "./api/announcement-api";
+import "./api/user-api";
+import "./api/reports-api";
 
 export function makeStore() {
   return configureStore({

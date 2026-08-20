@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_theme.dart';
+import 'app_button.dart';
 
+/// Error state matching the Web error conventions:
+/// red-600 icon, muted message, destructive retry button.
 class ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
@@ -13,7 +18,6 @@ class ErrorView extends StatelessWidget {
   /// Sanitize error messages so raw DioException / stack traces are never shown
   String get _displayMessage {
     final msg = message;
-    // Never show raw Dio/technical errors to users
     if (msg.contains('DioException') ||
         msg.contains('SocketException') ||
         msg.contains('HandshakeException') ||
@@ -23,7 +27,6 @@ class ErrorView extends StatelessWidget {
         msg.contains('validateStatus')) {
       return 'Something went wrong. Please try again.';
     }
-    // Truncate overly long messages
     if (msg.length > 150) {
       return '${msg.substring(0, 147)}...';
     }
@@ -33,40 +36,43 @@ class ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.08),
+                color: AppColors.errorLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline_rounded,
-                  size: 48, color: Colors.redAccent),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: isDark ? AppColors.errorSoft : AppColors.error,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               _displayMessage,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.textTheme.bodyMedium?.color,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.textTheme.bodySmall?.color,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 24),
-              FilledButton.icon(
+              AppButton(
+                text: 'Try Again',
+                variant: AppButtonVariant.outline,
+                icon: Icons.refresh_rounded,
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Try Again'),
-                style: FilledButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
+                width: 140,
               ),
             ],
           ],

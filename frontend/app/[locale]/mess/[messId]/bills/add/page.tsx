@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireMessPage } from "@/lib/require-mess-page";
-import { db } from "@/lib/db";
+import { apiGet } from "@/lib/api-client";
 import { AddBillForm } from "@/components/mess/add-bill-form";
 import { getTranslations } from "next-intl/server";
 
@@ -15,11 +15,13 @@ export default async function AddBillPage({
 
   if (!ctx.capabilities.canManageBills) notFound();
 
-  const members = await db.member.findMany({
-    where: { messId, deletedAt: null, status: "ACTIVE" },
-    include: { bed: { include: { room: true } } },
-    orderBy: { fullName: "asc" },
-  });
+  const res = await apiGet(`/messes/${messId}`);
+  const mess = res?.data;
+  const members = (mess?.members || []).map((m: any) => ({
+    id: m.id,
+    fullName: m.fullName,
+    roomNumber: m.bed?.room?.number ?? null,
+  }));
 
   const defaultBillingMonth = new Date().toISOString().slice(0, 10);
 
@@ -32,11 +34,7 @@ export default async function AddBillPage({
       <AddBillForm
         messId={messId}
         defaultBillingMonth={defaultBillingMonth}
-        members={members.map((m) => ({
-          id: m.id,
-          fullName: m.fullName,
-          roomNumber: m.bed?.room?.number ?? null,
-        }))}
+        members={members}
       />
     </div>
   );

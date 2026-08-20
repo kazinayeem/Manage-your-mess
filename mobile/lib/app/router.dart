@@ -4,6 +4,9 @@ import '../features/auth/splash_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
+import '../features/dashboard/create_mess_screen.dart';
+import '../features/dashboard/join_mess_screen.dart';
+import '../features/dashboard/mess_detail_screen.dart';
 import '../features/meals/meal_screen.dart';
 import '../features/expenses/expense_screen.dart';
 import '../features/deposits/deposit_screen.dart';
@@ -12,6 +15,11 @@ import '../features/members/member_list_screen.dart';
 import '../features/analytics/analytics_screen.dart';
 import '../features/notifications/notification_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/announcements/announcement_screen.dart';
+import '../features/billing/subscription_screen.dart';
+import '../features/billing/payments_screen.dart';
+import '../features/settings/settings_screen.dart';
+import '../features/help/help_center_screen.dart';
 
 // Super Admin imports
 import '../features/admin/admin_dashboard_screen.dart';
@@ -38,6 +46,19 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
+      path: '/create-mess',
+      builder: (context, state) => const CreateMessScreen(),
+    ),
+    GoRoute(
+      path: '/join-mess',
+      builder: (context, state) => const JoinMessScreen(),
+    ),
+    GoRoute(
+      path: '/mess/:id',
+      builder: (context, state) =>
+          MessDetailScreen(messId: state.pathParameters['id']!),
     ),
 
     // ────────────────────────────────────────────────────────────────────────
@@ -153,41 +174,52 @@ final appRouter = GoRouter(
       builder: (context, state, navigationShell) {
         return Scaffold(
           body: navigationShell,
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: navigationShell.currentIndex,
-            onDestinationSelected: (index) {
-              navigationShell.goBranch(
-                index,
-                initialLocation: index == navigationShell.currentIndex,
-              );
-            },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Home',
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF27272A)
+                      : const Color(0xFFE4E4E7),
+                ),
               ),
-              NavigationDestination(
-                icon: Icon(Icons.restaurant_outlined),
-                selectedIcon: Icon(Icons.restaurant_rounded),
-                label: 'Meals',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long_rounded),
-                label: 'Expenses',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.shopping_bag_outlined),
-                selectedIcon: Icon(Icons.shopping_bag_rounded),
-                label: 'Bazaar',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
-            ],
+            ),
+            child: NavigationBar(
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: (index) {
+                navigationShell.goBranch(
+                  index,
+                  initialLocation: index == navigationShell.currentIndex,
+                );
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.restaurant_outlined),
+                  selectedIcon: Icon(Icons.restaurant_rounded),
+                  label: 'Meals',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long_rounded),
+                  label: 'Expenses',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.shopping_bag_outlined),
+                  selectedIcon: Icon(Icons.shopping_bag_rounded),
+                  label: 'Bazaar',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline_rounded),
+                  selectedIcon: Icon(Icons.person_rounded),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -249,6 +281,26 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/notifications',
       builder: (context, state) => const NotificationScreen(),
+    ),
+    GoRoute(
+      path: '/announcements',
+      builder: (context, state) => const AnnouncementScreen(),
+    ),
+    GoRoute(
+      path: '/subscription',
+      builder: (context, state) => const SubscriptionScreen(),
+    ),
+    GoRoute(
+      path: '/payments',
+      builder: (context, state) => const PaymentsScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/help',
+      builder: (context, state) => const HelpCenterScreen(),
     ),
   ],
 );

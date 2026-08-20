@@ -1,7 +1,10 @@
 "use client";
 
 import { useRouter } from "@/i18n/navigation";
-import { markAllNotificationsRead, markNotificationRead } from "@/actions/notifications";
+import {
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} from "@/lib/store/api/notification-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +22,8 @@ type NotificationRow = {
 
 export function NotificationsList({ notifications }: { notifications: NotificationRow[] }) {
   const router = useRouter();
+  const [markRead] = useMarkNotificationReadMutation();
+  const [markAllRead] = useMarkAllNotificationsReadMutation();
 
   if (!notifications.length) {
     return <p className="text-sm text-zinc-500">No notifications yet.</p>;
@@ -33,10 +38,12 @@ export function NotificationsList({ notifications }: { notifications: Notificati
           variant="outline"
           size="sm"
           onClick={async () => {
-            const r = await markAllNotificationsRead();
-            if (r.success) {
+            try {
+              await markAllRead().unwrap();
               toast.success("All marked as read");
               router.refresh();
+            } catch (e) {
+              toast.error("Failed to mark all as read");
             }
           }}
         >
@@ -60,8 +67,12 @@ export function NotificationsList({ notifications }: { notifications: Notificati
                   size="sm"
                   variant="ghost"
                   onClick={async () => {
-                    await markNotificationRead(n.id);
-                    router.refresh();
+                    try {
+                      await markRead({ id: n.id }).unwrap();
+                      router.refresh();
+                    } catch (e) {
+                      toast.error("Failed to mark notification read");
+                    }
                   }}
                 >
                   Mark read

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { fetchReportData } from "@/actions/reports";
+import { apiGet } from "@/lib/api-client";
 import { generateReportPdf, printReportPdf } from "@/lib/reports/export-pdf";
 import { downloadReportCsv, downloadReportExcel } from "@/lib/reports/export-spreadsheet";
 import { localizeReportPayload } from "@/lib/reports/localize-payload";
@@ -142,24 +142,24 @@ export function ReportsHub({
     async (type: ReportType) => {
       setLoading(true);
       setActiveType(type);
-      const def = REPORT_DEFS.find((d) => d.type === type);
-      const result = await fetchReportData(messId, monthId, type, {
-        date: def?.needsDate ? reportDate : undefined,
-        dateRangeStart: dateRange.start.toISOString().split("T")[0],
-        dateRangeEnd: dateRange.end.toISOString().split("T")[0],
-        currency,
-        generatedBy,
-        locale: reportLocale,
-      });
-      setLoading(false);
-      if (!result.success) {
-        toast.error(result.error);
+      try {
+        const result = await apiGet<{ success: boolean; data?: ReportPayload }>(
+          `/reports/data?messId=${messId}&monthId=${monthId}&reportType=${type}&locale=${reportLocale}`
+        );
+        setLoading(false);
+        if (!result.success || !result.data) {
+          toast.error("Failed to load report");
+          setPayload(null);
+          return;
+        }
+        setPayload(result.data);
+      } catch (e: any) {
+        setLoading(false);
+        toast.error(e?.message || "Failed to load report");
         setPayload(null);
-        return;
       }
-      setPayload(result.data);
     },
-    [messId, monthId, reportDate, dateRange, currency, generatedBy, reportLocale]
+    [messId, monthId, reportLocale]
   );
 
   const displayPayload = useMemo(
